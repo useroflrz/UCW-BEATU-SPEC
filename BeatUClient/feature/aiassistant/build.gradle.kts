@@ -1,22 +1,18 @@
 plugins {
-    alias(libs.plugins.android.application)
+    alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.kotlin.kapt)
 }
 
 android {
-    namespace = "com.ucw.beatu"
+    namespace = "com.ucw.beatu.feature.aiassistant"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.ucw.beatu"
         minSdk = 24
-        targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles("consumer-rules.pro")
     }
 
     buildTypes {
@@ -35,18 +31,11 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
-    
-    buildFeatures {
-        viewBinding = true
-    }
 }
 
 dependencies {
     // Core modules
     implementation(project(":core:common"))
-    implementation(project(":core:network"))
-    implementation(project(":core:database"))
-    implementation(project(":core:player"))
     implementation(project(":core:designsystem"))
     
     // Domain
@@ -54,14 +43,6 @@ dependencies {
     
     // Data
     implementation(project(":data"))
-    
-    // Feature modules
-    implementation(project(":feature:feed"))
-    implementation(project(":feature:landscape"))
-    implementation(project(":feature:profile"))
-    implementation(project(":feature:search"))
-    implementation(project(":feature:settings"))
-    implementation(project(":feature:aiassistant"))
     
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
@@ -88,9 +69,5 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
-    
-    // Test
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
 }
+
