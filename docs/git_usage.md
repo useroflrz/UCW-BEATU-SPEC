@@ -22,7 +22,7 @@
 UCW-BEATU-SPEC (外层仓库)
 ├── .gitmodules          # 子模块配置文件
 ├── .cursorrules         # 项目规范
-└── BeatU/               # 子模块（Android 项目）
+└── BeatUClient/               # 子模块（Android 项目）
     ├── app/
     ├── gradle/
     └── ...
@@ -63,7 +63,7 @@ git submodule update --init --recursive
 
 ```bash
 # 进入子模块目录
-cd BeatU
+cd BeatUClient
 
 # 切换到 main 分支
 git checkout main
@@ -98,7 +98,7 @@ git pull origin main
 git submodule update --remote
 
 # 方法二：进入子模块目录手动更新
-cd BeatU
+cd BeatUClient
 git pull origin main
 cd ..
 ```
@@ -110,7 +110,7 @@ cd ..
 git pull origin main
 
 # 2. 进入子模块
-cd BeatU
+cd BeatUClient
 
 # 3. 确保在 main 分支
 git checkout main
@@ -130,7 +130,7 @@ cd ..
 
 ```bash
 # 进入子模块目录
-cd BeatU
+cd BeatUClient
 
 # 确认当前分支（应该显示 main）
 git branch
@@ -143,7 +143,7 @@ git checkout main
 
 ```bash
 # 1. 进入子模块目录
-cd BeatU
+cd BeatUClient
 
 # 2. 确保在 main 分支
 git checkout main
@@ -174,13 +174,13 @@ cd ..
 
 # 查看子模块状态（应该显示子模块有新的提交）
 git status
-# 会显示类似：modified: BeatU (new commits)
+# 会显示类似：modified: BeatUClient (new commits)
 
 # 添加子模块引用更新
-git add BeatU
+git add BeatUClient
 
 # 提交子模块引用更新
-git commit -m "chore: 更新 BeatU 子模块到最新版本"
+git commit -m "chore: 更新 BeatUClient 子模块到最新版本"
 
 # 推送到外层仓库
 git push origin main
@@ -196,7 +196,7 @@ git push origin main
 
 ```bash
 # ========== 步骤 1: 推送子模块 ==========
-cd BeatU
+cd BeatUClient
 
 # 确保在 main 分支
 git checkout main
@@ -210,10 +210,10 @@ cd ..
 
 # ========== 步骤 2: 更新外层仓库引用 ==========
 # 在外层目录添加子模块引用更新
-git add BeatU
+git add BeatUClient
 
 # 提交外层仓库
-git commit -m "chore: 更新 BeatU 子模块到最新版本"
+git commit -m "chore: 更新 BeatUClient 子模块到最新版本"
 
 # 推送外层仓库
 git push origin main
@@ -227,11 +227,11 @@ git push origin main
 
 2. **只推送了子模块，忘记更新外层引用**
    - 问题：其他成员无法获取到最新代码
-   - 解决：推送子模块后，必须在外层目录执行 `git add BeatU` 并提交推送
+   - 解决：推送子模块后，必须在外层目录执行 `git add BeatUClient` 并提交推送
 
-3. **在外层目录直接 `git add BeatU/`**
+3. **在外层目录直接 `git add BeatUClient/`**
    - 问题：会破坏子模块结构
-   - 解决：只能使用 `git add BeatU`（不带斜杠）来更新子模块引用
+   - 解决：只能使用 `git add BeatUClient`（不带斜杠）来更新子模块引用
 
 ---
 
@@ -242,7 +242,7 @@ git push origin main
 **现象：**
 
 ```bash
-cd BeatU
+cd BeatUClient
 git status
 # 显示：HEAD detached at abc1234
 ```
@@ -264,7 +264,7 @@ git checkout -b main origin/main
 **解决：**
 
 ```bash
-cd BeatU
+cd BeatUClient
 git checkout main
 git pull origin main
 cd ..
@@ -276,7 +276,7 @@ cd ..
 
 ```bash
 git status
-# 显示：modified: BeatU (modified content)
+# 显示：modified: BeatUClient (modified content)
 ```
 
 **原因：** 子模块目录中有未提交的修改
@@ -285,7 +285,7 @@ git status
 
 ```bash
 # 进入子模块查看并处理
-cd BeatU
+cd BeatUClient
 git status
 git diff
 
@@ -302,7 +302,7 @@ cd ..
 
 ### 问题 4: 克隆后子模块目录为空
 
-**现象：** `BeatU/` 目录存在但是空的
+**现象：** `BeatUClient/` 目录存在但是空的
 
 **原因：** 克隆时没有初始化子模块
 
@@ -313,7 +313,7 @@ cd ..
 git submodule update --init --recursive
 
 # 进入子模块并切换分支
-cd BeatU
+cd BeatUClient
 git checkout main
 cd ..
 ```
@@ -326,7 +326,7 @@ cd ..
 
 ```bash
 # 在子模块中
-cd BeatU
+cd BeatUClient
 git pull origin main
 # 如果有冲突，解决冲突后再推送
 git push origin main
@@ -355,7 +355,7 @@ git push origin main
 
 ```bash
 # 进入子模块
-cd BeatU
+cd BeatUClient
 
 # 从 main 创建新分支
 git checkout main
@@ -369,8 +369,8 @@ git push origin main
 
 # 返回外层，更新子模块引用
 cd ..
-git add BeatU
-git commit -m "chore: 更新 BeatU 子模块到 feature/video-player 合并后版本"
+git add BeatUClient
+git commit -m "chore: 更新 BeatUClient 子模块到 feature/video-player 合并后版本"
 git push origin main
 ```
 
@@ -387,7 +387,7 @@ git push origin main
 
 ```bash
 # ✅ 1. 确认在正确的目录和分支
-cd BeatU
+cd BeatUClient
 git branch          # 应该显示: * main
 git status          # 查看修改状态
 
@@ -401,8 +401,8 @@ git push origin main
 
 # ✅ 4. 返回外层，更新子模块引用
 cd ..
-git add BeatU
-git commit -m "chore: 更新 BeatU 子模块"
+git add BeatUClient
+git commit -m "chore: 更新 BeatUClient 子模块"
 git push origin main
 ```
 
@@ -412,7 +412,7 @@ git push origin main
 |------|------|
 | 克隆项目（包含子模块） | `git clone --recursive <url>` |
 | 初始化子模块 | `git submodule update --init --recursive` |
-| 进入子模块 | `cd BeatU` |
+| 进入子模块 | `cd BeatUClient` |
 | 切换到 main 分支 | `git checkout main` |
 | 更新子模块到最新 | `git submodule update --remote` |
 | 查看子模块状态 | `git status`（在外层目录） |
@@ -456,7 +456,7 @@ git push origin main
 ```bash
 git commit -m "feat(video): 添加 ExoPlayer 播放器支持"
 git commit -m "fix(player): 修复内存泄漏问题"
-git commit -m "chore: 更新 BeatU 子模块到最新版本"
+git commit -m "chore: 更新 BeatUClient 子模块到最新版本"
 ```
 
 ---
