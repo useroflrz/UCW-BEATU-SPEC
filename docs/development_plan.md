@@ -5,35 +5,35 @@
 ### 1. 当前迭代任务
 
 - [x] 项目目录与文档骨架搭建  
-  - 2025-11-18 - done by AI-assistant  
+  - 2025-11-18 - done by LRZ  
   - 内容：顶层仓库结构说明、Android 客户端模块规划草案、核心文档文件创建（`README.md`、`docs/architecture.md`、`docs/getting_started.md`、`docs/api_reference.md`、`docs/development_plan.md`）。
 
 - [x] BeatU 客户端文档与需求目录结构规划  
-  - 2025-11-18 - done by AI-assistant  
+  - 2025-11-18 - done by LRZ  
   - 内容：`BeatU/docs` 客户端文档结构（架构/Feature/播放器/AI/性能/交互/测试/ADR）与 `BeatU/docs/requirements` 需求文档目录（图片参考 + 文字总结版）骨架搭建。
 
 - [x] BeatUClient 空视图 Activity 初始化后文档同步  
-  - 2025-11-19 - done by AI-assistant  
+  - 2025-11-19 - done by LRZ  
   - 内容：原 `BeatU` Android 客户端已重置为 `BeatUClient`（Empty Views Activity 模板），同步更新 README、架构、上手、API 等文档中的目录命名与初始化说明。
 
 - [x] BeatU 最新需求导入与根目录规范更新  
-  - 2025-11-19 - done by AI-assistant  
+  - 2025-11-19 - done by LRZ  
   - 内容：依据 `BeatUClient/docs/需求.md` 及原型图补充 `.cursorrules`、README、Getting Started、Architecture、API Reference，明确 ViewPager2+ExoPlayer 播放器复用、交互/横屏/AI 能力与性能指标，并在本计划中登记后续任务。
 
 - [x] BeatU 客户端技术方案白皮书（架构与目录规划）  
-  - 2025-11-19 - done by AI-assistant  
+  - 2025-11-19 - done by LRZ  
   - 成果：新增 `docs/client_tech_whitepaper.md`，总结 Clean Architecture 模块划分、播放器/性能/AI 策略与目录规划代码区，为后续模块化开发提供统一蓝本。
 
 - [x] 项目文档技术栈修正（移除 Compose，明确使用原生 View 系统）  
-  - 2025-01-XX - done by AI-assistant  
+  - 2025-11-20 - done by LRZ  
   - 内容：修正所有项目文档（`.cursorrules`、`README.md`、`docs/architecture.md`、`docs/client_tech_whitepaper.md`、`docs/getting_started.md`），明确技术栈使用**原生 View 系统**（TextView、ImageView、RecyclerView 等）+ **Jetpack View 组件**（ViewPager2、Navigation、MotionLayout）+ 传统 XML 布局，**不使用 Jetpack Compose**。统一采用 Activity/Fragment + 原生 View + XML 布局的技术栈。
 
 - [x] 刷视频行为代码级流程文档  
-  - 2025-01-XX - done by AI-assistant  
+  - 2025-11-20 - done by LRZ  
   - 内容：新增 `docs/code_flow_feed_scrolling.md`，详细描述用户从打开 App 到刷视频（上下滑动切换）的完整代码级流程，涵盖模块调用链（`app/` → `feature/feed/` → `domain/` → `data/` → `core/`）、数据流转路径（Retrofit → Repository → UseCase → ViewModel → UI）、播放器生命周期管理（PlayerPool、预加载、资源释放）与关键代码位置索引。为后续开发提供统一的代码流程参考。
 
 - [x] 第一阶段：基础架构搭建  
-  - 2025-01-XX - done by AI-assistant  
+  - 2025-11-20 - done by LRZ  
   - 内容：
     1. ✅ 更新 `libs.versions.toml` 添加所有关键依赖（ExoPlayer、ViewPager2、Paging3、Retrofit、OkHttp、Room、Hilt、Navigation、Coil、Coroutines 等）
     2. ✅ 创建完整的模块化结构：
@@ -52,8 +52,21 @@
   - 成果：项目已具备完整的模块化架构骨架，所有依赖已配置，Hilt 已集成，Base 类已创建，可以开始第二阶段开发。
 
 - [x] BeatUClient 移除 Git 子模块模式并调整文档  
-  - 2025-11-20 - done by AI-assistant  
+  - 2025-11-20 - done by LRZ  
   - 内容：删除 `.gitmodules`，将 BeatUClient 视为父仓库内常规目录，更新 Git 使用规范以反映新的仓库结构与协作流程。
+
+- [x] 制定 20 天阶段化分工开发流程  
+  - 2025-11-20 - done by LRZ  
+  - 内容：基于独立功能负责制，梳理 20 天（4 周工作日）的文档驱动流程、阶段目标、交付物与量化指标，并输出独立 `docs/20_day_feature_plan.md` 供全员对齐。
+
+- [x] 第二阶段：核心基础设施落地  
+  - 2025-11-20 - done by LRZ  
+  - 内容：  
+    1. `core/common`：新增 `AppResult`、`AppLogger`、`DispatcherProvider`、`MetricsTracker`、`PlaybackMetrics`、`Stopwatch`。  
+    2. `core/network`：实现 `NetworkConfig`、`HeaderInterceptor`、`NetworkLoggingInterceptor`、`OkHttpProvider`、`RetrofitProvider`、`ConnectivityObserver`。  
+    3. `core/database`：搭建 Room `BeatUDatabase`、DAO（`VideoDao`/`CommentDao`/`InteractionStateDao`）、Entity 与 `Converters`。  
+    4. `core/player`：实现 `VideoPlayer` 抽象、`VideoSource`/`VideoQuality`、`VideoPlayerConfig`、`ExoVideoPlayer`、`VideoPlayerPool`、`PlayerMetricsTracker`。  
+    5. 将上述交付同步至 `docs/architecture.md`、`docs/client_tech_whitepaper.md`，并保持未来阶段可扩展性。
 
 ### 2. 待规划任务示例（占位）
 

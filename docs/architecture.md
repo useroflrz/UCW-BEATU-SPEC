@@ -87,5 +87,13 @@ Data Layer (RemoteDataSource + LocalCache + PlayerDataSource)
 - 与设计稿对齐横屏/评论交互状态。
 - 在 `docs/api_reference.md` 中补充上述接口的字段定义与契约。
 
+### 9. 第二阶段：核心基础设施落地（2025-11-20）
+
+- `core/common`：落地 `AppResult`、`AppLogger`、`MetricsTracker`、`PlaybackMetrics`、`Stopwatch` 与 `DispatcherProvider`，作为跨层标准工具集，为 Repository 与 UseCase 提供统一的结果包装与性能埋点。
+- `core/network`：产出 `NetworkConfig`、`HeaderInterceptor`、`NetworkLoggingInterceptor`、`OkHttpProvider`、`RetrofitProvider` 与 `ConnectivityObserver`。支持自定义 Header、磁盘缓存、动态日志开关以及网络可达性 Flow，供 Data 层按需注入。
+- `core/database`：基于 Room 构建 `BeatUDatabase`，定义 `VideoEntity`、`CommentEntity`、`InteractionStateEntity`、`Converters` 以及对应 DAO（`VideoDao`、`CommentDao`、`InteractionStateDao`）。数据库构建器默认开启 `fallbackToDestructiveMigration` 以便快速迭代。
+- `core/player`：实现 `VideoPlayer` 接口、`VideoSource`/`VideoQuality` 模型、`VideoPlayerConfig`、`ExoVideoPlayer` 与 `VideoPlayerPool`，并提供 `PlayerMetricsTracker` 负责与 `core/common/metrics` 对接，形成播放器复用 + 指标采集闭环。
+- 以上模块均保持与 Hilt 解耦（纯 Kotlin/Android 类），保证 Feature 与 Data 层在需要时通过 Module/DI 注入，满足 Clean Architecture 的依赖倒置原则。
+
 
 

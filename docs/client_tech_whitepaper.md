@@ -123,4 +123,12 @@ BeatUClient/
 3. 在 `docs/architecture.md` 增补 Player 状态机与模块依赖图，保持与本白皮书一致。
 4. 将该文档纳入评审基线，后续迭代更新技术亮点与指标达成情况。
 
+## 10. 第二阶段交付物快照（2025-11-20）
+
+- **Core Common**：提供 `AppResult`、`AppLogger`、`DispatcherProvider`、`Stopwatch`、`MetricsTracker` 与 `PlaybackMetrics`，确保数据层/领域层有统一的异常包装与指标归集能力。
+- **Core Network**：配置化 `NetworkConfig` + `OkHttpProvider` + `RetrofitProvider` + `ConnectivityObserver` + 拦截器组合，满足 Header 注入、磁盘缓存、可观测日志以及弱网感知。
+- **Core Database**：Room 化 `BeatUDatabase`（含 `VideoEntity`、`CommentEntity`、`InteractionStateEntity`、DAO 与 TypeConverter），支持 Feed/评论/互动状态离线持久化。
+- **Core Player**：`VideoPlayer` 抽象 + `VideoSource`/`VideoQuality` 模型 + `ExoVideoPlayer` + `VideoPlayerPool` + `PlayerMetricsTracker`，兑现播放器复用池与指标采集方案。
+- 所有模块皆解耦于 UI/Feature，后续仅需在 Data 层通过 Hilt/DI 将这些能力组装即可进入第三阶段（Repository + UseCase 实现）。
+
 
