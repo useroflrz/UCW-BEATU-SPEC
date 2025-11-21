@@ -1,0 +1,36 @@
+R_DEF: Internal format may change without notice
+local
+drawable bg_add_icon
+drawable bg_avatar_circle
+drawable bg_tab_selected
+drawable bg_tab_unselected
+drawable ic_avatar_placeholder
+id bottom_interaction
+id btn_follow
+id btn_me
+id btn_recommend
+id iv_add_avatar
+id iv_avatar
+id iv_comment
+id iv_favorite
+id iv_like
+id iv_search
+id iv_share
+id top_navigation
+id tv_username
+id tv_video_description
+id tv_video_placeholder
+id video_container
+layout fragment_feed
+string app_name
+string comment
+string favorite
+string like
+string search
+string share
+string tab_follow
+string tab_me
+string tab_recommend
+string username
+string video_description
+string video_placeholder

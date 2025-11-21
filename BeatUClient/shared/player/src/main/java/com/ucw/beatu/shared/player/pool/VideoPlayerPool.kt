@@ -6,7 +6,7 @@ import com.ucw.beatu.shared.player.VideoPlayer
 import com.ucw.beatu.shared.player.impl.ExoVideoPlayer
 import com.ucw.beatu.shared.player.model.VideoPlayerConfig
 import com.ucw.beatu.shared.player.model.VideoSource
-import java.util.ArrayDeque
+import kotlin.collections.ArrayDeque
 
 class VideoPlayerPool(
     private val context: Context,

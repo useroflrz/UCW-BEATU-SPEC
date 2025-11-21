@@ -32,9 +32,6 @@ android {
 }
 
 dependencies {
-    // Business Data
-    implementation(project(":business:landscape:data"))
-    
     // Shared modules
     implementation(project(":shared:common"))
     

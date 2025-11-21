@@ -71,7 +71,7 @@
     5. 将上述交付同步至 `docs/architecture.md`、`docs/client_tech_whitepaper.md`，并保持未来阶段可扩展性。
 
 - [x] 架构重构方案制定  
-  - 2025-11-20 - done by Auto  
+  - 2025-11-20 - done by LRZ  
   - 内容：从技术层划分（MVVM + Clean Architecture）重构为业务边界划分，每个业务内部采用 Clean Architecture + Feature 分层，公共模块独立搭建。  
   - 成果：新增 `docs/重构方案.md`，包含：
     1. 重构背景与目标分析
@@ -85,7 +85,7 @@
   - 下一步：按照重构方案逐步执行迁移，预计 18-26 天（单人）或 10-12 天（3-4 人并行）
 
 - [x] 阶段 0：架构重构准备与公共模块迁移  
-  - 2025-11-20 - done by Auto  
+  - 2025-11-20 - done by LRZ  
   - 内容：
     1. ✅ 创建新目录结构骨架（`business/` 和 `shared/`）
     2. ✅ 迁移 `core/*` 到 `shared/*`（common、network、database、player、designsystem）
@@ -96,6 +96,22 @@
     7. ✅ 更新所有文档（architecture.md、getting_started.md、development_plan.md）
   - 成果：新架构目录结构已建立，公共模块已迁移并完成代码编写，业务模块骨架已创建，文档已更新。可以开始阶段 1：独立业务迁移。
 
+- [x] BeatUClient 构建失败排查（build.gradle.kts 全量校验）  
+  - 2025-11-21 - done by LRZ  
+  - 需求：用户反馈构建失败，需逐一检查根工程与多模块的 `build.gradle.kts`（含 `app/`、`shared/*`、`business/*` 等）是否存在括号/花括号未闭合、语法错误或依赖声明异常，并总结发现问题及修复建议。  
+  - 方案：按照模块分组执行静态检查（Gradle Kotlin DSL 语法、依赖块、plugins、android 配置），必要时用脚本辅助校验，输出问题列表与后续修复计划。  
+  - 成果：编写括号配对检测脚本，全量扫描 30+ `build.gradle.kts`，发现并修复 `business/*/presentation` 四个模块中 `implementation(...)` 缺失右括号的问题；重新扫描结果为 `OK`。因环境缺少 `JAVA_HOME`，暂无法在本地跑 `gradlew help` 进一步验证，需待环境补齐后复测。
+
+- [x] AI 模块循环依赖排查（business:ai:data ↔ domain）  
+  - 2025-11-21 - LRZ 
+  - 需求：Gradle 报告 `business:ai:data` 与 `business:ai:domain` 之间存在任务级循环（`bundleLibCompileToJarDebug` ↔ `compileDebugKotlin`），导致构建失败。需定位模块依赖声明是否互相引用（Domain 不应依赖 Data），并给出调整方案。  
+  - 方案：审查 `business/ai/data`、`business/ai/domain` 的 `build.gradle.kts` 与源码包结构，梳理 `implementation(project(...))` 引用链，必要时用脚本可视化模块依赖。输出修复建议并验证 Gradle 任务图。  
+  - 成果：定位到所有业务 Domain 模块均误依赖各自 Data 模块，造成 Data ↔ Domain 构建环。已移除 `:business:*:domain` 对 `:business:*:data` 的 `implementation`（包含 ai、videofeed、landscape、search、settings、user），现仅 Data 依赖 Domain，满足 Clean Architecture。由于本机仍缺少 `JAVA_HOME`，Gradle 验证需在补齐 JDK 后执行。
+
+- [ ] Media3 依赖缺失导致构建失败排查  
+  - 2025-11-21 - owner GPT-5.1 Codex  
+  - 需求：执行 `:app:assembleDebug` 时，`:app`、`:business:videofeed:presentation`、`:shared:player` 等任务均因无法解析 `androidx.media3` 的 `2.19.1` 版本而失败。需确认 `libs.versions.toml` 中的播放器依赖是否使用正确的 Media3 版本，并保证官方 Maven 仓库可获取。  
+  - 方案：调研 Media3 最新稳定版本（>=1.4.x），更新 `versions.exoplayer` 及相关依赖坐标；同步验证 `shared/player` 的依赖块与文档描述，确保播放器层可顺利构建。
 
 
 > 后续迭代中，请将具体任务拆分为更细粒度条目，并在完成后标记 `[x]`，附上日期与负责人。

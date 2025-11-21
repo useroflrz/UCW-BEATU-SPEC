@@ -18,7 +18,7 @@ abstract class BaseActivity<VB : ViewBinding, VM : ViewModel> : AppCompatActivit
         super.onCreate(savedInstanceState)
         binding = getViewBinding()
         setContentView(binding.root)
-        viewModel = getViewModel()
+        viewModel = provideViewModel()
         initViews()
         observeViewModel()
     }
@@ -29,9 +29,9 @@ abstract class BaseActivity<VB : ViewBinding, VM : ViewModel> : AppCompatActivit
     protected abstract fun getViewBinding(): VB
     
     /**
-     * 获取 ViewModel
+     * 提供 ViewModel
      */
-    protected abstract fun getViewModel(): VM
+    protected abstract fun provideViewModel(): VM
     
     /**
      * 初始化视图

@@ -31,7 +31,7 @@ abstract class BaseFragment<VB : ViewBinding, VM : ViewModel> : Fragment() {
     
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        viewModel = getViewModel()
+        viewModel = provideViewModel()
         initViews()
         observeViewModel()
     }
@@ -50,9 +50,9 @@ abstract class BaseFragment<VB : ViewBinding, VM : ViewModel> : Fragment() {
     ): VB
     
     /**
-     * 获取 ViewModel
+     * 提供 ViewModel
      */
-    protected abstract fun getViewModel(): VM
+    protected abstract fun provideViewModel(): VM
     
     /**
      * 初始化视图

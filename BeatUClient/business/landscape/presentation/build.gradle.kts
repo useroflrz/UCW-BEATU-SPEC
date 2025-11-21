@@ -49,9 +49,9 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.fragment.ktx
-    implementation(libs.androidx.navigation.fragment.ktx
-    implementation(libs.androidx.navigation.ui.ktx
+    implementation(libs.androidx.fragment.ktx)
+    implementation(libs.androidx.navigation.fragment.ktx)
+    implementation(libs.androidx.navigation.ui.ktx)
     
     // Hilt
     implementation(libs.hilt.android)

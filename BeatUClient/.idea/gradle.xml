@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GradleMigrationSettings" migrationVersion="1" />
+  <component name="GradleSettings">
+    <option name="linkedExternalProjectsSettings">
+      <GradleProjectSettings>
+        <option name="testRunner" value="CHOOSE_PER_TEST" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="gradleJvm" value="#GRADLE_LOCAL_JAVA_HOME" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/app" />
+            <option value="$PROJECT_DIR$/business" />
+            <option value="$PROJECT_DIR$/business/ai" />
+            <option value="$PROJECT_DIR$/business/ai/data" />
+            <option value="$PROJECT_DIR$/business/ai/domain" />
+            <option value="$PROJECT_DIR$/business/ai/presentation" />
+            <option value="$PROJECT_DIR$/business/landscape" />
+            <option value="$PROJECT_DIR$/business/landscape/data" />
+            <option value="$PROJECT_DIR$/business/landscape/domain" />
+            <option value="$PROJECT_DIR$/business/landscape/presentation" />
+            <option value="$PROJECT_DIR$/business/search" />
+            <option value="$PROJECT_DIR$/business/search/data" />
+            <option value="$PROJECT_DIR$/business/search/domain" />
+            <option value="$PROJECT_DIR$/business/search/presentation" />
+            <option value="$PROJECT_DIR$/business/settings" />
+            <option value="$PROJECT_DIR$/business/settings/data" />
+            <option value="$PROJECT_DIR$/business/settings/domain" />
+            <option value="$PROJECT_DIR$/business/settings/presentation" />
+            <option value="$PROJECT_DIR$/business/user" />
+            <option value="$PROJECT_DIR$/business/user/data" />
+            <option value="$PROJECT_DIR$/business/user/domain" />
+            <option value="$PROJECT_DIR$/business/user/presentation" />
+            <option value="$PROJECT_DIR$/business/videofeed" />
+            <option value="$PROJECT_DIR$/business/videofeed/data" />
+            <option value="$PROJECT_DIR$/business/videofeed/domain" />
+            <option value="$PROJECT_DIR$/business/videofeed/presentation" />
+            <option value="$PROJECT_DIR$/shared" />
+            <option value="$PROJECT_DIR$/shared/common" />
+            <option value="$PROJECT_DIR$/shared/database" />
+            <option value="$PROJECT_DIR$/shared/designsystem" />
+            <option value="$PROJECT_DIR$/shared/network" />
+            <option value="$PROJECT_DIR$/shared/player" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+    </option>
+  </component>
+</project>
