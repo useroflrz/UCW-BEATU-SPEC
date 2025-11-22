@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF000000">
+
+    <!-- 顶部导航栏 - 与 FeedFragment 保持一致 -->
+    <LinearLayout
+        android:id="@+id/top_navigation"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:elevation="4dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Tab 容器 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="4dp"
+            android:layout_marginEnd="16dp">
+
+            <!-- 关注按钮 -->
+            <TextView
+                android:id="@+id/btn_follow"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="关注"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#CCFFFFFF"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground" />
+
+            <!-- 推荐按钮 -->
+            <TextView
+                android:id="@+id/btn_recommend"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="推荐"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#CCFFFFFF"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp" />
+
+            <!-- 我按钮 -->
+            <TextView
+                android:id="@+id/btn_me"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="我"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFFFF"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground" />
+
+        </LinearLayout>
+
+        <!-- 搜索图标 -->
+        <FrameLayout
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackgroundBorderless">
+
+            <ImageView
+                android:id="@+id/iv_search"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_menu_search"
+                android:contentDescription="搜索"
+                android:layout_gravity="center"
+                app:tint="#FFFFFFFF" />
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+    <!-- 可滚动内容区域（只包含用户信息和统计信息） -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scroll_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fillViewport="false"
+        app:layout_constraintTop_toBottomOf="@id/top_navigation"
+        app:layout_constraintBottom_toTopOf="@id/tabs_container"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- 用户信息区域 -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/user_info_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:paddingTop="24dp"
+                android:paddingBottom="16dp"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <!-- 用户头像 -->
+                <FrameLayout
+                    android:id="@+id/avatar_container"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:background="@drawable/bg_avatar_rounded"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent">
+
+                    <ImageView
+                        android:id="@+id/iv_avatar"
+                        android:layout_width="76dp"
+                        android:layout_height="76dp"
+                        android:layout_gravity="center"
+                        android:clipToOutline="true"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/ic_avatar_placeholder" />
+
+                </FrameLayout>
+
+                <!-- 用户昵称 - 在头像右边一点，相对现在要下面一点 -->
+
+                <!-- 一句话介绍 - 在名字下面，与名字左对齐 -->
+                <TextView
+                    android:id="@+id/tv_username"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginTop="12dp"
+                    android:text="名字"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintHorizontal_bias="0.054"
+                    app:layout_constraintStart_toEndOf="@id/avatar_container"
+                    app:layout_constraintTop_toTopOf="@id/avatar_container" />
+
+                <TextView
+                    android:id="@+id/tv_bio"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="一句话介绍一下自己"
+                    android:textSize="14sp"
+                    android:textColor="#80FFFFFF"
+                    android:maxLines="2"
+                    android:ellipsize="end"
+                    app:layout_constraintStart_toStartOf="@id/tv_username"
+                    app:layout_constraintTop_toBottomOf="@id/tv_username"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    android:layout_marginTop="6dp" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- 用户统计信息 -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/stats_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:paddingBottom="16dp"
+                app:layout_constraintTop_toBottomOf="@id/user_info_container"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <!-- 获赞数 -->
+                <TextView
+                    android:id="@+id/tv_likes_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="5.6万"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFFFF"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tv_following_count"
+                    app:layout_constraintHorizontal_chainStyle="spread"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/tv_likes_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="获赞"
+                    android:textSize="14sp"
+                    android:textColor="#80FFFFFF"
+                    app:layout_constraintStart_toStartOf="@id/tv_likes_count"
+                    app:layout_constraintTop_toBottomOf="@id/tv_likes_count"
+                    app:layout_constraintEnd_toEndOf="@id/tv_likes_count" />
+
+                <!-- 关注数 -->
+                <TextView
+                    android:id="@+id/tv_following_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="128"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFFFF"
+                    app:layout_constraintStart_toEndOf="@id/tv_likes_count"
+                    app:layout_constraintTop_toTopOf="@id/tv_likes_count"
+                    app:layout_constraintEnd_toStartOf="@id/tv_followers_count"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/tv_following_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="关注"
+                    android:textSize="14sp"
+                    android:textColor="#80FFFFFF"
+                    app:layout_constraintStart_toStartOf="@id/tv_following_count"
+                    app:layout_constraintTop_toBottomOf="@id/tv_following_count"
+                    app:layout_constraintEnd_toEndOf="@id/tv_following_count" />
+
+                <!-- 粉丝数 -->
+                <TextView
+                    android:id="@+id/tv_followers_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="1.2万"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFFFF"
+                    app:layout_constraintStart_toEndOf="@id/tv_following_count"
+                    app:layout_constraintTop_toTopOf="@id/tv_likes_count"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/tv_followers_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="粉丝"
+                    android:textSize="14sp"
+                    android:textColor="#80FFFFFF"
+                    app:layout_constraintStart_toStartOf="@id/tv_followers_count"
+                    app:layout_constraintTop_toBottomOf="@id/tv_followers_count"
+                    app:layout_constraintEnd_toEndOf="@id/tv_followers_count" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- 内容分类标签 -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/tabs_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        app:layout_constraintTop_toBottomOf="@id/scroll_content"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- 作品 -->
+        <TextView
+            android:id="@+id/tab_works"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:text="作品"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFFFF"
+            android:gravity="center"
+            android:background="@drawable/bg_tab_selected"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/tab_collections"
+            app:layout_constraintHorizontal_chainStyle="spread"
+            android:layout_marginEnd="4dp" />
+
+        <!-- 收藏 -->
+        <TextView
+            android:id="@+id/tab_collections"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:text="收藏"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#80FFFFFF"
+            android:gravity="center"
+            android:background="@drawable/bg_tab_unselected"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            app:layout_constraintStart_toEndOf="@id/tab_works"
+            app:layout_constraintTop_toTopOf="@id/tab_works"
+            app:layout_constraintEnd_toStartOf="@id/tab_likes"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp" />
+
+        <!-- 点赞 -->
+        <TextView
+            android:id="@+id/tab_likes"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:text="点赞"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#80FFFFFF"
+            android:gravity="center"
+            android:background="@drawable/bg_tab_unselected"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            app:layout_constraintStart_toEndOf="@id/tab_collections"
+            app:layout_constraintTop_toTopOf="@id/tab_works"
+            app:layout_constraintEnd_toStartOf="@id/tab_history"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp" />
+
+        <!-- 历史 -->
+        <TextView
+            android:id="@+id/tab_history"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:text="历史"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#80FFFFFF"
+            android:gravity="center"
+            android:background="@drawable/bg_tab_unselected"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            app:layout_constraintStart_toEndOf="@id/tab_likes"
+            app:layout_constraintTop_toTopOf="@id/tab_works"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginStart="4dp" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 作品列表 - 在标签下面 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_works"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp"
+        android:paddingBottom="16dp"
+        app:layout_constraintTop_toBottomOf="@id/tabs_container"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:listitem="@layout/item_user_work" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

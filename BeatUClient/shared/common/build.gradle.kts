@@ -36,6 +36,11 @@ dependencies {
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
     
+    // Navigation (for NavigationHelper)
+    // NavController is in navigation-runtime, which is included in navigation-fragment-ktx
+    // We use the fragment version to avoid adding unnecessary dependencies
+    implementation(libs.androidx.navigation.fragment.ktx)
+    
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)

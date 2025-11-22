@@ -6,227 +6,122 @@
     android:layout_height="match_parent"
     android:background="#FF000000">
 
-    <!-- 顶部导航栏 -->
+    <!-- 顶部导航栏（iOS风格） -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/top_navigation"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:background="#FFFFFFFF"
+        android:background="#FF000000"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- 关注按钮 -->
-        <TextView
-            android:id="@+id/btn_follow"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:text="关注"
-            android:textSize="16sp"
-            android:textColor="#FFFFFFFF"
-            android:gravity="center"
-            android:paddingStart="20dp"
-            android:paddingEnd="20dp"
-            android:background="@drawable/bg_tab_unselected"
-            android:clickable="true"
-            android:focusable="true"
+        <!-- 标签容器（用于iOS风格的等距分布） -->
+        <LinearLayout
+            android:id="@+id/tab_container"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:weightSum="3"
             app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/iv_search"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
+            app:layout_constraintBottom_toBottomOf="parent">
 
-        <!-- 推荐按钮 -->
-        <TextView
-            android:id="@+id/btn_recommend"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:text="推荐"
-            android:textSize="16sp"
-            android:textColor="#FFFFFFFF"
-            android:gravity="center"
-            android:paddingStart="20dp"
-            android:paddingEnd="20dp"
-            android:layout_marginStart="12dp"
-            android:background="@drawable/bg_tab_selected"
-            android:clickable="true"
-            android:focusable="true"
-            app:layout_constraintStart_toEndOf="@id/btn_follow"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
+            <!-- 关注按钮 -->
+            <TextView
+                android:id="@+id/btn_follow"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="关注"
+                android:textSize="17sp"
+                android:textColor="#99FFFFFF"
+                android:textStyle="normal"
+                android:gravity="center"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:clickable="true"
+                android:focusable="true" />
 
-        <!-- 我按钮 -->
-        <TextView
-            android:id="@+id/btn_me"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:text="我"
-            android:textSize="16sp"
-            android:textColor="#FFFFFFFF"
-            android:gravity="center"
-            android:paddingStart="20dp"
-            android:paddingEnd="20dp"
-            android:layout_marginStart="12dp"
-            android:background="@drawable/bg_tab_unselected"
-            android:clickable="true"
-            android:focusable="true"
-            app:layout_constraintStart_toEndOf="@id/btn_recommend"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
+            <!-- 推荐按钮 -->
+            <TextView
+                android:id="@+id/btn_recommend"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="推荐"
+                android:textSize="17sp"
+                android:textColor="#FFFFFFFF"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:clickable="true"
+                android:focusable="true" />
 
-        <!-- 搜索图标 -->
+            <!-- 我按钮 -->
+            <TextView
+                android:id="@+id/btn_me"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="我"
+                android:textSize="17sp"
+                android:textColor="#99FFFFFF"
+                android:textStyle="normal"
+                android:gravity="center"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:clickable="true"
+                android:focusable="true" />
+
+        </LinearLayout>
+
+        <!-- 搜索图标（固定在右侧） -->
         <ImageView
             android:id="@+id/iv_search"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@android:drawable/ic_menu_search"
             android:contentDescription="搜索"
+            android:tint="#FFFFFFFF"
             android:clickable="true"
             android:focusable="true"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent" />
 
+        <!-- 全局水滴指示器（覆盖在所有Tab上，高度覆盖整个导航栏以确保能绘制到文字中心） -->
+        <com.ucw.beatu.business.videofeed.presentation.ui.widget.TabIndicatorView
+            android:id="@+id/tab_indicator"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- 视频播放区域 -->
-    <FrameLayout
-        android:id="@+id/video_container"
+    <!-- ViewPager2容器（用于左右滑动切换关注和推荐） -->
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/viewpager"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:background="#FF1A1A1A"
         app:layout_constraintTop_toBottomOf="@id/top_navigation"
-        app:layout_constraintBottom_toTopOf="@id/bottom_interaction"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <!-- 视频占位符 -->
-        <TextView
-            android:id="@+id/tv_video_placeholder"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="视频1"
-            android:textSize="24sp"
-            android:textColor="#FFFFFFFF"
-            android:layout_gravity="center" />
-
-        <!-- 视频简介 -->
-        <TextView
-            android:id="@+id/tv_video_description"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="视频简介"
-            android:textSize="14sp"
-            android:textColor="#FFFFFFFF"
-            android:padding="12dp"
-            android:background="#80000000"
-            android:layout_gravity="bottom"
-            android:layout_marginBottom="80dp" />
-
-    </FrameLayout>
-
-    <!-- 底部交互栏 -->
-    <LinearLayout
-        android:id="@+id/bottom_interaction"
-        android:layout_width="match_parent"
-        android:layout_height="80dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:background="#FF000000"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <!-- 头像 -->
-        <FrameLayout
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginEnd="12dp">
-
-            <ImageView
-                android:id="@+id/iv_avatar"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:src="@drawable/ic_avatar_placeholder"
-                android:scaleType="centerCrop"
-                android:background="@drawable/bg_avatar_circle" />
-
-            <ImageView
-                android:id="@+id/iv_add_avatar"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:src="@android:drawable/ic_input_add"
-                android:layout_gravity="bottom|end"
-                android:background="@drawable/bg_add_icon" />
-
-        </FrameLayout>
-
-        <!-- 名字 -->
-        <TextView
-            android:id="@+id/tv_username"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="名字"
-            android:textSize="14sp"
-            android:textColor="#FFFFFFFF"
-            android:layout_marginEnd="16dp" />
-
-        <!-- 互动按钮组 -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="horizontal"
-            android:gravity="center_vertical|end">
-
-            <!-- 点赞 -->
-            <ImageView
-                android:id="@+id/iv_like"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:src="@android:drawable/btn_star_big_on"
-                android:contentDescription="点赞"
-                android:clickable="true"
-                android:focusable="true"
-                android:layout_marginEnd="16dp" />
-
-            <!-- 收藏 -->
-            <ImageView
-                android:id="@+id/iv_favorite"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:src="@android:drawable/star_big_on"
-                android:contentDescription="收藏"
-                android:clickable="true"
-                android:focusable="true"
-                android:layout_marginEnd="16dp" />
-
-            <!-- 评论 -->
-            <ImageView
-                android:id="@+id/iv_comment"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:src="@android:drawable/ic_menu_recent_history"
-                android:contentDescription="评论"
-                android:clickable="true"
-                android:focusable="true"
-                android:layout_marginEnd="16dp" />
-
-            <!-- 分享 -->
-            <ImageView
-                android:id="@+id/iv_share"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:src="@android:drawable/ic_menu_share"
-                android:contentDescription="分享"
-                android:clickable="true"
-                android:focusable="true" />
-
-        </LinearLayout>
-
-    </LinearLayout>
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
 

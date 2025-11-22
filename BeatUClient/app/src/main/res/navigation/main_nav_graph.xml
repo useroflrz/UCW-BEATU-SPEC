@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main_nav_graph"
+    app:startDestination="@id/feed">
+
+    <!-- Feed 页面 - 主页面，作为起始目的地 -->
+    <fragment
+        android:id="@+id/feed"
+        android:name="com.ucw.beatu.business.videofeed.presentation.ui.FeedFragment"
+        android:label="Feed"
+        tools:layout="@layout/fragment_feed">
+        
+        <!-- 跳转到用户主页 -->
+        <action
+            android:id="@+id/action_feed_to_userProfile"
+            app:destination="@id/userProfile" />
+        
+        <!-- 跳转到搜索页面 -->
+        <action
+            android:id="@+id/action_feed_to_search"
+            app:destination="@id/search" />
+        
+        <!-- 跳转到设置页面 -->
+        <action
+            android:id="@+id/action_feed_to_settings"
+            app:destination="@id/settings" />
+        
+        <!-- 跳转到横屏页面 -->
+        <action
+            android:id="@+id/action_feed_to_landscape"
+            app:destination="@id/landscape" />
+    </fragment>
+
+    <!-- 用户主页 -->
+    <fragment
+        android:id="@+id/userProfile"
+        android:name="com.ucw.beatu.business.user.presentation.ui.UserProfileFragment"
+        android:label="UserProfile"
+        tools:layout="@layout/fragment_user_profile">
+        
+        <!-- 返回到 Feed 页面 -->
+        <action
+            android:id="@+id/action_userProfile_to_feed"
+            app:destination="@id/feed"
+            app:popUpTo="@id/feed"
+            app:popUpToInclusive="false" />
+    </fragment>
+
+    <!-- 搜索页面 -->
+    <fragment
+        android:id="@+id/search"
+        android:name="com.ucw.beatu.business.search.presentation.ui.SearchFragment"
+        android:label="Search"
+        tools:layout="@layout/fragment_search">
+        
+        <!-- 返回到 Feed 页面 -->
+        <action
+            android:id="@+id/action_search_to_feed"
+            app:destination="@id/feed"
+            app:popUpTo="@id/feed"
+            app:popUpToInclusive="false" />
+    </fragment>
+
+    <!-- 设置页面 -->
+    <fragment
+        android:id="@+id/settings"
+        android:name="com.ucw.beatu.business.settings.presentation.ui.SettingsFragment"
+        android:label="Settings"
+        tools:layout="@layout/fragment_settings">
+        
+        <!-- 返回到 Feed 页面 -->
+        <action
+            android:id="@+id/action_settings_to_feed"
+            app:destination="@id/feed"
+            app:popUpTo="@id/feed"
+            app:popUpToInclusive="false" />
+    </fragment>
+
+    <!-- 横屏页面 -->
+    <fragment
+        android:id="@+id/landscape"
+        android:name="com.ucw.beatu.business.landscape.presentation.ui.LandscapeFragment"
+        android:label="Landscape"
+        tools:layout="@layout/fragment_landscape">
+        
+        <!-- 返回到 Feed 页面 -->
+        <action
+            android:id="@+id/action_landscape_to_feed"
+            app:destination="@id/feed"
+            app:popUpTo="@id/feed"
+            app:popUpToInclusive="false" />
+    </fragment>
+
+</navigation>
