@@ -1,78 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FF000000">
 
-    <!-- 视频播放区域 -->
-    <FrameLayout
-        android:id="@+id/video_container"
+    <!-- 全屏视频播放器 -->
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/player_view"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:background="#FF000000"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/bottom_interaction"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_height="match_parent"
+        android:visibility="visible"
+        app:use_controller="false"
+        app:resize_mode="zoom" />
 
-        <!-- 视频占位图 -->
-        <ImageView
-            android:id="@+id/iv_video_placeholder"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            android:src="@android:drawable/ic_media_play"
-            android:contentDescription="视频占位图" />
+    <!-- 播放按钮（覆盖层，播放时隐藏） -->
+    <ImageView
+        android:id="@+id/iv_play_button"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:src="@drawable/ic_play_button"
+        android:contentDescription="播放"
+        android:clickable="true"
+        android:focusable="true"
+        android:layout_gravity="center"
+        android:visibility="visible" />
 
-        <!-- 上方字幕 -->
-        <TextView
-            android:id="@+id/tv_subtitle_top"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="浪人究竟是为何 要拿竹刀这般折磨自己?"
-            android:textSize="16sp"
-            android:textColor="#FFFFFFFF"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:paddingTop="12dp"
-            android:paddingBottom="12dp"
-            android:gravity="center"
-            android:background="#80000000"
-            android:layout_gravity="top" />
-
-        <!-- 播放按钮 -->
-        <ImageView
-            android:id="@+id/iv_play_button"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:src="@drawable/ic_play_button"
-            android:contentDescription="播放"
-            android:clickable="true"
-            android:focusable="true"
-            android:layout_gravity="center" />
-
-        <!-- 下方字幕 -->
-        <TextView
-            android:id="@+id/tv_subtitle_bottom"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="然后毫不犹豫径直捅向自己的腹部"
-            android:textSize="16sp"
-            android:textColor="#FFFFFFFF"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:paddingTop="12dp"
-            android:paddingBottom="12dp"
-            android:gravity="center"
-            android:background="#80000000"
-            android:layout_gravity="bottom"
-            android:layout_marginBottom="200dp" />
-
-    </FrameLayout>
-
-    <!-- 底部信息栏 -->
+    <!-- 底部信息栏（覆盖层） -->
     <LinearLayout
         android:id="@+id/bottom_interaction"
         android:layout_width="match_parent"
@@ -82,10 +37,8 @@
         android:paddingEnd="16dp"
         android:paddingTop="12dp"
         android:paddingBottom="12dp"
-        android:background="#FF000000"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:background="#80000000"
+        android:layout_gravity="bottom">
 
         <!-- 集数信息行 -->
         <LinearLayout
@@ -325,5 +278,5 @@
 
     </LinearLayout>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</FrameLayout>
 

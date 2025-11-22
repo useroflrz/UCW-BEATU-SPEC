@@ -56,6 +56,11 @@ dependencies {
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
     
+    // ExoPlayer (for PlayerView in layout)
+    // Note: exoplayer-core is needed for DataBinding to resolve AdViewProvider
+    implementation(libs.exoplayer.core)
+    implementation(libs.exoplayer.ui)
+    
     // Hilt
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
