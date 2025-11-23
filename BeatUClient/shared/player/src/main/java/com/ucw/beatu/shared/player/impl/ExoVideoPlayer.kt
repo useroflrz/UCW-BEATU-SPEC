@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.PlayerView
@@ -13,7 +12,6 @@ import com.ucw.beatu.shared.player.VideoPlayer
 import com.ucw.beatu.shared.player.model.VideoPlayerConfig
 import com.ucw.beatu.shared.player.model.VideoSource
 
-@OptIn(UnstableApi::class)
 class ExoVideoPlayer(
     context: Context,
     private val config: VideoPlayerConfig = VideoPlayerConfig()

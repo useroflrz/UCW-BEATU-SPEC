@@ -28,6 +28,10 @@ android {
     }
     kotlinOptions {
         jvmTarget = "11"
+        // 全局启用 Media3 的 UnstableApi，避免在每个类上使用 @OptIn
+        freeCompilerArgs += listOf(
+            "-opt-in=androidx.media3.common.util.UnstableApi"
+        )
     }
 }
 

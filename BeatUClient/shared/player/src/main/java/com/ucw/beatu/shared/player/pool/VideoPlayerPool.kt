@@ -1,7 +1,6 @@
 package com.ucw.beatu.shared.player.pool
 
 import android.content.Context
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import com.ucw.beatu.shared.player.VideoPlayer
 import com.ucw.beatu.shared.player.impl.ExoVideoPlayer
@@ -9,7 +8,6 @@ import com.ucw.beatu.shared.player.model.VideoPlayerConfig
 import com.ucw.beatu.shared.player.model.VideoSource
 import kotlin.collections.ArrayDeque
 
-@OptIn(UnstableApi::class)
 class VideoPlayerPool(
     private val context: Context,
     private val config: VideoPlayerConfig = VideoPlayerConfig()
