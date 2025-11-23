@@ -5,6 +5,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.navigation.fragment.findNavController
@@ -41,6 +43,40 @@ class FeedFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        
+        // 处理 WindowInsets：让视频内容延伸到状态栏下方，导航栏避开状态栏
+        val topNavigation = view.findViewById<View>(R.id.top_navigation)
+        ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            // 给导航栏添加状态栏高度的 padding top，确保内容不被状态栏遮挡
+            // 导航栏总高度 = 状态栏高度 + 56dp（内容高度）
+            val contentHeight = (56 * resources.displayMetrics.density).toInt()
+            topNavigation?.setPadding(
+                topNavigation.paddingLeft,
+                systemBars.top,
+                topNavigation.paddingRight,
+                topNavigation.paddingBottom
+            )
+            // 动态设置导航栏高度，确保内容区域有足够的空间
+            topNavigation?.layoutParams?.height = systemBars.top + contentHeight
+            topNavigation?.requestLayout()
+            // ViewPager2 不需要 padding，让它延伸到状态栏下方
+            insets
+        }
+        
+        // 给导航栏文字添加阴影，提高在透明背景上的可见性
+        val btnFollow = view.findViewById<android.widget.TextView>(R.id.btn_follow)
+        val btnRecommend = view.findViewById<android.widget.TextView>(R.id.btn_recommend)
+        val btnMe = view.findViewById<android.widget.TextView>(R.id.btn_me)
+        
+        val shadowRadius = 2f
+        val shadowDx = 0f
+        val shadowDy = 1f
+        val shadowColor = 0x80000000.toInt() // 半透明黑色阴影
+        
+        btnFollow?.setShadowLayer(shadowRadius, shadowDx, shadowDy, shadowColor)
+        btnRecommend?.setShadowLayer(shadowRadius, shadowDx, shadowDy, shadowColor)
+        btnMe?.setShadowLayer(shadowRadius, shadowDx, shadowDy, shadowColor)
         
         // 初始化指示器
         tabIndicator = view.findViewById(R.id.tab_indicator)

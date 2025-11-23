@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.hilt)
+    id("kotlin-parcelize")
 }
 
 android {
@@ -55,6 +56,11 @@ dependencies {
     implementation(libs.androidx.paging.runtime.ktx)
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
+    
+    // ExoPlayer (for PlayerView in layout)
+    // Note: exoplayer-core is needed for DataBinding to resolve AdViewProvider
+    implementation(libs.exoplayer.core)
+    implementation(libs.exoplayer.ui)
     
     // Hilt
     implementation(libs.hilt.android)

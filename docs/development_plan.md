@@ -113,6 +113,23 @@
   - 需求：执行 `:app:assembleDebug` 时，`:app`、`:business:videofeed:presentation`、`:shared:player` 等任务均因无法解析 `androidx.media3` 的 `2.19.1` 版本而失败。需确认 `libs.versions.toml` 中的播放器依赖是否使用正确的 Media3 版本，并保证官方 Maven 仓库可获取。  
   - 方案：调研 Media3 最新稳定版本（>=1.4.x），更新 `versions.exoplayer` 及相关依赖坐标；同步验证 `shared/player` 的依赖块与文档描述，确保播放器层可顺利构建。
 
+- [x] 推荐页视频播放器接入  
+  - 2025-01-XX - done by Auto  
+  - 内容：
+    1. ✅ 创建 `RecommendViewModel` 管理播放器生命周期（播放/暂停、状态管理、错误处理）
+    2. ✅ 创建 Hilt 依赖注入模块 `VideoFeedPresentationModule` 提供 `VideoPlayerPool` 和 `VideoPlayerConfig`
+    3. ✅ 修改 `RecommendFragment` 接入播放器和 ViewModel，实现播放器与 UI 的绑定
+    4. ✅ 修改布局文件 `fragment_recommend.xml`，添加 `PlayerView` 组件
+    5. ✅ 实现播放器状态观察（占位图显示/隐藏、播放按钮显示/隐藏、错误处理）
+    6. ✅ 实现生命周期管理（onPause/onResume/onDestroyView 时正确释放播放器资源）
+  - 技术亮点：
+    - 使用 `VideoPlayerPool` 实现播放器实例复用（最多 3 个实例）
+    - ViewModel 中统一管理播放器生命周期，确保资源正确释放
+    - 使用 StateFlow 实现响应式 UI 状态管理
+    - 支持封面占位图，播放器 ready 后自动隐藏占位图
+    - 遵循 Clean Architecture，播放器逻辑在 ViewModel 层，UI 层只负责展示
+  - 下一步：接入 FeedRepository 获取真实视频数据，实现 ViewPager2 纵向滑动切换视频
+
 
 > 后续迭代中，请将具体任务拆分为更细粒度条目，并在完成后标记 `[x]`，附上日期与负责人。
 

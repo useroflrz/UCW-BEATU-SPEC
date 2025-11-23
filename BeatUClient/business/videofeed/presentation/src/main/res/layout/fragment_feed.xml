@@ -6,14 +6,19 @@
     android:layout_height="match_parent"
     android:background="#FF000000">
 
-    <!-- 顶部导航栏（iOS风格） -->
+    <!-- 顶部导航栏（iOS风格）- 作为覆盖层浮在视频上方 -->
+    <!-- 高度设置为 wrap_content，实际高度会通过代码动态设置为 状态栏高度 + 56dp -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/top_navigation"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:background="#FF000000"
+        android:layout_height="wrap_content"
+        android:minHeight="56dp"
+        android:background="#00000000"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
+        android:elevation="4dp"
+        android:clickable="true"
+        android:focusable="true"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -37,6 +42,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:minHeight="56dp"
                 android:text="关注"
                 android:textSize="17sp"
                 android:textColor="#99FFFFFF"
@@ -47,7 +53,8 @@
                 android:paddingTop="12dp"
                 android:paddingBottom="12dp"
                 android:clickable="true"
-                android:focusable="true" />
+                android:focusable="true"
+                android:includeFontPadding="false" />
 
             <!-- 推荐按钮 -->
             <TextView
@@ -55,6 +62,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:minHeight="56dp"
                 android:text="推荐"
                 android:textSize="17sp"
                 android:textColor="#FFFFFFFF"
@@ -65,7 +73,8 @@
                 android:paddingTop="12dp"
                 android:paddingBottom="12dp"
                 android:clickable="true"
-                android:focusable="true" />
+                android:focusable="true"
+                android:includeFontPadding="false" />
 
             <!-- 我按钮 -->
             <TextView
@@ -73,6 +82,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:minHeight="56dp"
                 android:text="我"
                 android:textSize="17sp"
                 android:textColor="#99FFFFFF"
@@ -83,7 +93,8 @@
                 android:paddingTop="12dp"
                 android:paddingBottom="12dp"
                 android:clickable="true"
-                android:focusable="true" />
+                android:focusable="true"
+                android:includeFontPadding="false" />
 
         </LinearLayout>
 
@@ -114,11 +125,12 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- ViewPager2容器（用于左右滑动切换关注和推荐） -->
+    <!-- 从顶部开始，延伸到整个屏幕，让视频内容延伸到导航栏区域 -->
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewpager"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintTop_toBottomOf="@id/top_navigation"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
