@@ -130,6 +130,26 @@
     - 遵循 Clean Architecture，播放器逻辑在 ViewModel 层，UI 层只负责展示
   - 下一步：接入 FeedRepository 获取真实视频数据，实现 ViewPager2 纵向滑动切换视频
 
+- [x] 提升导航栏到应用层（MainActivity）
+  - 2025-01-XX - done by Auto
+  - 内容：
+    1. ✅ 将 `TabIndicatorView` 移动到 `shared/designsystem` 模块，作为共享组件
+    2. ✅ 创建 `FeedFragmentCallback` 接口用于 MainActivity 与 FeedFragment 之间的通信
+    3. ✅ 在 `MainActivity` 布局中添加顶部导航栏（关注、推荐、我、搜索）
+    4. ✅ 从 `FeedFragment` 布局中移除顶部导航栏，只保留 ViewPager2
+    5. ✅ 在 `MainActivity` 中实现导航栏点击事件和指示器管理逻辑
+    6. ✅ 修改 `FeedFragment` 实现 `FeedFragmentCallback` 接口，移除导航栏相关代码
+    7. ✅ 实现 `MainActivityBridge` 接口，用于 FeedFragment 通知 MainActivity 更新指示器
+  - 技术亮点：
+    - **模块边界清晰**：FeedFragment 只负责视频流（ViewPager2），导航栏由应用层统一管理
+    - **导航统一**：应用层统一管理跨模块导航（关注/推荐 Tab 切换、跳转到用户主页/搜索页面）
+    - **符合 Clean Architecture**：业务模块不依赖其他业务模块，通过接口通信
+    - **组件复用**：TabIndicatorView 提升到 shared/designsystem，可在其他模块复用
+  - 架构改进：
+    - MainActivity 作为应用层容器，统一管理顶部导航栏和跨模块导航
+    - FeedFragment 职责单一，只负责视频流的展示和交互
+    - 通过接口回调实现 MainActivity 与 FeedFragment 之间的通信，避免直接依赖
+
 
 > 后续迭代中，请将具体任务拆分为更细粒度条目，并在完成后标记 `[x]`，附上日期与负责人。
 

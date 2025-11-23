@@ -4,35 +4,25 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewTreeObserver
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
-import androidx.navigation.fragment.findNavController
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.ucw.beatu.business.videofeed.presentation.R
-import com.ucw.beatu.business.videofeed.presentation.ui.widget.TabIndicatorView
-import com.ucw.beatu.shared.common.navigation.NavigationHelper
-import com.ucw.beatu.shared.common.navigation.NavigationIds
+import com.ucw.beatu.business.videofeed.presentation.ui.FeedFragmentCallback
 
-class FeedFragment : Fragment() {
+/**
+ * FeedFragment - 只负责视频流的 ViewPager2
+ * 顶部导航栏已提升到 MainActivity，由应用层统一管理
+ */
+class FeedFragment : Fragment(), FeedFragmentCallback {
 
     private lateinit var viewPager: ViewPager2
     private var currentPage = 1 // 默认显示推荐页面（索引1）
     
-    // 指示器相关
-    private var tabIndicator: TabIndicatorView? = null
+    // MainActivity 引用（用于更新指示器）
+    private var mainActivity: MainActivityBridge? = null
     
-    // Tab位置信息（相对于指示器View的坐标）
-    private var followTabCenterX: Float = 0f
-    private var followTabCenterY: Float = 0f
-    private var recommendTabCenterX: Float = 0f
-    private var recommendTabCenterY: Float = 0f
-    private var meTabCenterX: Float = 0f
-    private var meTabCenterY: Float = 0f
-
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -44,148 +34,16 @@ class FeedFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
-        // 处理 WindowInsets：让视频内容延伸到状态栏下方，导航栏避开状态栏
-        val topNavigation = view.findViewById<View>(R.id.top_navigation)
-        ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            // 给导航栏添加状态栏高度的 padding top，确保内容不被状态栏遮挡
-            // 导航栏总高度 = 状态栏高度 + 56dp（内容高度）
-            val contentHeight = (56 * resources.displayMetrics.density).toInt()
-            topNavigation?.setPadding(
-                topNavigation.paddingLeft,
-                systemBars.top,
-                topNavigation.paddingRight,
-                topNavigation.paddingBottom
-            )
-            // 动态设置导航栏高度，确保内容区域有足够的空间
-            topNavigation?.layoutParams?.height = systemBars.top + contentHeight
-            topNavigation?.requestLayout()
-            // ViewPager2 不需要 padding，让它延伸到状态栏下方
-            insets
-        }
-        
-        // 给导航栏文字添加阴影，提高在透明背景上的可见性
-        val btnFollow = view.findViewById<android.widget.TextView>(R.id.btn_follow)
-        val btnRecommend = view.findViewById<android.widget.TextView>(R.id.btn_recommend)
-        val btnMe = view.findViewById<android.widget.TextView>(R.id.btn_me)
-        
-        val shadowRadius = 2f
-        val shadowDx = 0f
-        val shadowDy = 1f
-        val shadowColor = 0x80000000.toInt() // 半透明黑色阴影
-        
-        btnFollow?.setShadowLayer(shadowRadius, shadowDx, shadowDy, shadowColor)
-        btnRecommend?.setShadowLayer(shadowRadius, shadowDx, shadowDy, shadowColor)
-        btnMe?.setShadowLayer(shadowRadius, shadowDx, shadowDy, shadowColor)
-        
-        // 初始化指示器
-        tabIndicator = view.findViewById(R.id.tab_indicator)
+        // 获取 MainActivity 引用
+        mainActivity = activity as? MainActivityBridge
         
         // 初始化ViewPager2
         viewPager = view.findViewById(R.id.viewpager)
         viewPager.adapter = TabPagerAdapter(requireActivity())
         viewPager.setCurrentItem(currentPage, false) // 默认显示推荐页面
         
-        // 等待布局完成后再计算Tab位置
-        view.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
-            override fun onGlobalLayout() {
-                view.viewTreeObserver.removeOnGlobalLayoutListener(this)
-                calculateTabPositions()
-                setupViewPagerListener()
-                // 初始化指示器位置
-                updateTabSelection(currentPage)
-            }
-        })
-        
-        // 设置顶部导航栏点击事件
-        view.findViewById<View>(R.id.btn_follow).setOnClickListener {
-            viewPager.setCurrentItem(0, true)
-        }
-        
-        view.findViewById<View>(R.id.btn_recommend).setOnClickListener {
-            viewPager.setCurrentItem(1, true)
-        }
-        
-        view.findViewById<View>(R.id.btn_me).setOnClickListener {
-            // 使用 Navigation Graph 跳转到用户主页
-            // 通过字符串 ID 进行导航，因为 Navigation Graph 在 app 模块，而 Fragment 在 business 模块
-            NavigationHelper.navigateByStringId(
-                findNavController(),
-                NavigationIds.ACTION_FEED_TO_USER_PROFILE,
-                requireContext()
-            )
-        }
-        
-        view.findViewById<View>(R.id.iv_search).setOnClickListener {
-            // 使用 Navigation Graph 跳转到搜索页面
-            NavigationHelper.navigateByStringId(
-                findNavController(),
-                NavigationIds.ACTION_FEED_TO_SEARCH,
-                requireContext()
-            )
-        }
-    }
-    
-    /**
-     * 计算各个Tab的位置（相对于指示器View）
-     * X坐标：文字中心
-     * Y坐标：文字底部下方（正下方）
-     */
-    private fun calculateTabPositions() {
-        val btnFollow = view?.findViewById<android.widget.TextView>(R.id.btn_follow)
-        val btnRecommend = view?.findViewById<android.widget.TextView>(R.id.btn_recommend)
-        val btnMe = view?.findViewById<android.widget.TextView>(R.id.btn_me)
-        val tabIndicator = view?.findViewById<TabIndicatorView>(R.id.tab_indicator)
-        
-        // 指示器距离文字底部的间距（dp转px）
-        val spacingFromBottom = 4f.dpToPx()
-        
-        tabIndicator?.let { indicator ->
-            val indicatorLocation = IntArray(2)
-            indicator.getLocationInWindow(indicatorLocation)
-            
-            // 计算TextView的位置（相对于指示器View）
-            btnFollow?.let {
-                val location = IntArray(2)
-                it.getLocationInWindow(location)
-                // X坐标：文字中心
-                followTabCenterX = (location[0] - indicatorLocation[0]) + it.width / 2f
-                // Y坐标：文字底部 + 间距
-                followTabCenterY = (location[1] - indicatorLocation[1]) + it.height + spacingFromBottom
-            }
-            
-            btnRecommend?.let {
-                val location = IntArray(2)
-                it.getLocationInWindow(location)
-                // X坐标：文字中心
-                recommendTabCenterX = (location[0] - indicatorLocation[0]) + it.width / 2f
-                // Y坐标：文字底部 + 间距
-                recommendTabCenterY = (location[1] - indicatorLocation[1]) + it.height + spacingFromBottom
-            }
-            
-            btnMe?.let {
-                val location = IntArray(2)
-                it.getLocationInWindow(location)
-                // X坐标：文字中心
-                meTabCenterX = (location[0] - indicatorLocation[0]) + it.width / 2f
-                // Y坐标：文字底部 + 间距
-                meTabCenterY = (location[1] - indicatorLocation[1]) + it.height + spacingFromBottom
-            }
-            
-            // 将坐标传递给指示器
-            indicator.setTabPositions(
-                followTabCenterX, followTabCenterY,
-                recommendTabCenterX, recommendTabCenterY,
-                meTabCenterX, meTabCenterY
-            )
-        }
-    }
-    
-    /**
-     * dp转px的扩展函数
-     */
-    private fun Float.dpToPx(): Float {
-        return this * resources.displayMetrics.density
+        // 设置ViewPager2的监听器
+        setupViewPagerListener()
     }
     
     /**
@@ -199,99 +57,53 @@ class FeedFragment : Fragment() {
                 positionOffsetPixels: Int
             ) {
                 super.onPageScrolled(position, positionOffset, positionOffsetPixels)
-                updateIndicatorOnScroll(position, positionOffset)
+                // 通知 MainActivity 更新指示器
+                mainActivity?.onIndicatorScrollProgress(
+                    position,
+                    positionOffset,
+                    // 这里需要从 MainActivity 获取 Tab 位置，暂时传 0
+                    // 实际实现中，MainActivity 会自己计算位置
+                    0f, 0f, 0f, 0f
+                )
             }
             
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
-                updateTabSelection(position)
                 currentPage = position
+                // 通知 MainActivity 更新 Tab 选中状态
+                mainActivity?.updateTabSelection(position)
             }
         })
     }
     
     /**
-     * 根据滑动进度更新指示器
-     * ViewPager2的onPageScrolled中：
-     * - position: 当前页面索引（起点）
-     * - offset: 滑动到下一个页面的进度（0到1）
-     * 
-     * 逻辑：
-     * - 起点和终点都是圆点（progress=0）
-     * - 中点位置拉长到最大（progress=1）
-     * - 使用sin函数实现平滑的抛物线效果
+     * FeedFragmentCallback 接口实现
      */
-    private fun updateIndicatorOnScroll(position: Int, offset: Float) {
-        // 位置进度：使用线性插值，让位置平滑移动
-        val positionProgress = offset
-        
-        // 宽度进度：使用sin函数，让长度在滑动中途达到最大
-        // sin(offset * π)：在offset=0和1时widthProgress=0（圆点），在offset=0.5时widthProgress=1（最大拉长）
-        val widthProgress = kotlin.math.sin(offset * kotlin.math.PI).toFloat()
-        
-        when (position) {
-            0 -> {
-                // 从关注（position=0，起点）滑动到推荐（position=1，终点）
-                tabIndicator?.setScrollProgress(
-                    positionProgress, widthProgress,
-                    followTabCenterX, followTabCenterY,
-                    recommendTabCenterX, recommendTabCenterY
-                )
-            }
-            1 -> {
-                // 从推荐（position=1，起点）滑动到关注（position=0，终点，反向）
-                tabIndicator?.setScrollProgress(
-                    positionProgress, widthProgress,
-                    recommendTabCenterX, recommendTabCenterY,
-                    followTabCenterX, followTabCenterY
-                )
-            }
+    override fun switchToTab(position: Int) {
+        if (::viewPager.isInitialized) {
+            viewPager.setCurrentItem(position, true)
         }
     }
     
-    /**
-     * 更新顶部菜单栏的选中状态
-     * @param position 当前选中的页面索引（0=关注，1=推荐）
-     */
-    private fun updateTabSelection(position: Int) {
-        val btnFollow = view?.findViewById<android.widget.TextView>(R.id.btn_follow)
-        val btnRecommend = view?.findViewById<android.widget.TextView>(R.id.btn_recommend)
-        
-        when (position) {
-            0 -> {
-                // 选中关注
-                btnFollow?.apply {
-                    setTextColor(0xFFFFFFFF.toInt())
-                    setTypeface(null, android.graphics.Typeface.BOLD)
-                }
-                btnRecommend?.apply {
-                    setTextColor(0x99FFFFFF.toInt())
-                    setTypeface(null, android.graphics.Typeface.NORMAL)
-                }
-                // 指示器移动到关注位置并聚合成圆点
-                tabIndicator?.moveToTab(0)
-            }
-            1 -> {
-                // 选中推荐
-                btnFollow?.apply {
-                    setTextColor(0x99FFFFFF.toInt())
-                    setTypeface(null, android.graphics.Typeface.NORMAL)
-                }
-                btnRecommend?.apply {
-                    setTextColor(0xFFFFFFFF.toInt())
-                    setTypeface(null, android.graphics.Typeface.BOLD)
-                }
-                // 指示器移动到推荐位置并聚合成圆点
-                tabIndicator?.moveToTab(1)
-            }
-        }
+    override fun getCurrentTabPosition(): Int {
+        return currentPage
     }
     
-    /**
-     * dp转px的扩展函数
-     */
-    private fun Int.dpToPx(): Int {
-        return (this * resources.displayMetrics.density).toInt()
+    override fun onIndicatorScrollProgress(
+        position: Int,
+        positionOffset: Float,
+        followTabX: Float,
+        followTabY: Float,
+        recommendTabX: Float,
+        recommendTabY: Float
+    ) {
+        // 这个方法由 MainActivity 调用，但实际更新逻辑在 MainActivity 中
+        // 这里不需要实现，因为指示器在 MainActivity 中
+    }
+    
+    override fun onIndicatorTabSelected(position: Int) {
+        // 这个方法由 MainActivity 调用，但实际更新逻辑在 MainActivity 中
+        // 这里不需要实现，因为指示器在 MainActivity 中
     }
     
     /**
@@ -307,5 +119,21 @@ class FeedFragment : Fragment() {
                 else -> throw IllegalArgumentException("Invalid position: $position")
             }
         }
+    }
+    
+    /**
+     * MainActivity 桥接接口
+     * 用于 FeedFragment 与 MainActivity 之间的通信
+     */
+    interface MainActivityBridge {
+        fun updateTabSelection(position: Int)
+        fun onIndicatorScrollProgress(
+            position: Int,
+            positionOffset: Float,
+            followTabX: Float,
+            followTabY: Float,
+            recommendTabX: Float,
+            recommendTabY: Float
+        )
     }
 }

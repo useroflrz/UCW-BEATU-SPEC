@@ -12,6 +12,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -113,7 +114,11 @@ class SearchFragment : Fragment() {
         // 取消按钮点击
         cancelButton.setOnClickListener {
             searchEditText.text?.clear()
-            activity?.onBackPressed()
+            // 使用 Navigation 返回上一页
+            if (!findNavController().popBackStack()) {
+                // 如果无法返回，则使用 onBackPressedDispatcher
+                requireActivity().onBackPressedDispatcher.onBackPressed()
+            }
         }
         
         // 搜索框回车键监听
@@ -128,7 +133,11 @@ class SearchFragment : Fragment() {
         
         // 返回按钮点击
         view.findViewById<View>(R.id.btn_back)?.setOnClickListener {
-            activity?.onBackPressed()
+            // 使用 Navigation 返回上一页
+            if (!findNavController().popBackStack()) {
+                // 如果无法返回，则使用 onBackPressedDispatcher
+                requireActivity().onBackPressedDispatcher.onBackPressed()
+            }
         }
     }
 

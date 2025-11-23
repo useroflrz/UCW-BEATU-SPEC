@@ -1,4 +1,4 @@
-package com.ucw.beatu.business.videofeed.presentation.ui.widget
+package com.ucw.beatu.shared.designsystem.widget
 
 import android.animation.ValueAnimator
 import android.content.Context
@@ -7,8 +7,6 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.util.AttributeSet
 import android.view.View
-import androidx.core.content.ContextCompat
-import com.ucw.beatu.business.videofeed.presentation.R
 
 /**
  * 水滴形状的Tab指示器
