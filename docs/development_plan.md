@@ -118,6 +118,33 @@
   - 结论：横屏播放页手势调节音量调用 `AudioManager.setStreamVolume`，但 `AndroidManifest` 未声明 `MODIFY_AUDIO_SETTINGS`，系统直接以 `EPERM` 拒绝 Binder 调用导致进程崩溃。已补充权限声明，并在 `LandscapeVideoItemFragment` 中增加权限检测与 `SecurityException` 兜底，保障弱权限设备不再崩溃。  
   - 指标：音量手势触发闪退率从 100% 降至 0%（Pixel 6 / Android 14 实测），Binder `operation not permitted` 日志不再出现，音量调节成功率 100%。
 
+- [x] 个人主页与搜索页的 XML 文件与 Kotlin 文件绘制
+    - 2025-11-22 - KJH
+    - 需求：
+        - 创建个人主页和搜索页的 UI 与对应的 Kotlin Fragment 文件
+    - 方案：
+        - 文件创建：
+            - ✅ **个人主页**
+                - 代码文件: `UserProfileFragment.kt`  
+                  路径: `business/user/presentation/src/main/java/com/ucw/beatu/business/user/presentation/ui/UserProfileFragment.kt`
+                - 布局文件: `fragment_user_profile.xml`  
+                  路径: `business/user/presentation/src/main/res/layout/fragment_user_profile.xml`
+                - 界面内容要求：
+                    - 用户头像区域
+                    - 用户昵称显示（假数据）
+                    - 用户作品列表（假数据）
+                    - 其他占位 UI 元素
+            - ✅ **搜索页**
+                - 代码文件: `SearchFragment.kt`  
+                  路径: `business/search/presentation/src/main/java/com/ucw/beatu/business/search/presentation/ui/SearchFragment.kt`
+                - 布局文件: `fragment_search.xml`  
+                  路径: `business/search/presentation/src/main/res/layout/fragment_search.xml`
+                - 界面内容要求：
+                    - 搜索框组件
+                    - 搜索结果列表（假数据）
+                    - 其他占位 UI 元素
+    - 下一步：后续可根据真实数据替换假数据
+
 - [x] 推荐页视频播放器接入  
   - 2025-01-XX - done by Auto  
   - 内容：
@@ -279,6 +306,19 @@
   - 2025-11-24 - done by GPT-5.1 Codex
   - 内容：恢复 `MainActivity` 为 Launcher，`LandscapeActivity` 改为内部跳转；新增公共 `LandscapeLaunchContract`，`VideoItemFragment` 全屏按钮透传当前视频元数据；`LandscapeActivity/ViewModel` 支持外部视频优先展示并继续分页加载。
   - 指标：冷启动推荐页命中率 100%；横屏入口点击至 Activity 展示平均 420 ms、Crash 率 0%；Intent 透传覆盖 id/url/互动数据。
+
+- [x] 个人主页的动作交互与本地数据库的数据交互，UI界面的优化，尝试寻找视频流与个人主页的滑动显示
+    - 2025-11-24 - done by KJH
+    - 内容：
+        1. ✅ 个人主页的动作交互
+           - 
+        2. ✅ 个人主页与本地数据库的数据交互
+           - 
+        3. ✅ 个人主页UI界面的优化
+           - 
+        4. ✅ 尝试寻找视频流与个人主页的滑动显示
+           - 
+
 > 后续迭代中，请将具体任务拆分为更细粒度条目，并在完成后标记 `[x]`，附上日期与负责人。
 
 
