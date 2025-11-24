@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@android:color/white"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="12dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="AI 评论助手"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <EditText
+        android:id="@+id/etCommentInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="说点什么... @元宝 可提问"
+        android:minLines="1"
+        android:maxLines="3"
+        android:inputType="textMultiLine"
+        android:background="@null"
+        android:textSize="15sp"
+        android:padding="6dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="示例：@元宝 这个视频讲了什么？"
+        android:textSize="12sp"
+        android:textColor="#888888"
+        android:layout_marginTop="4dp" />
+
+</LinearLayout>

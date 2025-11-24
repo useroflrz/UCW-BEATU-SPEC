@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.hilt)
+    id("kotlin-parcelize")
 }
 
 android {
@@ -40,8 +41,15 @@ dependencies {
     // Business Domain
     implementation(project(":business:landscape:domain"))
     
+    // Business Data
+    implementation(project(":business:landscape:data"))
+    
+    // Business Presentation (for VideoItem model)
+    implementation(project(":business:videofeed:presentation"))
+    
     // Shared modules
     implementation(project(":shared:common"))
+    implementation(project(":shared:player"))  // 播放器
     implementation(project(":shared:designsystem"))
     
     // AndroidX
@@ -50,8 +58,13 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.fragment.ktx)
+    implementation(libs.androidx.viewpager2)  // ViewPager2
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
+    
+    // ExoPlayer
+    implementation(libs.exoplayer.core)
+    implementation(libs.exoplayer.ui)
     
     // Hilt
     implementation(libs.hilt.android)

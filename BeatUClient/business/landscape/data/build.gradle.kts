@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.hilt)
 }
 
 android {
@@ -36,10 +37,17 @@ dependencies {
     // Business Domain
     implementation(project(":business:landscape:domain"))
     
+    // Business Presentation (for VideoItem model)
+    implementation(project(":business:videofeed:presentation"))
+    
     // Shared modules
     implementation(project(":shared:common"))
     implementation(project(":shared:network"))
     implementation(project(":shared:database"))
+    
+    // Hilt
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.compiler)
     
     // Retrofit
     implementation(libs.retrofit)

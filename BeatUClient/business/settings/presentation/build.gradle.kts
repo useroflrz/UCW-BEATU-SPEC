@@ -57,7 +57,14 @@ dependencies {
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
     
-    // Material
+    // Material (包含 CardView)
     implementation(libs.material)
+    
+    // CardView
+    implementation("androidx.cardview:cardview:1.0.0")
+    
+    // Network (添加 Retrofit 和 OkHttp，即使当前不使用，但可能被传递依赖需要)
+    implementation(libs.okhttp)
+    implementation(libs.retrofit)
 }
 
