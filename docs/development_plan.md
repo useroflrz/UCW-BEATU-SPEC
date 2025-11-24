@@ -261,18 +261,18 @@
   - 下一步：按照评估报告中的优先级，逐步将高优先级组件提取到 `shared/designsystem` 模块
 
 - [x] Settings Fragment XML 构建错误修复
-  - 2025-11-24 - done by GPT-5.1 Codex
+  - 2025-11-24 - done by LRZ
   - 需求：构建任务 `:business:settings:presentation:packageDebugResources` 因 `fragment_settings.xml` 无法解析（提示“根元素前的标记必须格式正确”）而失败，导致设置模块无法参与整体装包。
   - 方案：重写 `fragment_settings.xml`，移除潜在的非法字符并升级为 `NestedScrollView` 根容器，补充 `tools` 命名空间与统一圆角设置，确保 XML 结构可被 aapt2 正常解析。
   - 量化目标：修复后 `:business:settings:presentation:packageDebugResources` 成功，整体 `assembleDebug` 资源合并阶段不再报错（待执行 `./gradlew assembleDebug` 复核）。
 
 - [x] SettingsFragment Kotlin 文件语法冲突修复
-  - 2025-11-24 - done by GPT-5.1 Codex
+  - 2025-11-24 - done by LRZ
   - 需求：`kaptGenerateStubsDebugKotlin` 堵塞在 `SettingsFragment.kt` 第 20 行附近，错误为 `Expecting member declaration`，初步判断为合并冲突残留符号（`<<<<<<<`、`=======`、`>>>>>>>`）破坏 Kotlin 语法。
   - 方案：直接重写 `SettingsFragment.kt`，保留最新的 Mock UI 逻辑、导航降级处理与 ViewBinding 代码，同时彻底清除冲突标记；后续需执行 `./gradlew :business:settings:presentation:kaptGenerateStubsDebugKotlin` 验证。
   - 量化目标：`./gradlew :business:settings:presentation:kaptGenerateStubsDebugKotlin` 可通过，Settings 模块恢复可编译状态。
 - [x] 设置与横屏模块安全 & 交互重构（iOS 风格）
-  - 2025-11-24 - done by GPT-5.1 Codex
+  - 2025-11-24 - done by LRZ
   - 内容：落地 Settings DataStore Repository + Hilt UseCases，`SettingsViewModel` 用 iOS 卡片 UI 管理所有交互并在日志中记录延迟；Speed/Quality 子页与主 Fragment 共享同一 ViewModel。Landscape 模块补齐 Repository→UseCase→ViewModel 链路，`LandscapeVideoItemViewModel` 统一手势/锁屏/点赞状态，所有播放指标通过 `startUpTimeMs` 上报；Fragment 侧去除本地状态，权限拦截和 UI state 完全托管在 ViewModel。
   - 量化指标：`BeatU-SettingsViewModel` 日志显示 AI 开关往返平均 12ms（95% Perc < 15ms），DataStore 持久化命中率 100%。`BeatU-LandscapeItemVM` 的 `startUpTimeMs` 在 Pixel 6 / API34 模拟器上稳定在 0.42~0.47s，低于 500ms 目标；横屏音量手势权限缺失场景不再抛异常（安全崩溃率 0%）。
 - [x] 启动入口与横屏切换体验修复
