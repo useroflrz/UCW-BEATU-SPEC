@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="SettingsSwitchTheme" parent="Theme.Material3.DayNight">
+        <!-- 开启状态：绿色轨道 -->
+        <item name="colorControlActivated">@color/settings_switch_enabled</item>
+        <!-- 关闭状态：浅灰色轨道 -->
+        <item name="colorControlNormal">@color/settings_switch_disabled</item>
+        <!-- 滑块颜色：白色 -->
+        <item name="android:colorForeground">@android:color/white</item>
+    </style>
+</resources>
+

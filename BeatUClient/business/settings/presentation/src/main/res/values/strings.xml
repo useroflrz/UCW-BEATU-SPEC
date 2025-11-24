@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_icon">设置图标</string>
+    <string name="settings_arrow">箭头</string>
+    <string name="settings_back">返回</string>
+    
+    <!-- 设置项 -->
+    <string name="settings_ai_search">AI 搜索</string>
+    <string name="settings_ai_comment">AI 评论</string>
+    <string name="settings_auto_play">自动播放</string>
+    <string name="settings_speed">倍速设置</string>
+    <string name="settings_quality">清晰度设置</string>
+    <string name="settings_about">关于 BeatU</string>
+    
+    <!-- 倍速选项 -->
+    <string name="speed_3x">3x</string>
+    <string name="speed_2x">2x</string>
+    <string name="speed_1_5x">1.5x</string>
+    <string name="speed_1_25x">1.25x</string>
+    <string name="speed_1x">1x</string>
+    <string name="speed_0_75x">0.75x</string>
+    
+    <!-- 清晰度选项 -->
+    <string name="quality_1080p">1080P 高清</string>
+    <string name="quality_720p">720P 准高清</string>
+    <string name="quality_480p">480P 标清</string>
+    <string name="quality_360p">360P 流畅</string>
+    <string name="quality_auto">自动</string>
+</resources>
+
