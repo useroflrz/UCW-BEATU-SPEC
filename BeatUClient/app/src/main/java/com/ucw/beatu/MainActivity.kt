@@ -12,6 +12,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
+import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import com.ucw.beatu.business.videofeed.presentation.ui.FeedFragment
 import com.ucw.beatu.business.videofeed.presentation.ui.FeedFragmentCallback
@@ -32,20 +33,21 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
     private var topNavigation: View? = null
     private var btnFollow: TextView? = null
     private var btnRecommend: TextView? = null
-    private var btnMe: TextView? = null
+    private var ivMe: ImageView? = null
     private var ivSearch: ImageView? = null
     private var tabIndicator: TabIndicatorView? = null
     
     // FeedFragment 回调
     private var feedFragmentCallback: FeedFragmentCallback? = null
     
+    // Navigation Controller
+    private var navController: NavController? = null
+    
     // Tab位置信息（相对于指示器View的坐标）
     private var followTabCenterX: Float = 0f
     private var followTabCenterY: Float = 0f
     private var recommendTabCenterX: Float = 0f
     private var recommendTabCenterY: Float = 0f
-    private var meTabCenterX: Float = 0f
-    private var meTabCenterY: Float = 0f
     
     // 当前选中的Tab（0=关注，1=推荐）
     private var currentTabPosition = 1 // 默认显示推荐页面
@@ -91,6 +93,11 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
                 }
             })
             
+            // 获取 NavController 并设置导航监听
+            val navHostFragment = supportFragmentManager.findFragmentById(R.id.fragment_container) as? NavHostFragment
+            navController = navHostFragment?.navController
+            setupNavigationListener()
+            
             // Navigation Component 会自动处理 Fragment 的创建和恢复
             // 注册 Fragment 生命周期回调，用于获取 FeedFragment 实例
             supportFragmentManager.registerFragmentLifecycleCallbacks(
@@ -123,7 +130,7 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
     private fun initTopNavigation() {
         btnFollow = findViewById(R.id.btn_follow)
         btnRecommend = findViewById(R.id.btn_recommend)
-        btnMe = findViewById(R.id.btn_me)
+        ivMe = findViewById(R.id.iv_me)
         ivSearch = findViewById(R.id.iv_search)
         tabIndicator = findViewById(R.id.tab_indicator)
         
@@ -135,7 +142,6 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
         
         btnFollow?.setShadowLayer(shadowRadius, shadowDx, shadowDy, shadowColor)
         btnRecommend?.setShadowLayer(shadowRadius, shadowDx, shadowDy, shadowColor)
-        btnMe?.setShadowLayer(shadowRadius, shadowDx, shadowDy, shadowColor)
         
         // 设置点击事件
         btnFollow?.setOnClickListener {
@@ -146,8 +152,8 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
             feedFragmentCallback?.switchToTab(1)
         }
         
-        btnMe?.setOnClickListener {
-            // 使用 Navigation Graph 跳转到用户主页
+        // 设置"我"图标点击事件
+        ivMe?.setOnClickListener {
             navigateToUserProfile()
         }
         
@@ -190,20 +196,10 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
             recommendTabCenterY = (location[1] - indicatorLocation[1]) + it.height + spacingFromBottom
         }
         
-        btnMe?.let {
-            val location = IntArray(2)
-            it.getLocationInWindow(location)
-            // X坐标：文字中心
-            meTabCenterX = (location[0] - indicatorLocation[0]) + it.width / 2f
-            // Y坐标：文字底部 + 间距
-            meTabCenterY = (location[1] - indicatorLocation[1]) + it.height + spacingFromBottom
-        }
-        
-        // 将坐标传递给指示器
+        // 将坐标传递给指示器（只传递关注和推荐两个Tab的位置）
         tabIndicator.setTabPositions(
             followTabCenterX, followTabCenterY,
-            recommendTabCenterX, recommendTabCenterY,
-            meTabCenterX, meTabCenterY
+            recommendTabCenterX, recommendTabCenterY
         )
     }
     
@@ -300,32 +296,13 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
     }
     
     /**
-     * 导航到用户主页
-     */
-    private fun navigateToUserProfile() {
-        val navHostFragment = supportFragmentManager.findFragmentById(R.id.fragment_container) as? NavHostFragment
-        navHostFragment?.navController?.let { navController ->
-            try {
-                NavigationHelper.navigateByStringId(
-                    navController,
-                    NavigationIds.ACTION_FEED_TO_USER_PROFILE,
-                    this
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to navigate to user profile", e)
-            }
-        }
-    }
-    
-    /**
      * 导航到搜索页面
      */
     private fun navigateToSearch() {
-        val navHostFragment = supportFragmentManager.findFragmentById(R.id.fragment_container) as? NavHostFragment
-        navHostFragment?.navController?.let { navController ->
+        navController?.let { controller ->
             try {
                 NavigationHelper.navigateByStringId(
-                    navController,
+                    controller,
                     NavigationIds.ACTION_FEED_TO_SEARCH,
                     this
                 )
@@ -336,14 +313,106 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
     }
     
     /**
+     * 设置导航监听器，用于控制顶部导航栏的显示/隐藏
+     */
+    private fun setupNavigationListener() {
+        navController?.addOnDestinationChangedListener { _, destination, _ ->
+            // 根据当前目标页面控制顶部导航栏的显示/隐藏
+            when (destination.id) {
+                R.id.userProfile -> {
+                    // 进入个人主页时隐藏顶部导航栏
+                    hideTopNavigation()
+                }
+                R.id.feed -> {
+                    // 返回 Feed 页面时显示顶部导航栏
+                    showTopNavigation()
+                }
+                else -> {
+                    // 其他页面保持当前状态或根据需求调整
+                }
+            }
+        }
+    }
+    
+    /**
+     * 隐藏顶部导航栏（带动画）
+     */
+    private fun hideTopNavigation() {
+        topNavigation?.let { nav ->
+            if (nav.visibility == View.VISIBLE) {
+                val height = if (nav.height > 0) nav.height else {
+                    // 如果高度为0，使用估算值（状态栏高度 + 56dp）
+                    val statusBarHeight = resources.getIdentifier(
+                        "status_bar_height", "dimen", "android"
+                    ).let { if (it > 0) resources.getDimensionPixelSize(it) else 0 }
+                    val contentHeight = (56 * resources.displayMetrics.density).toInt()
+                    statusBarHeight + contentHeight
+                }
+                nav.animate()
+                    .alpha(0f)
+                    .translationY(-height.toFloat())
+                    .setDuration(300)
+                    .setInterpolator(android.view.animation.AccelerateInterpolator())
+                    .withEndAction {
+                        nav.visibility = View.GONE
+                    }
+                    .start()
+            }
+        }
+    }
+    
+    /**
+     * 显示顶部导航栏（带动画）
+     */
+    private fun showTopNavigation() {
+        topNavigation?.let { nav ->
+            if (nav.visibility != View.VISIBLE) {
+                val height = if (nav.height > 0) nav.height else {
+                    // 如果高度为0，使用估算值（状态栏高度 + 56dp）
+                    val statusBarHeight = resources.getIdentifier(
+                        "status_bar_height", "dimen", "android"
+                    ).let { if (it > 0) resources.getDimensionPixelSize(it) else 0 }
+                    val contentHeight = (56 * resources.displayMetrics.density).toInt()
+                    statusBarHeight + contentHeight
+                }
+                nav.visibility = View.VISIBLE
+                nav.alpha = 0f
+                nav.translationY = -height.toFloat()
+                nav.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(300)
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                    .start()
+            }
+        }
+    }
+    
+    /**
+     * 导航到用户主页
+     */
+    private fun navigateToUserProfile() {
+        navController?.let { controller ->
+            try {
+                NavigationHelper.navigateByStringId(
+                    controller,
+                    NavigationIds.ACTION_FEED_TO_USER_PROFILE,
+                    this
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to navigate to user profile", e)
+            }
+        }
+    }
+    
+    /**
      * 导航到设置页面
      */
     fun navigateToSettings() {
-        val navHostFragment = supportFragmentManager.findFragmentById(R.id.fragment_container) as? NavHostFragment
-        navHostFragment?.navController?.let { navController ->
+        navController?.let { controller ->
             try {
                 NavigationHelper.navigateByStringId(
-                    navController,
+                    controller,
                     NavigationIds.ACTION_FEED_TO_SETTINGS,
                     this
                 )
@@ -357,11 +426,10 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
      * 导航到横屏页面
      */
     fun navigateToLandscape() {
-        val navHostFragment = supportFragmentManager.findFragmentById(R.id.fragment_container) as? NavHostFragment
-        navHostFragment?.navController?.let { navController ->
+        navController?.let { controller ->
             try {
                 NavigationHelper.navigateByStringId(
-                    navController,
+                    controller,
                     NavigationIds.ACTION_FEED_TO_LANDSCAPE,
                     this
                 )

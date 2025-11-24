@@ -32,9 +32,9 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:weightSum="3"
+            android:weightSum="2"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/iv_search"
+            app:layout_constraintEnd_toStartOf="@id/iv_me"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent">
 
@@ -78,27 +78,22 @@
                 android:focusable="true"
                 android:includeFontPadding="false" />
 
-            <!-- 我按钮 -->
-            <TextView
-                android:id="@+id/btn_me"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:minHeight="56dp"
-                android:text="我"
-                android:textSize="17sp"
-                android:textColor="#99FFFFFF"
-                android:textStyle="normal"
-                android:gravity="center"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:paddingTop="12dp"
-                android:paddingBottom="12dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:includeFontPadding="false" />
-
         </LinearLayout>
+
+        <!-- 我的图标（在搜索图标左侧） -->
+        <ImageView
+            android:id="@+id/iv_me"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@android:drawable/ic_menu_myplaces"
+            android:contentDescription="我的"
+            android:tint="#FFFFFFFF"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginEnd="16dp"
+            app:layout_constraintEnd_toStartOf="@id/iv_search"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
 
         <!-- 搜索图标（固定在右侧） -->
         <ImageView

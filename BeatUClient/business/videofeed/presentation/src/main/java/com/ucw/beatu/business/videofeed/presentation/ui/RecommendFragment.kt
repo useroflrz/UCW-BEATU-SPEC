@@ -180,7 +180,7 @@ class RecommendFragment : Fragment() {
                 object : GestureDetector.SimpleOnGestureListener() {
                     override fun onFling(
                         e1: MotionEvent?,
-                        e2: MotionEvent?,
+                        e2: MotionEvent,
                         velocityX: Float,
                         velocityY: Float
                     ): Boolean {
@@ -201,7 +201,7 @@ class RecommendFragment : Fragment() {
                             deltaX < 0 && 
                             absDeltaX > minHorizontalDistance &&
                             velocityX < -1000) {
-                            Log.d(TAG, "Left swipe detected (deltaX: $deltaX, velocityX: $velocityX), navigating to user profile")
+                            Log.d(TAG, "Left swipe detected, navigating to user profile")
                             navigateToUserProfile()
                             return true
                         }
