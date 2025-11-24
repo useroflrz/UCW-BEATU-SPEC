@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.hilt)
 }
 
 android {
@@ -40,6 +41,13 @@ dependencies {
     implementation(project(":shared:common"))
     implementation(project(":shared:network"))
     implementation(project(":shared:database"))
+
+    // Hilt
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.compiler)
+    implementation("javax.inject:javax.inject:1")
+    implementation("com.google.dagger:dagger:${libs.versions.hilt.get()}")
+    kapt("com.google.dagger:dagger-compiler:${libs.versions.hilt.get()}")
     
     // Retrofit
     implementation(libs.retrofit)

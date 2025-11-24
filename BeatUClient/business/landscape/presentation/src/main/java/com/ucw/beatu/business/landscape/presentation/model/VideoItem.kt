@@ -15,6 +15,10 @@ data class VideoItem(
     val likeCount: Int,
     val commentCount: Int,
     val favoriteCount: Int,
-    val shareCount: Int
+    val shareCount: Int,
+    val isLiked: Boolean = false,
+    val isFavorited: Boolean = false,
+    val defaultSpeed: Float = 1.0f,
+    val defaultQuality: String = "自动"
 ) : Parcelable
 

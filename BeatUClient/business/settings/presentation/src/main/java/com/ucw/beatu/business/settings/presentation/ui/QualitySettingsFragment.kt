@@ -1,35 +1,37 @@
 package com.ucw.beatu.business.settings.presentation.ui
 
 import android.os.Bundle
+import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import com.ucw.beatu.business.settings.domain.model.PlaybackQualityPreference
 import com.ucw.beatu.business.settings.presentation.R
 import com.ucw.beatu.business.settings.presentation.databinding.FragmentQualitySettingsBinding
 import com.ucw.beatu.business.settings.presentation.databinding.ItemSettingsArrowBinding
+import com.ucw.beatu.business.settings.presentation.viewmodel.SettingsViewModel
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 /**
  * 清晰度设置 Fragment
- * 纯表现层，使用 Mock 数据展示
  */
+@AndroidEntryPoint
 class QualitySettingsFragment : Fragment() {
-    
+
+    private val viewModel: SettingsViewModel by activityViewModels()
+
     private var _binding: FragmentQualitySettingsBinding? = null
     private val binding get() = _binding!!
-    
-    // Mock 当前选中的清晰度
-    private var selectedQuality = "自动"
-    
-    private val qualityOptions = listOf(
-        "1080P 高清" to R.string.quality_1080p,
-        "720P 准高清" to R.string.quality_720p,
-        "480P 标清" to R.string.quality_480p,
-        "360P 流畅" to R.string.quality_360p,
-        "自动" to R.string.quality_auto
-    )
-    
+
+    private lateinit var optionBindings: Map<PlaybackQualityPreference, ItemSettingsArrowBinding>
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -38,71 +40,58 @@ class QualitySettingsFragment : Fragment() {
         _binding = FragmentQualitySettingsBinding.inflate(inflater, container, false)
         return binding.root
     }
-    
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupViews()
-        updateUI()
+        bindOptions()
+        observeState()
     }
-    
-    private fun setupViews() {
-        // 绑定清晰度选项
-        val bindings = listOf(
-            binding.itemQuality1080p,
-            binding.itemQuality720p,
-            binding.itemQuality480p,
-            binding.itemQuality360p,
-            binding.itemQualityAuto
+
+    private fun bindOptions() {
+        optionBindings = mapOf(
+            PlaybackQualityPreference.HD_1080 to ItemSettingsArrowBinding.bind(binding.itemQuality1080p.root),
+            PlaybackQualityPreference.HD_720 to ItemSettingsArrowBinding.bind(binding.itemQuality720p.root),
+            PlaybackQualityPreference.SD_480 to ItemSettingsArrowBinding.bind(binding.itemQuality480p.root),
+            PlaybackQualityPreference.SD_360 to ItemSettingsArrowBinding.bind(binding.itemQuality360p.root),
+            PlaybackQualityPreference.AUTO to ItemSettingsArrowBinding.bind(binding.itemQualityAuto.root)
         )
-        
-        qualityOptions.forEachIndexed { index, (quality, stringRes) ->
-            val itemBinding = ItemSettingsArrowBinding.bind(bindings[index].root)
-            itemBinding.title.setText(stringRes)
-            itemBinding.icon.visibility = View.GONE
-            
-            itemBinding.root.setOnClickListener {
-                selectedQuality = quality
-                updateUI()
-                // 返回上一页
-                if (activity is SettingsTestActivity) {
-                    (activity as SettingsTestActivity).showSettingsFragment()
-                } else {
-                    // 如果不在 SettingsTestActivity 中，尝试使用 Navigation
-                    try {
-                        findNavController().popBackStack()
-                    } catch (e: Exception) {
-                        // Navigation 未配置，忽略
+
+        optionBindings.forEach { (quality, binding) ->
+            binding.title.text = quality.label
+            binding.icon.visibility = View.GONE
+            binding.root.setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                viewModel.updateDefaultQuality(quality)
+                navigateBack()
+            }
+        }
+    }
+
+    private fun observeState() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collect { state ->
+                    optionBindings.forEach { (quality, binding) ->
+                        if (state.defaultQuality == quality) {
+                            binding.arrow.setImageResource(R.drawable.ic_check)
+                            binding.arrow.visibility = View.VISIBLE
+                        } else {
+                            binding.arrow.visibility = View.GONE
+                        }
                     }
                 }
             }
         }
     }
-    
-    private fun updateUI() {
-        // 更新选中状态
-        val bindings = listOf(
-            binding.itemQuality1080p,
-            binding.itemQuality720p,
-            binding.itemQuality480p,
-            binding.itemQuality360p,
-            binding.itemQualityAuto
-        )
-        
-        qualityOptions.forEachIndexed { index, (quality, _) ->
-            val itemBinding = ItemSettingsArrowBinding.bind(bindings[index].root)
-            if (selectedQuality == quality) {
-                // 显示选中指示器（对勾）
-                itemBinding.arrow.setImageResource(R.drawable.ic_check)
-                itemBinding.arrow.visibility = View.VISIBLE
-                itemBinding.arrow.contentDescription = "已选中"
-            } else {
-                itemBinding.arrow.visibility = View.GONE
-            }
-        }
+
+    private fun navigateBack() {
+        (activity as? SettingsTestActivity)?.showSettingsFragment()
+            ?: runCatching { findNavController().popBackStack() }
     }
-    
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }
 }
+

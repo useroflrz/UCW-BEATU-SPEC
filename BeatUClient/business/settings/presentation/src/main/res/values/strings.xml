@@ -26,5 +26,7 @@
     <string name="quality_480p">480P 标清</string>
     <string name="quality_360p">360P 流畅</string>
     <string name="quality_auto">自动</string>
+    <string name="settings_latency_hint">最新操作延迟 %1$d ms（目标 ≤16ms）</string>
+    <string name="settings_permission_toast">权限受限，无法完成该操作</string>
 </resources>
 

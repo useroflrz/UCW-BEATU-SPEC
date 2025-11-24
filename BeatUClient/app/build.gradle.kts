@@ -56,6 +56,8 @@ dependencies {
     implementation(project(":business:ai:presentation"))
     implementation(project(":business:landscape:presentation"))
     implementation(project(":business:settings:presentation"))
+    implementation(project(":business:landscape:data"))
+    implementation(project(":business:settings:data"))
     
     // Fragment
     implementation(libs.androidx.fragment.ktx)

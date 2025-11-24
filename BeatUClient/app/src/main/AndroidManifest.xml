@@ -4,6 +4,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <application
         android:name=".BeatUApp"
@@ -27,15 +28,23 @@
 <!--            </intent-filter>-->
 <!--        </activity>-->
 
-        <!-- 新增：测试 Activity（设为启动页） -->
         <activity
-            android:name="com.ucw.beatu.business.landscape.presentation.ui.LandscapeActivity"
+            android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name="com.ucw.beatu.business.landscape.presentation.ui.LandscapeActivity"
+            android:exported="false" />
+
+        <activity
+            android:name="com.ucw.beatu.business.settings.presentation.ui.SettingsTestActivity"
+            android:exported="false"
+            android:label="@string/app_name" />
 
     </application>
 

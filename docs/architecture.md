@@ -53,6 +53,11 @@
   - `domain/`：SettingsRepository 接口、UseCase。
   - `data/`：SettingsRepository 实现（DataStore）。
 
+> 2025-11-24 更新
+>
+> - Settings 模块完成 DataStore 持久化与 `SettingsViewModel` 封装，所有交互通过 `SettingsUseCases` 下发，UI 行为以 iOS 风格的卡片 + MaterialSwitch 呈现，并由 `Stopwatch` 记录每次操作的端到端延迟（日志标签 `BeatU-SettingsViewModel`）。
+> - Landscape 模块补齐 `LandscapeRepositoryImpl` → UseCase → ViewModel 链路，横屏 Feed 不再依赖 Fragment 内部 mock。`LandscapeVideoItemViewModel` 负责播放/手势/锁屏状态，并在 `AppLogger` 中输出首帧耗时（`startUpTimeMs`），供 KPI 评估。
+
 ### 3. Clean Architecture & 数据流
 
 ```

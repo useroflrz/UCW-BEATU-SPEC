@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.commit
 import com.ucw.beatu.business.settings.presentation.R
+import dagger.hilt.android.AndroidEntryPoint
 
 /**
  * 设置页面测试 Activity
@@ -13,6 +14,7 @@ import com.ucw.beatu.business.settings.presentation.R
  * 1. 默认显示主设置页面
  * 2. 支持从主设置页面内部跳转到子设置页面
  */
+@AndroidEntryPoint
 class SettingsTestActivity : AppCompatActivity() {
     
     // 当前显示的 Fragment 类型

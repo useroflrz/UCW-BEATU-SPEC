@@ -1,93 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<<<<<<< HEAD
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FF000000">
-
-    <!-- 顶部标题栏 -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="56dp"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <!-- 返回按钮 -->
-        <ImageView
-            android:id="@+id/btn_back"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@android:drawable/ic_menu_revert"
-            android:contentDescription="返回"
-            android:tint="#FFFFFFFF"
-            android:clickable="true"
-            android:focusable="true"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
-
-        <!-- 标题 -->
-        <TextView
-            android:id="@+id/tv_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="设置"
-            android:textSize="18sp"
-            android:textColor="#FFFFFFFF"
-            android:textStyle="bold"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <!-- 设置内容区域 -->
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        app:layout_constraintTop_toBottomOf="@id/toolbar"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
-
-            <!-- 占位文本 -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="设置页面（待实现）"
-                android:textSize="16sp"
-                android:textColor="#99FFFFFF"
-                android:gravity="center"
-                android:paddingTop="100dp"
-                android:paddingBottom="100dp" />
-
-        </LinearLayout>
-
-    </ScrollView>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
-
-=======
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
     android:background="@color/settings_bg"
-    android:fillViewport="true">
+    android:fillViewport="true"
+    android:clipToPadding="false"
+    tools:context="com.ucw.beatu.business.settings.presentation.ui.SettingsFragment">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -96,55 +16,65 @@
         android:paddingTop="8dp"
         android:paddingBottom="16dp">
 
-        <!-- 标题栏 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
             android:gravity="center_vertical"
+            android:orientation="horizontal"
             android:paddingStart="16dp"
-            android:paddingEnd="16dp"
             android:paddingTop="16dp"
+            android:paddingEnd="16dp"
             android:paddingBottom="16dp">
 
             <ImageView
                 android:id="@+id/btn_back"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@drawable/ic_arrow_left"
-                android:contentDescription="@string/settings_back"
-                android:padding="4dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
-                android:focusable="true" />
+                android:contentDescription="@string/settings_back"
+                android:focusable="true"
+                android:padding="4dp"
+                android:src="@drawable/ic_arrow_left" />
 
             <TextView
                 android:id="@+id/title"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="设置"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:textColor="@color/settings_text_primary"
-                android:gravity="center"
                 android:layout_marginStart="8dp"
-                android:layout_marginEnd="32dp" />
+                android:layout_marginEnd="32dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="设置"
+                android:textColor="@color/settings_text_primary"
+                android:textSize="24sp"
+                android:textStyle="bold" />
 
         </LinearLayout>
 
-        <!-- AI 开关分组 -->
+        <TextView
+            android:id="@+id/tv_latency"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="8dp"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:text="最新操作延迟 12ms（目标 ≤16ms）" />
+
         <TextView
             android:id="@+id/group_ai_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="AI 开关"
-            android:textSize="14sp"
-            android:textColor="@color/settings_text_secondary"
             android:paddingStart="16dp"
-            android:paddingEnd="16dp"
             android:paddingTop="16dp"
-            android:paddingBottom="8dp" />
+            android:paddingEnd="16dp"
+            android:paddingBottom="8dp"
+            android:text="AI 开关"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="14sp" />
 
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
@@ -153,7 +83,8 @@
             android:layout_marginEnd="16dp"
             android:layout_marginBottom="16dp"
             app:cardBackgroundColor="@color/settings_card_bg"
-            app:cardCornerRadius="8dp"
+            app:cardCornerRadius="12dp"
+            app:cardUseCompatPadding="false"
             app:cardElevation="0dp">
 
             <LinearLayout
@@ -168,28 +99,26 @@
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:background="@drawable/divider_settings"
-                    android:layout_marginStart="56dp" />
+                    android:layout_marginStart="56dp"
+                    android:background="@drawable/divider_settings" />
 
                 <include
                     android:id="@+id/item_ai_comment"
                     layout="@layout/item_settings_switch" />
-
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 播放设置分组 -->
         <TextView
             android:id="@+id/group_play_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="播放设置"
-            android:textSize="14sp"
-            android:textColor="@color/settings_text_secondary"
             android:paddingStart="16dp"
-            android:paddingEnd="16dp"
             android:paddingTop="16dp"
-            android:paddingBottom="8dp" />
+            android:paddingEnd="16dp"
+            android:paddingBottom="8dp"
+            android:text="播放设置"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="14sp" />
 
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
@@ -198,7 +127,8 @@
             android:layout_marginEnd="16dp"
             android:layout_marginBottom="16dp"
             app:cardBackgroundColor="@color/settings_card_bg"
-            app:cardCornerRadius="8dp"
+            app:cardCornerRadius="12dp"
+            app:cardUseCompatPadding="false"
             app:cardElevation="0dp">
 
             <LinearLayout
@@ -213,8 +143,8 @@
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:background="@drawable/divider_settings"
-                    android:layout_marginStart="56dp" />
+                    android:layout_marginStart="56dp"
+                    android:background="@drawable/divider_settings" />
 
                 <include
                     android:id="@+id/item_speed"
@@ -223,28 +153,26 @@
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:background="@drawable/divider_settings"
-                    android:layout_marginStart="56dp" />
+                    android:layout_marginStart="56dp"
+                    android:background="@drawable/divider_settings" />
 
                 <include
                     android:id="@+id/item_quality"
                     layout="@layout/item_settings_arrow" />
-
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 关于分组 -->
         <TextView
             android:id="@+id/group_about_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="关于"
-            android:textSize="14sp"
-            android:textColor="@color/settings_text_secondary"
             android:paddingStart="16dp"
-            android:paddingEnd="16dp"
             android:paddingTop="16dp"
-            android:paddingBottom="8dp" />
+            android:paddingEnd="16dp"
+            android:paddingBottom="8dp"
+            android:text="关于"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="14sp" />
 
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
@@ -253,15 +181,13 @@
             android:layout_marginEnd="16dp"
             android:layout_marginBottom="16dp"
             app:cardBackgroundColor="@color/settings_card_bg"
-            app:cardCornerRadius="8dp"
+            app:cardCornerRadius="12dp"
+            app:cardUseCompatPadding="false"
             app:cardElevation="0dp">
 
             <include
                 android:id="@+id/item_about"
                 layout="@layout/item_settings_arrow" />
-
         </androidx.cardview.widget.CardView>
-
     </LinearLayout>
-</ScrollView>
->>>>>>> origin/main
+</androidx.core.widget.NestedScrollView>

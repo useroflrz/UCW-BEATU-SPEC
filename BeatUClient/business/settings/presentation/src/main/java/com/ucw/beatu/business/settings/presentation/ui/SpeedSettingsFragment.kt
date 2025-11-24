@@ -1,36 +1,36 @@
 package com.ucw.beatu.business.settings.presentation.ui
 
 import android.os.Bundle
+import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.ucw.beatu.business.settings.presentation.R
 import com.ucw.beatu.business.settings.presentation.databinding.FragmentSpeedSettingsBinding
 import com.ucw.beatu.business.settings.presentation.databinding.ItemSettingsArrowBinding
+import com.ucw.beatu.business.settings.presentation.viewmodel.SettingsViewModel
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 /**
- * 倍速设置 Fragment
- * 纯表现层，使用 Mock 数据展示
+ * 倍速设置 Fragment（与 SettingsViewModel 共享状态）
  */
+@AndroidEntryPoint
 class SpeedSettingsFragment : Fragment() {
-    
+
+    private val viewModel: SettingsViewModel by activityViewModels()
+
     private var _binding: FragmentSpeedSettingsBinding? = null
     private val binding get() = _binding!!
-    
-    // Mock 当前选中的倍速
-    private var selectedSpeed = 1.0f
-    
-    private val speedOptions = listOf(
-        3.0f to R.string.speed_3x,
-        2.0f to R.string.speed_2x,
-        1.5f to R.string.speed_1_5x,
-        1.25f to R.string.speed_1_25x,
-        1.0f to R.string.speed_1x,
-        0.75f to R.string.speed_0_75x
-    )
-    
+
+    private lateinit var optionBindings: List<ItemSettingsArrowBinding>
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -39,73 +39,77 @@ class SpeedSettingsFragment : Fragment() {
         _binding = FragmentSpeedSettingsBinding.inflate(inflater, container, false)
         return binding.root
     }
-    
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupViews()
-        updateUI()
+        bindOptions()
+        observeState()
     }
-    
-    private fun setupViews() {
-        // 绑定倍速选项
-        val bindings = listOf(
-            binding.itemSpeed3x,
-            binding.itemSpeed2x,
-            binding.itemSpeed15x,
-            binding.itemSpeed125x,
-            binding.itemSpeed1x,
-            binding.itemSpeed075x
+
+    private fun bindOptions() {
+        optionBindings = listOf(
+            ItemSettingsArrowBinding.bind(binding.itemSpeed3x.root).apply {
+                title.setText(R.string.speed_3x)
+                icon.visibility = View.GONE
+            },
+            ItemSettingsArrowBinding.bind(binding.itemSpeed2x.root).apply {
+                title.setText(R.string.speed_2x)
+                icon.visibility = View.GONE
+            },
+            ItemSettingsArrowBinding.bind(binding.itemSpeed15x.root).apply {
+                title.setText(R.string.speed_1_5x)
+                icon.visibility = View.GONE
+            },
+            ItemSettingsArrowBinding.bind(binding.itemSpeed125x.root).apply {
+                title.setText(R.string.speed_1_25x)
+                icon.visibility = View.GONE
+            },
+            ItemSettingsArrowBinding.bind(binding.itemSpeed1x.root).apply {
+                title.setText(R.string.speed_1x)
+                icon.visibility = View.GONE
+            },
+            ItemSettingsArrowBinding.bind(binding.itemSpeed075x.root).apply {
+                title.setText(R.string.speed_0_75x)
+                icon.visibility = View.GONE
+            }
         )
-        
-        speedOptions.forEachIndexed { index, (speed, stringRes) ->
-            val itemBinding = ItemSettingsArrowBinding.bind(bindings[index].root)
-            itemBinding.title.setText(stringRes)
-            itemBinding.icon.visibility = View.GONE
-            
-            itemBinding.root.setOnClickListener {
-                selectedSpeed = speed
-                updateUI()
-                // 返回上一页
-                if (activity is SettingsTestActivity) {
-                    (activity as SettingsTestActivity).showSettingsFragment()
-                } else {
-                    // 如果不在 SettingsTestActivity 中，尝试使用 Navigation
-                    try {
-                        findNavController().popBackStack()
-                    } catch (e: Exception) {
-                        // Navigation 未配置，忽略
+
+        optionBindings.forEachIndexed { index, option ->
+            option.root.setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                val targetSpeed = SettingsViewModel.SPEED_OPTIONS[index]
+                viewModel.updateDefaultSpeed(targetSpeed)
+                navigateBack()
+            }
+        }
+    }
+
+    private fun observeState() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collect { state ->
+                    optionBindings.forEachIndexed { index, option ->
+                        val speed = SettingsViewModel.SPEED_OPTIONS[index]
+                        if (state.defaultSpeed == speed) {
+                            option.arrow.setImageResource(R.drawable.ic_check)
+                            option.arrow.visibility = View.VISIBLE
+                        } else {
+                            option.arrow.visibility = View.GONE
+                        }
                     }
                 }
             }
         }
     }
-    
-    private fun updateUI() {
-        // 更新选中状态
-        val bindings = listOf(
-            binding.itemSpeed3x,
-            binding.itemSpeed2x,
-            binding.itemSpeed15x,
-            binding.itemSpeed125x,
-            binding.itemSpeed1x,
-            binding.itemSpeed075x
-        )
-        
-        speedOptions.forEachIndexed { index, (speed, _) ->
-            val itemBinding = ItemSettingsArrowBinding.bind(bindings[index].root)
-            if (selectedSpeed == speed) {
-                // 显示选中指示器（对勾）
-                itemBinding.arrow.setImageResource(R.drawable.ic_check)
-                itemBinding.arrow.visibility = View.VISIBLE
-                itemBinding.arrow.contentDescription = "已选中"
-            } else {
-                itemBinding.arrow.visibility = View.GONE
-            }
-        }
+
+    private fun navigateBack() {
+        (activity as? SettingsTestActivity)?.showSettingsFragment()
+            ?: runCatching { findNavController().popBackStack() }
     }
-    
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }
 }
+

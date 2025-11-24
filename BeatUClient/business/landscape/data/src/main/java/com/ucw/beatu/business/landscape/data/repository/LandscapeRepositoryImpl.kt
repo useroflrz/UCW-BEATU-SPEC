@@ -1,0 +1,98 @@
+package com.ucw.beatu.business.landscape.data.repository
+
+import com.ucw.beatu.business.landscape.domain.repository.LandscapeRepository
+import com.ucw.beatu.business.videofeed.domain.model.Video
+import com.ucw.beatu.shared.common.result.AppResult
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
+
+@Singleton
+class LandscapeRepositoryImpl @Inject constructor() : LandscapeRepository {
+
+    private val mockVideos = listOf(
+        baseVideo(
+            id = "ls_mock_1",
+            playUrl = "https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/Justin%20Bieber%20-%20Beauty%20And%20A%20Beat.mp4",
+            title = "横屏极光旅拍",
+            author = "KORA Studio"
+        ),
+        baseVideo(
+            id = "ls_mock_2",
+            playUrl = "https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E6%B5%8B%E8%AF%95%E8%A7%86%E9%A2%91.mp4",
+            title = "机车少年",
+            author = "Gear Lab"
+        ),
+        baseVideo(
+            id = "ls_mock_3",
+            playUrl = "https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E6%B5%8B%E8%AF%95%E8%A7%86%E9%A2%912.mp4",
+            title = "无人机灵感",
+            author = "Sky Vision"
+        )
+    )
+
+    override fun getLandscapeVideos(page: Int, limit: Int): Flow<AppResult<List<Video>>> {
+        return flow {
+            emit(AppResult.Loading)
+            delay(120)
+            emit(AppResult.Success(generatePage(page, limit)))
+        }.catch { throwable ->
+            emit(AppResult.Error(throwable))
+        }
+    }
+
+    override fun loadMoreLandscapeVideos(page: Int, limit: Int): Flow<AppResult<List<Video>>> {
+        return flow {
+            emit(AppResult.Loading)
+            delay(100)
+            emit(AppResult.Success(generatePage(page, limit)))
+        }.catch { throwable ->
+            emit(AppResult.Error(throwable))
+        }
+    }
+
+    private fun generatePage(page: Int, limit: Int): List<Video> {
+        return List(limit) { index ->
+            val template = mockVideos[(page * limit + index) % mockVideos.size]
+            val suffix = "p${page}_$index"
+            template.copy(
+                id = "${template.id}_$suffix",
+                title = "${template.title} · $suffix",
+                likeCount = template.likeCount + page * 97 + index,
+                favoriteCount = template.favoriteCount + page * 33 + index,
+                commentCount = template.commentCount + page * 11 + index
+            )
+        }
+    }
+
+    private fun baseVideo(
+        id: String,
+        playUrl: String,
+        title: String,
+        author: String
+    ) = Video(
+        id = id,
+        playUrl = playUrl,
+        coverUrl = "",
+        title = title,
+        tags = listOf("landscape"),
+        durationMs = 180000,
+        orientation = "landscape",
+        authorId = "${author}_id",
+        authorName = author,
+        authorAvatar = null,
+        likeCount = 500,
+        commentCount = 48,
+        favoriteCount = 120,
+        shareCount = 90,
+        viewCount = 2000,
+        isLiked = false,
+        isFavorited = false,
+        isFollowedAuthor = false
+    )
+}
+
+

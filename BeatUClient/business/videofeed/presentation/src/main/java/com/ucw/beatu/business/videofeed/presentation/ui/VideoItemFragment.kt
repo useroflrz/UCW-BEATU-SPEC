@@ -1,5 +1,6 @@
 package com.ucw.beatu.business.videofeed.presentation.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -15,6 +16,7 @@ import androidx.media3.ui.PlayerView
 import com.ucw.beatu.business.videofeed.presentation.R
 import com.ucw.beatu.business.videofeed.presentation.model.VideoItem
 import com.ucw.beatu.business.videofeed.presentation.viewmodel.VideoItemViewModel
+import com.ucw.beatu.shared.common.navigation.LandscapeLaunchContract
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -105,7 +107,7 @@ class VideoItemFragment : Fragment() {
         }
         
         view.findViewById<View>(R.id.iv_fullscreen)?.setOnClickListener {
-            // TODO: 全屏播放
+            openLandscapeMode()
         }
         
         // 延迟加载视频，确保视图完全初始化
@@ -178,6 +180,23 @@ class VideoItemFragment : Fragment() {
         viewModel.releaseCurrentPlayer()
         playerView = null
         playButton = null
+    }
+
+    private fun openLandscapeMode() {
+        val item = videoItem ?: return
+        val intent = Intent().apply {
+            setClassName(requireContext(), LandscapeLaunchContract.ACTIVITY_CLASS_NAME)
+            putExtra(LandscapeLaunchContract.EXTRA_VIDEO_ID, item.id)
+            putExtra(LandscapeLaunchContract.EXTRA_VIDEO_URL, item.videoUrl)
+            putExtra(LandscapeLaunchContract.EXTRA_VIDEO_TITLE, item.title)
+            putExtra(LandscapeLaunchContract.EXTRA_VIDEO_AUTHOR, item.authorName)
+            putExtra(LandscapeLaunchContract.EXTRA_VIDEO_LIKE, item.likeCount)
+            putExtra(LandscapeLaunchContract.EXTRA_VIDEO_COMMENT, item.commentCount)
+            putExtra(LandscapeLaunchContract.EXTRA_VIDEO_FAVORITE, item.favoriteCount)
+            putExtra(LandscapeLaunchContract.EXTRA_VIDEO_SHARE, item.shareCount)
+        }
+        runCatching { startActivity(intent) }
+            .onFailure { Log.e(TAG, "Failed to open landscape mode", it) }
     }
 }
 

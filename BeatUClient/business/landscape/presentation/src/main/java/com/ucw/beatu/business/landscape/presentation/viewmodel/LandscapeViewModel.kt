@@ -1,132 +1,138 @@
 package com.ucw.beatu.business.landscape.presentation.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ucw.beatu.business.landscape.domain.repository.LandscapeRepository
+import com.ucw.beatu.business.landscape.domain.usecase.LandscapeUseCases
 import com.ucw.beatu.business.landscape.presentation.model.VideoItem
-
+import com.ucw.beatu.business.videofeed.domain.model.Video
+import com.ucw.beatu.shared.common.logger.AppLogger
 import com.ucw.beatu.shared.common.result.AppResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /**
  * 横屏页 ViewModel
- * 管理横屏视频列表，使用 Repository 获取数据（目前使用 mock 数据）
+ * Repository -> UseCase -> Presentation 状态流
  */
 @HiltViewModel
 class LandscapeViewModel @Inject constructor(
-    application: Application
-) : AndroidViewModel(application) {
-
-    // 统一管理 Mock 视频链接（便于维护）
-    private val MOCK_VIDEO_URL_1 =
-        "https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/Justin%20Bieber%20-%20Beauty%20And%20A%20Beat.mp4"
-    private val MOCK_VIDEO_URL_2 =
-        "https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E6%B5%8B%E8%AF%95%E8%A7%86%E9%A2%91.mp4"
-
-    private val MOCK_VIDEO_URL_3 =
-        "https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E6%B5%8B%E8%AF%95%E8%A7%86%E9%A2%912.mp4"
+    private val useCases: LandscapeUseCases
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LandscapeUiState())
     val uiState: StateFlow<LandscapeUiState> = _uiState.asStateFlow()
 
     private var currentPage = 1
-    private val pageSize = 20
+    private val pageSize = 5
+    private var isLoadingMore = false
+    private var externalEntry: VideoItem? = null
 
-    init {
-        loadVideoList()
+    fun showExternalVideo(videoItem: VideoItem) {
+        externalEntry = videoItem
+        _uiState.value = LandscapeUiState(
+            videoList = listOf(videoItem),
+            isLoading = false,
+            error = null,
+            lastUpdated = System.currentTimeMillis()
+        )
     }
 
-    /**
-     * 加载第一页 Mock 数据
-     */
     fun loadVideoList() {
+        currentPage = 1
+        fetchPage(page = currentPage, append = false)
+    }
+
+    fun loadMoreVideos() {
+        if (isLoadingMore || _uiState.value.isLoading) return
+        isLoadingMore = true
+        val nextPage = currentPage + 1
+        fetchPage(page = nextPage, append = true)
+    }
+
+    private fun fetchPage(page: Int, append: Boolean) {
         viewModelScope.launch {
-            currentPage = 1
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            val flow = if (append) {
+                useCases.loadMoreLandscapeVideos(page, pageSize)
+            } else {
+                useCases.getLandscapeVideos(page, pageSize)
+            }
 
-            // 第一页 Mock 数据
-            val mockVideos = listOf(
-                VideoItem(
-                    id = "mock_1",
-                    videoUrl = MOCK_VIDEO_URL_1,
-                    title = "Mock 横屏视频 1",
-                    authorName = "Mock 作者1",
-                    likeCount = 123,
-                    commentCount = 45,
-                    favoriteCount = 67,
-                    shareCount = 89
-                ),
-                VideoItem(
-                    id = "mock_2",
-                    videoUrl = MOCK_VIDEO_URL_2,
-                    title = "Mock 横屏视频 2",
-                    authorName = "Mock 作者2",
-                    likeCount = 987,
-                    commentCount = 65,
-                    favoriteCount = 43,
-                    shareCount = 21
-                ), VideoItem(
-                    id = "mock_2",
-                    videoUrl = MOCK_VIDEO_URL_3,
-                    title = "Mock 横屏视频 2",
-                    authorName = "Mock 作者2",
-                    likeCount = 987,
-                    commentCount = 65,
-                    favoriteCount = 43,
-                    shareCount = 21
-                )
-            )
-
-            _uiState.value = _uiState.value.copy(
-                videoList = mockVideos,
-                isLoading = false,
-                error = null
-            )
+            flow.collect { result ->
+                when (result) {
+                    is AppResult.Loading -> {
+                        if (!append) {
+                            _uiState.update { it.copy(isLoading = true, error = null) }
+                        }
+                    }
+                    is AppResult.Success -> {
+                        val mapped = result.data.map { it.toLandscapeItem() }
+                        _uiState.update { state ->
+                            val baseList = if (append) state.videoList + mapped else mapped
+                            val finalList = baseList.withExternalPinned(externalEntry)
+                            state.copy(
+                                videoList = finalList,
+                                isLoading = false,
+                                error = null,
+                                lastUpdated = System.currentTimeMillis()
+                            )
+                        }
+                        if (append) {
+                            currentPage = page
+                            isLoadingMore = false
+                        }
+                        AppLogger.d(TAG, "Loaded landscape page=$page size=${mapped.size}")
+                    }
+                    is AppResult.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                error = result.message ?: "加载失败"
+                            )
+                        }
+                        isLoadingMore = false
+                        AppLogger.e(TAG, "load landscape failed", result.throwable)
+                    }
+                }
+            }
         }
     }
 
-    /**
-     * 加载更多 Mock 数据（复用阿里云链接，保证有效性）
-     */
-    fun loadMoreVideos() {
-        viewModelScope.launch {
-            currentPage++
-            // 加载更多用交替的 Mock 链接（避免全部重复）
-            val moreVideoUrl = if (currentPage % 2 == 0) MOCK_VIDEO_URL_1 else MOCK_VIDEO_URL_2
-
-            val moreMockVideos = listOf(
-                VideoItem(
-                    id = "mock_${currentPage}_1",
-                    videoUrl = moreVideoUrl, // 用有效阿里云链接，而非 mock.com
-                    title = "Mock 横屏视频 ${currentPage}",
-                    authorName = "Mock 作者${currentPage}",
-                    likeCount = 100 + currentPage * 10,
-                    commentCount = 50 + currentPage * 5,
-                    favoriteCount = 30 + currentPage * 3,
-                    shareCount = 20 + currentPage * 2
-                )
-            )
-
-            // 追加数据
-            val currentList = _uiState.value.videoList.toMutableList()
-            currentList.addAll(moreMockVideos)
-            _uiState.value = _uiState.value.copy(
-                videoList = currentList,
-                error = null
-            )
-        }
+    companion object {
+        private const val TAG = "LandscapeViewModel"
     }
 }
 
-// 移到文件顶层！让外部（Activity/Adapter）能访问
 data class LandscapeUiState(
     val videoList: List<VideoItem> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val lastUpdated: Long? = null
 )
+
+private fun Video.toLandscapeItem(): VideoItem {
+    return VideoItem(
+        id = id,
+        videoUrl = playUrl,
+        title = title,
+        authorName = authorName,
+        likeCount = likeCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+        commentCount = commentCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+        favoriteCount = favoriteCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+        shareCount = shareCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+        isLiked = isLiked,
+        isFavorited = isFavorited,
+        defaultSpeed = 1.0f,
+        defaultQuality = "自动"
+    )
+}
+
+private fun List<VideoItem>.withExternalPinned(external: VideoItem? = null): List<VideoItem> {
+    val entry = external ?: return this
+    val filtered = this.filterNot { it.id == entry.id }
+    return listOf(entry) + filtered
+}

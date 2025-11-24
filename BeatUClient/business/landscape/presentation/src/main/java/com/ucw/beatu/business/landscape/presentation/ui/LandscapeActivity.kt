@@ -1,25 +1,26 @@
 package com.ucw.beatu.business.landscape.presentation.ui
 
 import android.content.pm.ActivityInfo
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
-import android.view.WindowInsetsController
-import android.view.WindowManager
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.viewpager2.widget.ViewPager2
 import com.ucw.beatu.business.landscape.presentation.R
+import com.ucw.beatu.business.landscape.presentation.model.VideoItem
 import com.ucw.beatu.business.landscape.presentation.ui.adapter.LandscapeVideoAdapter
 import com.ucw.beatu.business.landscape.presentation.viewmodel.LandscapeViewModel
+import com.ucw.beatu.shared.common.navigation.LandscapeLaunchContract
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import androidx.lifecycle.repeatOnLifecycle
 import kotlin.collections.isNotEmpty
 
 
@@ -48,26 +49,14 @@ class LandscapeActivity : AppCompatActivity() {
         // 强制横屏
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         
-        // 全屏模式（使用新的 API）
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.insetsController?.let { controller ->
-                controller.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-                controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            }
-        } else {
-            @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = (
-                View.SYSTEM_UI_FLAG_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-            )
-        }
-        
         setContentView(R.layout.activity_landscape)
+        configureImmersiveMode()
         
         // 初始化 ViewModel
         viewModel = ViewModelProvider(this)[LandscapeViewModel::class.java]
+        val entryVideo = extractEntryVideo()
+        entryVideo?.let { viewModel.showExternalVideo(it) }
+        viewModel.loadVideoList()
         
         // 初始化退出按钮
         exitButton = findViewById(R.id.btn_exit_landscape)
@@ -100,6 +89,13 @@ class LandscapeActivity : AppCompatActivity() {
         // 观察 ViewModel 状态
         observeViewModel()
     }
+
+    private fun configureImmersiveMode() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        controller.hide(WindowInsetsCompat.Type.systemBars())
+        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+    }
     
     private fun observeViewModel() {
         lifecycleScope.launch {
@@ -118,5 +114,26 @@ class LandscapeActivity : AppCompatActivity() {
         super.onBackPressed()
         // 退出横屏模式
         finish()
+    }
+
+    private fun extractEntryVideo(): VideoItem? {
+        val videoUrl = intent.getStringExtra(LandscapeLaunchContract.EXTRA_VIDEO_URL) ?: return null
+        val id = intent.getStringExtra(LandscapeLaunchContract.EXTRA_VIDEO_ID) ?: videoUrl
+        val title = intent.getStringExtra(LandscapeLaunchContract.EXTRA_VIDEO_TITLE) ?: ""
+        val author = intent.getStringExtra(LandscapeLaunchContract.EXTRA_VIDEO_AUTHOR) ?: ""
+        val like = intent.getIntExtra(LandscapeLaunchContract.EXTRA_VIDEO_LIKE, 0)
+        val comment = intent.getIntExtra(LandscapeLaunchContract.EXTRA_VIDEO_COMMENT, 0)
+        val favorite = intent.getIntExtra(LandscapeLaunchContract.EXTRA_VIDEO_FAVORITE, 0)
+        val share = intent.getIntExtra(LandscapeLaunchContract.EXTRA_VIDEO_SHARE, 0)
+        return VideoItem(
+            id = id,
+            videoUrl = videoUrl,
+            title = title,
+            authorName = author,
+            likeCount = like,
+            commentCount = comment,
+            favoriteCount = favorite,
+            shareCount = share
+        )
     }
 }
