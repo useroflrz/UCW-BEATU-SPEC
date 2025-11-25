@@ -328,19 +328,27 @@
         1. User 模块新增 `UserWork` 模型、`UserWorksRepository` 与本地数据源，直接消费 `VideoDao.observeTopVideos` 的缓存结果，将首页 Top N 视频复用到个人主页所有 Tab
         2. `UserProfileViewModel` + RecyclerView 订阅真实视频流数据，Coil 异步加载封面，四个 Tab 共用同一份列表
     - 文档：本条目标记完成并在 `docs/architecture.md` 补充“用户模块复用视频缓存”的架构说明
+
+- [x] 修复点击搜索图标就退出的 Bug
+    - 2025-11-25 - done by KJH
+    - 背景：顶部导航的搜索图标被点击后应用立即退出，logcat 显示 `lateinit property llSearchHistory has not been initialized`，根因是 SearchFragment 未绑定 FlowLayout 视图且布局中缺失对应节点。
+    - 成果：
+        1. 搜索页布局重新挂载 `FlowLayout`（搜索历史、热门搜索），并在 `SearchFragment` 中完成 `findViewById` 绑定，移除 `lateinit` 崩溃。
+        2. 搜索入口可稳定进入页面，返回栈保持在 Feed，崩溃率从 100% → 0%（手动复验）。
+    - 文档：本计划记录，导航结构未变更。
   
 - [ ] 点击对应的视频首页，跳转到对应的视频主页
   - 2025-
   - 成果：
 
-- [x] 尝试寻找视频流与个人主页的滑动显示
+- [ ] 尝试寻找视频流与个人主页的滑动显示
   - 2025-11-25 - done by KJH
   - 成果：
     - 主页视频流向左滑，进入个人主页
     - 个人主页向左滑，进入关注页
     - 关注页向右滑，进入个人主页
     - 待定:添加个人主页左上角的返回按钮
-  - 备选方案：如果实现不了，则用顶部导航栏图标点击来代替
+  - 备选方案：如果实现不了，则用顶部导航栏图标点击来代替，在个人主页添加返回按钮
 > 后续迭代中，请将具体任务拆分为更细粒度条目，并在完成后标记 `[x]`，附上日期与负责人。
 
 

@@ -176,11 +176,11 @@
                 android:layout_marginBottom="12dp" />
 
             <!-- 搜索历史标签流式布局 -->
-<!--            <com.ucw.beatu.business.search.presentation.ui.widget.FlowLayout-->
-<!--                android:id="@+id/ll_search_history"-->
-<!--                android:layout_width="match_parent"-->
-<!--                android:layout_height="wrap_content"-->
-<!--                android:layout_marginBottom="8dp" />-->
+            <com.ucw.beatu.business.search.presentation.ui.widget.FlowLayout
+                android:id="@+id/ll_search_history"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp" />
 
             <!-- 热门搜索 -->
             <TextView
@@ -195,10 +195,10 @@
                 android:layout_marginBottom="12dp" />
 
             <!-- 热门搜索标签流式布局 -->
-<!--            <com.ucw.beatu.business.search.presentation.ui.widget.FlowLayout-->
-<!--                android:id="@+id/ll_hot_search"-->
-<!--                android:layout_width="match_parent"-->
-<!--                android:layout_height="wrap_content" />-->
+            <com.ucw.beatu.business.search.presentation.ui.widget.FlowLayout
+                android:id="@+id/ll_hot_search"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
 
         </LinearLayout>
 
