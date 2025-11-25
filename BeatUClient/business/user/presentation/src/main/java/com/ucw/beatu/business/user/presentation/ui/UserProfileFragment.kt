@@ -15,7 +15,6 @@ import android.view.ViewOutlineProvider
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -24,9 +23,12 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.ucw.beatu.business.user.domain.model.User
+import com.ucw.beatu.business.user.domain.model.UserWork
 import com.ucw.beatu.business.user.presentation.R
 import com.ucw.beatu.business.user.presentation.ui.adapter.UserWorkUiModel
 import com.ucw.beatu.business.user.presentation.ui.adapter.UserWorksAdapter
+import com.ucw.beatu.business.user.presentation.viewmodel.UserProfileViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.io.File
@@ -73,7 +75,6 @@ class UserProfileFragment : Fragment() {
     private var selectedTab: TextView? = null
     
     private val worksAdapter = UserWorksAdapter()
-    private var allWorks: List<UserWorkUiModel> = emptyList()
 
     // 用户ID（从参数获取，默认为当前用户）
     private val userId: String
@@ -105,9 +106,8 @@ class UserProfileFragment : Fragment() {
         // 初始化标签切换
         initTabs(view)
 
-        // 初始化作品列表并加载数据
+        // 初始化作品列表
         initWorksList()
-        loadAllWorks()
 
         // 观察 ViewModel 数据
         observeViewModel()
@@ -115,6 +115,7 @@ class UserProfileFragment : Fragment() {
         // 初始化并加载用户数据
         viewModel.initMockData(userId)
         viewModel.loadUser(userId)
+        viewModel.observeUserWorks(userId)
     }
 
     /**
@@ -125,28 +126,6 @@ class UserProfileFragment : Fragment() {
             layoutManager = GridLayoutManager(requireContext(), 3)
             adapter = worksAdapter
             setHasFixedSize(true)
-        }
-    }
-
-    /**
-     * 加载全部作品数据（当前为占位数据）
-     */
-    private fun loadAllWorks() {
-        allWorks = generateMockWorks()
-        worksAdapter.submitList(allWorks)
-    }
-
-    private fun generateMockWorks(): List<UserWorkUiModel> {
-        val mockPlayCounts = listOf(
-            12800L, 56000L, 9400L, 204000L, 18400L, 33200L,
-            75200L, 91800L, 4600L, 120000L, 81500L, 21000L
-        )
-        return mockPlayCounts.mapIndexed { index, playCount ->
-            UserWorkUiModel(
-                id = "work_$index",
-                thumbnailRes = R.drawable.ic_avatar_placeholder,
-                playCount = playCount
-            )
         }
     }
 
@@ -241,9 +220,15 @@ class UserProfileFragment : Fragment() {
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                // 观察用户信息
-                viewModel.user.collect { user ->
-                    user?.let { updateUserInfo(it) }
+                launch {
+                    viewModel.user.collect { user ->
+                        user?.let { updateUserInfo(it) }
+                    }
+                }
+                launch {
+                    viewModel.userWorks.collect { works ->
+                        worksAdapter.submitList(works.map { it.toUiModel() })
+                    }
                 }
             }
         }
@@ -252,7 +237,7 @@ class UserProfileFragment : Fragment() {
     /**
      * 更新用户信息 UI
      */
-    private fun updateUserInfo(user: com.ucw.beatu.business.user.domain.model.User) {
+    private fun updateUserInfo(user: User) {
         tvUsername.text = user.name
         tvBio.text = user.bio ?: ""
         
@@ -338,8 +323,8 @@ class UserProfileFragment : Fragment() {
         selectedTab = tab
         updateTabState(tab, true)
 
-        // 当前阶段所有 Tab 都展示同一份作品数据
-        worksAdapter.submitList(allWorks.toList())
+        // 当前阶段所有 Tab 都展示同一份作品数据，复用当前列表
+        // 列表由 observeViewModel() 负责驱动，这里无需额外处理
     }
     
     /**
@@ -354,6 +339,12 @@ class UserProfileFragment : Fragment() {
             tab.setTextColor(0x80FFFFFF.toInt())       // 白色 50% 透明
         }
     }
+
+    private fun UserWork.toUiModel(): UserWorkUiModel = UserWorkUiModel(
+        id = id,
+        thumbnailUrl = coverUrl,
+        playCount = viewCount
+    )
 
     /**
      * 设置头像圆角裁剪（使用 post 解决宽高=0 的问题）

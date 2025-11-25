@@ -33,9 +33,9 @@
   - `domain/`：FeedRepository 接口、UseCase（GetFeedUseCase、LikeVideoUseCase、CommentUseCase 等）。
   - `data/`：FeedRepository 实现、RemoteDataSource、LocalDataSource、Mapper。
 - `business/user/`（用户业务）
-  - `presentation/`：个人主页/作者主页、关注状态同步。
-  - `domain/`：UserRepository 接口、UseCase。
-  - `data/`：UserRepository 实现。
+  - `presentation/`：个人主页/作者主页、关注状态同步、用户作品网格（直接消费视频流缓存）。
+  - `domain/`：UserRepository、UserWorksRepository 接口、UseCase。
+  - `data/`：UserRepository、UserWorksRepository 实现，依赖 `shared/database` 的 `VideoDao` 复用 Feed 缓存。
 - `business/search/`（搜索业务）
   - `presentation/`：频道切换、话题发现。
   - `domain/`：SearchRepository 接口、UseCase。

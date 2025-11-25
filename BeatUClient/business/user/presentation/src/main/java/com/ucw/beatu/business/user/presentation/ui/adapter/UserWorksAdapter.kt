@@ -5,10 +5,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.annotation.DrawableRes
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
 import com.ucw.beatu.business.user.presentation.R
 
 class UserWorksAdapter :
@@ -29,7 +29,12 @@ class UserWorksAdapter :
         private val playCount: TextView = itemView.findViewById(R.id.tv_play_count)
 
         fun bind(item: UserWorkUiModel) {
-            thumbnail.setImageResource(item.thumbnailRes)
+            val placeholderRes = R.drawable.ic_avatar_placeholder
+            thumbnail.load(item.thumbnailUrl ?: placeholderRes) {
+                crossfade(true)
+                placeholder(placeholderRes)
+                error(placeholderRes)
+            }
             playCount.text = formatPlayCount(item.playCount)
         }
 
@@ -59,7 +64,7 @@ class UserWorksAdapter :
 
 data class UserWorkUiModel(
     val id: String,
-    @DrawableRes val thumbnailRes: Int,
+    val thumbnailUrl: String?,
     val playCount: Long
 )
 

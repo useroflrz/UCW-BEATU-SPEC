@@ -60,5 +60,6 @@ dependencies {
     
     // Material
     implementation(libs.material)
+    implementation(libs.coil)
 }
 

@@ -1,10 +1,13 @@
-package com.ucw.beatu.business.user.presentation.ui
+package com.ucw.beatu.business.user.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ucw.beatu.business.user.domain.model.User
+import com.ucw.beatu.business.user.domain.model.UserWork
 import com.ucw.beatu.business.user.domain.repository.UserRepository
+import com.ucw.beatu.business.user.domain.repository.UserWorksRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,7 +19,8 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class UserProfileViewModel @Inject constructor(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val userWorksRepository: UserWorksRepository
 ) : ViewModel() {
 
     private val _user = MutableStateFlow<User?>(null)
@@ -24,6 +28,11 @@ class UserProfileViewModel @Inject constructor(
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _userWorks = MutableStateFlow<List<UserWork>>(emptyList())
+    val userWorks: StateFlow<List<UserWork>> = _userWorks.asStateFlow()
+
+    private var observeWorksJob: Job? = null
 
     /**
      * 加载用户信息
@@ -42,6 +51,18 @@ class UserProfileViewModel @Inject constructor(
             } catch (e: Exception) {
                 e.printStackTrace()
                 _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * 订阅真实视频数据
+     */
+    fun observeUserWorks(userId: String, limit: Int = UserWorksRepository.DEFAULT_LIMIT) {
+        observeWorksJob?.cancel()
+        observeWorksJob = viewModelScope.launch {
+            userWorksRepository.observeUserWorks(userId, limit).collect { works ->
+                _userWorks.value = works
             }
         }
     }
