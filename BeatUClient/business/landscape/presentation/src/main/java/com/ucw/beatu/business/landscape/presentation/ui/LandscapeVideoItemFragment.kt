@@ -1,11 +1,12 @@
 package com.ucw.beatu.business.landscape.presentation.ui
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.provider.Settings
 import android.util.Log
 import android.view.GestureDetector
 import android.view.LayoutInflater
@@ -19,6 +20,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.core.os.BundleCompat
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -27,6 +29,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.ui.PlayerView
 import com.ucw.beatu.business.landscape.presentation.R
 import com.ucw.beatu.business.landscape.presentation.model.VideoItem
+import com.ucw.beatu.business.landscape.presentation.viewmodel.LandscapeControlsState
 import com.ucw.beatu.business.landscape.presentation.viewmodel.LandscapeVideoItemViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -60,6 +63,8 @@ class LandscapeVideoItemFragment : Fragment() {
 
     private var playerView: PlayerView? = null
     private var videoItem: VideoItem? = null
+    private var latestControlsState = LandscapeControlsState()
+    private var speedBeforeBoost: Float? = null
 
     // 控制面板相关
     private var controlPanel: View? = null
@@ -104,16 +109,14 @@ class LandscapeVideoItemFragment : Fragment() {
     private var unlockButton: ImageButton? = null
 
     // 状态
-    private var isLocked = false
-    private var currentSpeed = 1.0f
-    private var isLiked = false
-    private var isFavorited = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         videoItem = arguments?.let {
             BundleCompat.getParcelable(it, ARG_VIDEO_ITEM, VideoItem::class.java)
         }
+
+        videoItem?.let { viewModel.bindVideoMeta(it) }
 
         // 初始化系统服务
         audioManager = requireContext().getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -149,6 +152,7 @@ class LandscapeVideoItemFragment : Fragment() {
 
         // 观察 ViewModel 状态
         observeViewModel()
+        observeControls()
 
         // 延迟加载视频
         view.post {
@@ -190,21 +194,21 @@ class LandscapeVideoItemFragment : Fragment() {
     private fun initGestureDetector() {
         gestureDetector = GestureDetector(requireContext(), object : GestureDetector.SimpleOnGestureListener() {
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-                if (!isLocked) {
+                if (!latestControlsState.isLocked) {
                     toggleControlPanel()
                 }
                 return true
             }
 
             override fun onDoubleTap(e: MotionEvent): Boolean {
-                if (!isLocked) {
+                if (!latestControlsState.isLocked) {
                     viewModel.togglePlayPause()
                 }
                 return true
             }
 
             override fun onLongPress(e: MotionEvent) {
-                if (!isLocked) {
+                if (!latestControlsState.isLocked) {
                     // 屏幕中央长按进入2倍速
                     val viewWidth = rootView?.width ?: 0
                     val viewHeight = rootView?.height ?: 0
@@ -213,9 +217,9 @@ class LandscapeVideoItemFragment : Fragment() {
                     val tolerance = 100f
 
                     if (abs(e.x - centerX) < tolerance && abs(e.y - centerY) < tolerance) {
+                        speedBeforeBoost = latestControlsState.currentSpeed
                         viewModel.setSpeed(2.0f)
-                        currentSpeed = 2.0f
-                        speedButton?.text = "2.0x"
+                        speedButton?.text = formatSpeedLabel(2.0f)
                     }
                 }
             }
@@ -227,7 +231,7 @@ class LandscapeVideoItemFragment : Fragment() {
     private fun setupTouchListener(view: View) {
         rootView = view
         view.setOnTouchListener { v, event ->
-            if (isLocked) {
+            if (latestControlsState.isLocked) {
                 // 锁屏时只响应解锁按钮
                 return@setOnTouchListener false
             }
@@ -330,11 +334,11 @@ class LandscapeVideoItemFragment : Fragment() {
                         hideSeekIndicator()
                     }
 
-                    // 长按2倍速后恢复
-                    if (currentSpeed == 2.0f && event.action == MotionEvent.ACTION_UP) {
-                        viewModel.setSpeed(1.0f)
-                        currentSpeed = 1.0f
-                        speedButton?.text = "1.0x"
+                    if (event.action == MotionEvent.ACTION_UP) {
+                        speedBeforeBoost?.let { previous ->
+                            viewModel.setSpeed(previous)
+                            speedBeforeBoost = null
+                        }
                     }
 
                     isHorizontalSwipe = false
@@ -406,6 +410,7 @@ class LandscapeVideoItemFragment : Fragment() {
     }
 
     private fun showControlPanel() {
+        if (latestControlsState.isLocked) return
         controlPanel?.visibility = View.VISIBLE
         controlPanelVisible = true
         scheduleHideControlPanel()
@@ -467,6 +472,11 @@ class LandscapeVideoItemFragment : Fragment() {
     }
 
     private fun adjustVolume(deltaY: Float) {
+        if (!hasModifyAudioSettingsPermission()) {
+            Log.w(TAG, "adjustVolume: missing MODIFY_AUDIO_SETTINGS permission, skip")
+            return
+        }
+
         audioManager?.let { am ->
             val maxVolume = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
             val currentVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC)
@@ -475,12 +485,21 @@ class LandscapeVideoItemFragment : Fragment() {
             val volumeChange = (-deltaY / (rootView?.height ?: 1) * maxVolume).toInt()
             val newVolume = (currentVolume + volumeChange).coerceIn(0, maxVolume)
 
-            am.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
-            updateVolumeIndicator()
+            try {
+                am.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
+                updateVolumeIndicator()
+            } catch (se: SecurityException) {
+                Log.e(TAG, "adjustVolume: failed to modify volume", se)
+            }
         }
     }
 
     private fun updateVolumeIndicator() {
+        if (!hasModifyAudioSettingsPermission()) {
+            Log.w(TAG, "updateVolumeIndicator: missing MODIFY_AUDIO_SETTINGS permission, skip")
+            return
+        }
+
         audioManager?.let { am ->
             val maxVolume = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
             val currentVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC)
@@ -489,6 +508,14 @@ class LandscapeVideoItemFragment : Fragment() {
             volumeProgress?.layoutParams?.height = (volumeIndicator?.height ?: 0) * progress / 100
             volumeProgress?.requestLayout()
         }
+    }
+
+    private fun hasModifyAudioSettingsPermission(): Boolean {
+        val context = context ?: return false
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.MODIFY_AUDIO_SETTINGS
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     // ========== 进度调节 ==========
@@ -523,85 +550,46 @@ class LandscapeVideoItemFragment : Fragment() {
         return String.format("%02d:%02d", minutes, seconds)
     }
 
+    private fun formatSpeedLabel(speed: Float): String =
+        if (speed % 1f == 0f) "${speed.toInt()}x" else "${speed}x"
+
     // ========== 交互功能 ==========
 
     private fun toggleLike() {
-        isLiked = !isLiked
-        likeButton?.setImageResource(
-            if (isLiked) android.R.drawable.btn_star_big_on else android.R.drawable.btn_star_big_off
-        )
-        likeButton?.setColorFilter(
-            if (isLiked) 0xFFFF0000.toInt() else 0xFFFFFFFF.toInt()
-        )
-        
-        // 更新计数
-        videoItem?.let { item ->
-            val newCount = if (isLiked) item.likeCount + 1 else item.likeCount - 1
-            view?.findViewById<TextView>(R.id.tv_like_count)?.text = newCount.coerceAtLeast(0).toString()
-        }
-        
-        // TODO: 调用 API
-        Log.d(TAG, "点赞状态: $isLiked")
+        val nextState = !latestControlsState.isLiked
+        viewModel.toggleLike()
+        Log.d(TAG, "点赞状态: $nextState")
     }
 
     private fun toggleFavorite() {
-        isFavorited = !isFavorited
-        favoriteButton?.setImageResource(
-            if (isFavorited) android.R.drawable.star_big_on else android.R.drawable.star_big_off
-        )
-        favoriteButton?.setColorFilter(
-            if (isFavorited) 0xFFFFD700.toInt() else 0xFFFFFFFF.toInt()
-        )
-        
-        // 更新计数
-        videoItem?.let { item ->
-            val newCount = if (isFavorited) item.favoriteCount + 1 else item.favoriteCount - 1
-            view?.findViewById<TextView>(R.id.tv_favorite_count)?.text = newCount.coerceAtLeast(0).toString()
-        }
-        
-        // TODO: 调用 API
-        Log.d(TAG, "收藏状态: $isFavorited")
+        val nextState = !latestControlsState.isFavorited
+        viewModel.toggleFavorite()
+        Log.d(TAG, "收藏状态: $nextState")
     }
 
     private fun showSpeedMenu() {
-        // 循环切换倍速：1.0x -> 1.25x -> 1.5x -> 2.0x -> 1.0x
-        val speeds = listOf(1.0f, 1.25f, 1.5f, 2.0f)
-        val currentIndex = speeds.indexOf(currentSpeed)
-        val nextIndex = (currentIndex + 1) % speeds.size
-        val nextSpeed = speeds[nextIndex]
-
-        viewModel.setSpeed(nextSpeed)
-        currentSpeed = nextSpeed
-        speedButton?.text = "${nextSpeed}x"
-        
-        Log.d(TAG, "切换倍速: ${nextSpeed}x")
+        viewModel.cycleSpeed()
+        Log.d(TAG, "切换倍速")
     }
 
     private fun showQualityMenu() {
-        // TODO: 显示清晰度选择菜单（自动 / 高清 / 标清）
-        // 目前简单循环切换
-        val qualities = listOf("自动", "高清", "标清")
-        val currentQuality = qualityButton?.text?.toString() ?: "高清"
-        val currentIndex = qualities.indexOf(currentQuality)
-        val nextIndex = (currentIndex + 1) % qualities.size
-        qualityButton?.text = qualities[nextIndex]
-        
-        Log.d(TAG, "切换清晰度: ${qualities[nextIndex]}")
+        viewModel.cycleQuality()
+        Log.d(TAG, "切换清晰度")
     }
 
     private fun lockScreen() {
-        isLocked = true
         hideControlPanel()
         lockButton?.visibility = View.GONE
         unlockButton?.visibility = View.VISIBLE
+        viewModel.lockControls()
         Log.d(TAG, "锁定屏幕")
     }
 
     private fun unlockScreen() {
-        isLocked = false
         unlockButton?.visibility = View.GONE
         lockButton?.visibility = View.VISIBLE
         showControlPanel()
+        viewModel.unlockControls()
         Log.d(TAG, "解锁屏幕")
     }
 
@@ -631,6 +619,38 @@ class LandscapeVideoItemFragment : Fragment() {
         }
     }
 
+    private fun observeControls() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.controlsState.collect { state ->
+                    latestControlsState = state
+                    renderControlState(state)
+                }
+            }
+        }
+    }
+
+    private fun renderControlState(state: LandscapeControlsState) {
+        likeButton?.setImageResource(
+            if (state.isLiked) android.R.drawable.btn_star_big_on else android.R.drawable.btn_star_big_off
+        )
+        likeButton?.setColorFilter(
+            if (state.isLiked) 0xFFFF0000.toInt() else 0xFFFFFFFF.toInt()
+        )
+        favoriteButton?.setImageResource(
+            if (state.isFavorited) android.R.drawable.star_big_on else android.R.drawable.star_big_off
+        )
+        favoriteButton?.setColorFilter(
+            if (state.isFavorited) 0xFFFFD700.toInt() else 0xFFFFFFFF.toInt()
+        )
+        view?.findViewById<TextView>(R.id.tv_like_count)?.text = state.likeCount.toString()
+        view?.findViewById<TextView>(R.id.tv_favorite_count)?.text = state.favoriteCount.toString()
+        speedButton?.text = formatSpeedLabel(state.currentSpeed)
+        qualityButton?.text = state.currentQualityLabel
+        lockButton?.visibility = if (state.isLocked) View.GONE else View.VISIBLE
+        unlockButton?.visibility = if (state.isLocked) View.VISIBLE else View.GONE
+    }
+
     private fun loadVideo() {
         if (!isAdded || view == null || playerView == null || videoItem == null) {
             Log.w(TAG, "Fragment not ready, skip loading video")
@@ -641,6 +661,7 @@ class LandscapeVideoItemFragment : Fragment() {
             val item = videoItem!!
             Log.d(TAG, "Loading landscape video: ${item.id} - ${item.videoUrl}")
 
+            viewModel.bindVideoMeta(item)
             playerView?.let { pv ->
                 viewModel.playVideo(item.id, item.videoUrl)
                 viewModel.preparePlayer(item.id, item.videoUrl, pv)
@@ -664,10 +685,28 @@ class LandscapeVideoItemFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        super.onDestroyView()
         hideControlPanelHandler.removeCallbacks(hideControlPanelRunnable)
-        viewModel.releaseCurrentPlayer()
+        if (viewModel.isHandoffFromPortrait()) {
+            viewModel.persistPlaybackSession()
+            viewModel.mediaPlayer()?.let { player ->
+                PlayerView.switchTargetView(player, playerView, null)
+            }
+            viewModel.releaseCurrentPlayer(force = false)
+        } else {
+            viewModel.releaseCurrentPlayer()
+        }
+        super.onDestroyView()
         playerView = null
         rootView = null
+    }
+
+    /**
+     * 供 Activity 在退出前调用，先保存进度并解绑 Surface，返回竖屏时可无缝继续。
+     */
+    fun prepareForExit() {
+        viewModel.persistPlaybackSession()
+        viewModel.mediaPlayer()?.let { player ->
+            PlayerView.switchTargetView(player, playerView, null)
+        }
     }
 }

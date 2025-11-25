@@ -1,7 +1,6 @@
 package com.ucw.beatu.business.landscape.presentation.ui.adapter
 
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.ucw.beatu.business.landscape.presentation.model.VideoItem
 
@@ -12,9 +11,9 @@ import com.ucw.beatu.business.landscape.presentation.ui.LandscapeVideoItemFragme
  * 用于 ViewPager2 显示横屏视频列表
  */
 class LandscapeVideoAdapter(
-    fragmentActivity: FragmentActivity,
+    fragment: Fragment,
     private var videoList: MutableList<VideoItem> = mutableListOf()
-) : FragmentStateAdapter(fragmentActivity) {
+) : FragmentStateAdapter(fragment) {
 
     override fun getItemCount(): Int = videoList.size
 

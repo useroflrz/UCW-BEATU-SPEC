@@ -16,7 +16,11 @@ data class VideoItem(
     val commentCount: Int,
     val favoriteCount: Int,
     val shareCount: Int,
-    val orientation: VideoOrientation = VideoOrientation.LANDSCAPE
+    val orientation: VideoOrientation = VideoOrientation.LANDSCAPE,
+    val defaultSpeed: Float = 1.0f,
+    val defaultQuality: String = "自动",
+    val isLiked: Boolean = false,
+    val isFavorited: Boolean = false
 ) : Parcelable
 
 enum class VideoOrientation {

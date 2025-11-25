@@ -1,22 +1,26 @@
 package com.ucw.beatu.business.videofeed.presentation.ui
 
-import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.os.BundleCompat
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.ui.PlayerView
+import androidx.navigation.NavController
+import androidx.navigation.fragment.findNavController
 import com.ucw.beatu.business.videofeed.presentation.R
 import com.ucw.beatu.business.videofeed.presentation.model.VideoItem
-import com.ucw.beatu.business.videofeed.presentation.model.VideoOrientation
 import com.ucw.beatu.business.videofeed.presentation.viewmodel.VideoItemViewModel
+import com.ucw.beatu.shared.common.navigation.LandscapeLaunchContract
+import com.ucw.beatu.shared.common.navigation.NavigationHelper
+import com.ucw.beatu.shared.common.navigation.NavigationIds
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -30,9 +34,6 @@ class VideoItemFragment : Fragment() {
     companion object {
         private const val TAG = "VideoItemFragment"
         private const val ARG_VIDEO_ITEM = "video_item"
-        private const val LANDSCAPE_ACTIVITY_COMPONENT =
-            "com.ucw.beatu.business.landscape.presentation.ui.LandscapeActivity"
-        private const val EXTRA_START_VIDEO_ID = "extra_start_video_id"
 
         fun newInstance(videoItem: VideoItem): VideoItemFragment {
             return VideoItemFragment().apply {
@@ -47,8 +48,8 @@ class VideoItemFragment : Fragment() {
     
     private var playerView: PlayerView? = null
     private var playButton: View? = null
-    private var switchLandscapeButton: View? = null
     private var videoItem: VideoItem? = null
+    private var navigatingToLandscape = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,7 +75,6 @@ class VideoItemFragment : Fragment() {
         // 初始化视图
         playerView = view.findViewById(R.id.player_view)
         playButton = view.findViewById(R.id.iv_play_button)
-        switchLandscapeButton = view.findViewById(R.id.btn_switch_landscape)
         
         // 更新视频信息
         videoItem?.let { item ->
@@ -84,13 +84,6 @@ class VideoItemFragment : Fragment() {
             view.findViewById<android.widget.TextView>(R.id.tv_comment_count)?.text = item.commentCount.toString()
             view.findViewById<android.widget.TextView>(R.id.tv_favorite_count)?.text = item.favoriteCount.toString()
             view.findViewById<android.widget.TextView>(R.id.tv_share_count)?.text = item.shareCount.toString()
-            if (item.orientation == VideoOrientation.LANDSCAPE) {
-                switchLandscapeButton?.visibility = View.VISIBLE
-                switchLandscapeButton?.setOnClickListener { openLandscapePlayer(item) }
-            } else {
-                switchLandscapeButton?.visibility = View.GONE
-                switchLandscapeButton?.setOnClickListener(null)
-            }
         }
         
         // 观察 ViewModel 状态
@@ -119,7 +112,7 @@ class VideoItemFragment : Fragment() {
         }
         
         view.findViewById<View>(R.id.iv_fullscreen)?.setOnClickListener {
-            videoItem?.let { openLandscapePlayer(it) }
+            openLandscapeMode()
         }
         
         // 延迟加载视频，确保视图完全初始化
@@ -176,15 +169,17 @@ class VideoItemFragment : Fragment() {
     
     override fun onPause() {
         super.onPause()
-        viewModel.pause()
+        if (!navigatingToLandscape) {
+            viewModel.pause()
+        }
     }
     
     override fun onResume() {
         super.onResume()
-        // 如果视频已加载，恢复播放
         if (isAdded && viewModel.uiState.value.currentVideoId != null) {
-            viewModel.resume()
+            viewModel.onHostResume(playerView)
         }
+        navigatingToLandscape = false
     }
     
     override fun onDestroyView() {
@@ -192,19 +187,54 @@ class VideoItemFragment : Fragment() {
         viewModel.releaseCurrentPlayer()
         playerView = null
         playButton = null
-        switchLandscapeButton = null
     }
 
-    private fun openLandscapePlayer(item: VideoItem) {
-        val intent = Intent().apply {
-            setClassName(requireContext(), LANDSCAPE_ACTIVITY_COMPONENT)
-            putExtra(EXTRA_START_VIDEO_ID, item.id)
+    private fun openLandscapeMode() {
+        val navController = findParentNavController()
+        if (navController == null) {
+            Log.e(TAG, "NavController not found, cannot open landscape mode")
+            return
         }
-        try {
-            startActivity(intent)
-        } catch (e: Exception) {
-            Log.e(TAG, "Unable to launch LandscapeActivity", e)
+        val item = videoItem ?: run {
+            Log.e(TAG, "openLandscapeMode: videoItem null")
+            return
         }
+        viewModel.persistPlaybackSession()
+        viewModel.mediaPlayer()?.let { player ->
+            PlayerView.switchTargetView(player, playerView, null)
+        }
+
+        val actionId = NavigationHelper.getResourceId(
+            requireContext(),
+            NavigationIds.ACTION_FEED_TO_LANDSCAPE
+        )
+        if (actionId == 0) {
+            Log.e(TAG, "Navigation action not found: ${NavigationIds.ACTION_FEED_TO_LANDSCAPE}")
+            return
+        }
+
+        val args = bundleOf(
+            LandscapeLaunchContract.EXTRA_VIDEO_ID to item.id,
+            LandscapeLaunchContract.EXTRA_VIDEO_URL to item.videoUrl,
+            LandscapeLaunchContract.EXTRA_VIDEO_TITLE to item.title,
+            LandscapeLaunchContract.EXTRA_VIDEO_AUTHOR to item.authorName,
+            LandscapeLaunchContract.EXTRA_VIDEO_LIKE to item.likeCount,
+            LandscapeLaunchContract.EXTRA_VIDEO_COMMENT to item.commentCount,
+            LandscapeLaunchContract.EXTRA_VIDEO_FAVORITE to item.favoriteCount,
+            LandscapeLaunchContract.EXTRA_VIDEO_SHARE to item.shareCount
+        )
+
+        navigatingToLandscape = true
+        runCatching { navController.navigate(actionId, args) }
+            .onFailure {
+                navigatingToLandscape = false
+                Log.e(TAG, "Failed to navigate to landscape fragment", it)
+            }
+    }
+
+    private fun findParentNavController(): NavController? {
+        return runCatching { parentFragment?.findNavController() ?: findNavController() }
+            .getOrNull()
     }
 }
 

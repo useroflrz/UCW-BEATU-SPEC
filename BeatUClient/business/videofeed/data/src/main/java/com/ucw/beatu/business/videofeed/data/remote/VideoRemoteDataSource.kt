@@ -1,6 +1,7 @@
 package com.ucw.beatu.business.videofeed.data.remote
 
 import com.ucw.beatu.business.videofeed.data.api.VideoFeedApiService
+import com.ucw.beatu.business.videofeed.data.api.dto.CommentRequest
 import com.ucw.beatu.business.videofeed.data.mapper.toDomain
 import com.ucw.beatu.business.videofeed.domain.model.Comment
 import com.ucw.beatu.business.videofeed.domain.model.Video
@@ -41,9 +42,10 @@ class VideoRemoteDataSourceImpl @Inject constructor(
             }
 
             val response = apiService.getVideoFeed(page, limit)
+            val data = response.data
             when {
-                response.isSuccess && response.data != null -> {
-                    response.data.items.map { it.toDomain() }
+                response.isSuccess && data != null -> {
+                    data.items.map { it.toDomain() }
                 }
                 response.isUnauthorized -> {
                     throw DataException.AuthException(
@@ -71,9 +73,10 @@ class VideoRemoteDataSourceImpl @Inject constructor(
             }
 
             val response = apiService.getVideoDetail(videoId)
+            val data = response.data
             when {
-                response.isSuccess && response.data != null -> {
-                    response.data.toDomain()
+                response.isSuccess && data != null -> {
+                    data.toDomain()
                 }
                 response.isUnauthorized -> {
                     throw DataException.AuthException(
@@ -101,9 +104,10 @@ class VideoRemoteDataSourceImpl @Inject constructor(
             }
 
             val response = apiService.getComments(videoId, page, limit)
+            val data = response.data
             when {
-                response.isSuccess && response.data != null -> {
-                    response.data.items.map { it.toDomain() }
+                response.isSuccess && data != null -> {
+                    data.items.map { it.toDomain() }
                 }
                 response.isUnauthorized -> {
                     throw DataException.AuthException(
@@ -230,13 +234,11 @@ class VideoRemoteDataSourceImpl @Inject constructor(
                 throw DataException.NetworkException("No internet connection")
             }
 
-            val response = apiService.postComment(
-                videoId,
-                com.ucw.beatu.business.videofeed.data.api.dto.CommentRequest(content)
-            )
+            val response = apiService.postComment(videoId, CommentRequest(content))
+            val data = response.data
             when {
-                response.isSuccess && response.data != null -> {
-                    response.data.toDomain()
+                response.isSuccess && data != null -> {
+                    data.toDomain()
                 }
                 response.isUnauthorized -> {
                     throw DataException.AuthException(

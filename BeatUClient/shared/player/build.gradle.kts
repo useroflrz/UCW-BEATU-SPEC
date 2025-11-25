@@ -28,6 +28,10 @@ android {
     }
     kotlinOptions {
         jvmTarget = "11"
+        // 全局启用 Media3 的 UnstableApi，避免在每个类上使用 @OptIn
+        freeCompilerArgs += listOf(
+            "-opt-in=androidx.media3.common.util.UnstableApi"
+        )
     }
 }
 
@@ -38,6 +42,9 @@ dependencies {
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
+
+    // DI annotations
+    implementation("javax.inject:javax.inject:1")
     
     // ExoPlayer
     implementation(libs.exoplayer.core)

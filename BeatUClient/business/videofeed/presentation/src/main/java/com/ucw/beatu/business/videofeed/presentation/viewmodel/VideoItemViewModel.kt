@@ -3,10 +3,16 @@ package com.ucw.beatu.business.videofeed.presentation.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.Player
+import androidx.media3.ui.PlayerView
 import com.ucw.beatu.shared.player.VideoPlayer
 import com.ucw.beatu.shared.player.model.VideoSource
 import com.ucw.beatu.shared.player.pool.VideoPlayerPool
+import com.ucw.beatu.shared.player.session.PlaybackSession
+import com.ucw.beatu.shared.player.session.PlaybackSessionStore
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,13 +28,17 @@ data class VideoItemUiState(
     val isPlaying: Boolean = false,
     val isLoading: Boolean = false,
     val showPlaceholder: Boolean = true,
+    val currentPositionMs: Long = 0L,
+    val durationMs: Long = 0L,
+    val currentSpeed: Float = 1.0f,
     val error: String? = null
 )
 
 @HiltViewModel
 class VideoItemViewModel @Inject constructor(
     application: Application,
-    private val playerPool: VideoPlayerPool
+    private val playerPool: VideoPlayerPool,
+    private val playbackSessionStore: PlaybackSessionStore
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(VideoItemUiState())
@@ -36,6 +46,10 @@ class VideoItemViewModel @Inject constructor(
 
     private var currentPlayer: VideoPlayer? = null
     private var currentVideoId: String? = null
+    private var currentVideoUrl: String? = null
+    private var progressJob: Job? = null
+    private var playerListener: VideoPlayer.Listener? = null
+    private var handoffInProgress = false
 
     /**
      * 播放视频
@@ -59,13 +73,14 @@ class VideoItemViewModel @Inject constructor(
             )
 
             currentVideoId = videoId
+            currentVideoUrl = videoUrl
         }
     }
 
     /**
      * 准备播放器（由 Fragment 调用，传入 PlayerView）
      */
-    fun preparePlayer(videoId: String, videoUrl: String, playerView: androidx.media3.ui.PlayerView) {
+    fun preparePlayer(videoId: String, videoUrl: String, playerView: PlayerView) {
         viewModelScope.launch {
             try {
                 // 检查参数有效性
@@ -85,14 +100,17 @@ class VideoItemViewModel @Inject constructor(
 
                 val player = playerPool.acquire(videoId)
                 currentPlayer = player
+                currentVideoUrl = videoUrl
 
                 // 添加监听器
-                player.addListener(object : VideoPlayer.Listener {
+                playerListener?.let { player.removeListener(it) }
+                val listener = object : VideoPlayer.Listener {
                     override fun onReady(videoId: String) {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             showPlaceholder = false,
-                            isPlaying = true
+                            isPlaying = true,
+                            durationMs = player.player.duration.takeIf { it > 0 } ?: _uiState.value.durationMs
                         )
                     }
 
@@ -110,17 +128,27 @@ class VideoItemViewModel @Inject constructor(
                             isPlaying = false
                         )
                     }
-                })
+                }
+                player.addListener(listener)
+                playerListener = listener
 
                 // 绑定播放器到 PlayerView
                 player.attach(playerView)
-                player.prepare(source)
-                player.play()
+
+                val pendingSession = playbackSessionStore.consume(videoId)
+                handoffInProgress = pendingSession != null
+                if (pendingSession != null) {
+                    applyPlaybackSession(player, pendingSession)
+                } else {
+                    player.prepare(source)
+                    player.play()
+                }
 
                 _uiState.value = _uiState.value.copy(
                     currentVideoId = videoId,
                     isPlaying = true
                 )
+                startProgressUpdates()
 
             } catch (e: Exception) {
                 android.util.Log.e("VideoItemViewModel", "Error preparing player", e)
@@ -157,22 +185,42 @@ class VideoItemViewModel @Inject constructor(
     }
 
     /**
-     * 恢复播放
+     * 将当前播放器重新绑定到新的 PlayerView（例如横竖屏切回）。
      */
-    fun resume() {
-        currentPlayer?.play()
-        _uiState.value = _uiState.value.copy(isPlaying = true)
+    fun onHostResume(targetView: PlayerView?) {
+        if (targetView == null) return
+        val videoId = currentVideoId ?: return
+        val player = currentPlayer ?: playerPool.acquire(videoId).also { currentPlayer = it }
+        player.attach(targetView)
+
+        playbackSessionStore.consume(videoId)?.let {
+            applyPlaybackSession(player, it)
+            handoffInProgress = false
+        } ?: run {
+            if (_uiState.value.isPlaying) {
+                player.play()
+            }
+        }
+        startProgressUpdates()
     }
+
+    fun mediaPlayer(): Player? = currentPlayer?.player
 
     /**
      * 释放当前播放器
      */
     fun releaseCurrentPlayer() {
+        stopProgressUpdates()
+        playerListener?.let { listener ->
+            currentPlayer?.removeListener(listener)
+        }
+        playerListener = null
         currentVideoId?.let { videoId ->
             playerPool.release(videoId)
         }
         currentPlayer = null
         currentVideoId = null
+        currentVideoUrl = null
         _uiState.value = _uiState.value.copy(
             currentVideoId = null,
             isPlaying = false,
@@ -180,9 +228,71 @@ class VideoItemViewModel @Inject constructor(
         )
     }
 
+    fun persistPlaybackSession(): PlaybackSession? {
+        val session = snapshotPlayback() ?: return null
+        playbackSessionStore.save(session)
+        handoffInProgress = true
+        return session
+    }
+
+    fun snapshotPlayback(): PlaybackSession? {
+        val videoId = currentVideoId ?: return null
+        val videoUrl = currentVideoUrl ?: return null
+        val player = currentPlayer ?: return null
+        val mediaPlayer = player.player
+        return PlaybackSession(
+            videoId = videoId,
+            videoUrl = videoUrl,
+            positionMs = mediaPlayer.currentPosition,
+            speed = mediaPlayer.playbackParameters.speed,
+            playWhenReady = mediaPlayer.playWhenReady
+        )
+    }
+
     override fun onCleared() {
         super.onCleared()
         releaseCurrentPlayer()
+    }
+
+    private fun applyPlaybackSession(player: VideoPlayer, session: PlaybackSession) {
+        if (player.player.currentMediaItem == null) {
+            player.prepare(VideoSource(session.videoId, session.videoUrl))
+        }
+        player.seekTo(session.positionMs)
+        player.setSpeed(session.speed)
+        if (session.playWhenReady) {
+            player.play()
+        } else {
+            player.pause()
+        }
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            showPlaceholder = false,
+            isPlaying = session.playWhenReady,
+            currentPositionMs = session.positionMs,
+            currentSpeed = session.speed
+        )
+    }
+
+    private fun startProgressUpdates() {
+        progressJob?.cancel()
+        progressJob = viewModelScope.launch {
+            while (currentPlayer != null) {
+                delay(500)
+                currentPlayer?.player?.let { player ->
+                    _uiState.value = _uiState.value.copy(
+                        currentPositionMs = player.currentPosition,
+                        durationMs = player.duration.takeIf { it > 0 } ?: _uiState.value.durationMs,
+                        currentSpeed = player.playbackParameters.speed
+                    )
+                }
+            }
+        }
+    }
+
+    private fun stopProgressUpdates() {
+        progressJob?.cancel()
+        progressJob = null
     }
 }
 

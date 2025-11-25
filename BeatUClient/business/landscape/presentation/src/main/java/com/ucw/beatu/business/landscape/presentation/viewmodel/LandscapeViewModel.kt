@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ucw.beatu.business.landscape.presentation.model.VideoItem
+import com.ucw.beatu.business.landscape.presentation.model.VideoOrientation
 import com.ucw.beatu.shared.common.mock.MockVideoCatalog
 import com.ucw.beatu.shared.common.mock.MockVideoCatalog.Orientation.LANDSCAPE
 import com.ucw.beatu.shared.common.mock.Video
@@ -63,6 +64,30 @@ class LandscapeViewModel @Inject constructor(
                 .takeLast(maxCachedItems)
             _uiState.value = _uiState.value.copy(
                 videoList = mergedList,
+                error = null
+            )
+        }
+    }
+
+    /**
+     * 插入外部（竖屏传入）的当前视频，确保横屏页首条就是当前播放视频。
+     */
+    fun showExternalVideo(videoItem: VideoItem) {
+        viewModelScope.launch {
+            val sanitized = videoItem.copy(orientation = VideoOrientation.LANDSCAPE)
+            val mutableList = _uiState.value.videoList.toMutableList().apply {
+                val existingIndex = indexOfFirst { it.id == sanitized.id }
+                if (existingIndex >= 0) {
+                    removeAt(existingIndex)
+                }
+                add(0, sanitized)
+                while (size > maxCachedItems) {
+                    removeAt(lastIndex)
+                }
+            }
+            _uiState.value = _uiState.value.copy(
+                videoList = mutableList,
+                isLoading = false,
                 error = null
             )
         }
