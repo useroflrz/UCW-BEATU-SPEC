@@ -83,6 +83,7 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
             viewLifecycleOwner,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
+                    // 使用 NavController 返回，与导航栈同步
                     exitLandscape()
                 }
             }
@@ -119,12 +120,18 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
         externalVideoHandled = true
     }
 
+    /**
+     * 退出横屏模式，返回到 Feed 页面
+     * 使用 NavController 的 popBackStack() 确保与导航栈同步
+     */
     private fun exitLandscape() {
+        // 先保存播放器状态并解绑 Surface
         currentLandscapeItemFragment()?.prepareForExit()
+        // 恢复屏幕方向
         restoreOrientation()
-        if (!findNavController().popBackStack()) {
-            requireActivity().onBackPressedDispatcher.onBackPressed()
-        }
+        // 使用 NavController 返回，NavHost 会自动处理栈管理
+        // 如果 NavHost 是 defaultNavHost，系统 Back 键也会自动回退到 Feed
+        findNavController().popBackStack()
     }
 
     private fun currentLandscapeItemFragment(): LandscapeVideoItemFragment? {

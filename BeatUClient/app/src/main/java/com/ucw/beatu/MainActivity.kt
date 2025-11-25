@@ -6,10 +6,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.fragment.app.commit
-import com.ucw.beatu.business.videofeed.presentation.ui.FeedFragment
 import dagger.hilt.android.AndroidEntryPoint
 
+/**
+ * MainActivity 作为应用的入口 Activity
+ * 使用 NavHostFragment 作为导航容器，由 Navigation Graph 自动管理 Fragment 栈
+ */
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     
@@ -32,16 +34,9 @@ class MainActivity : AppCompatActivity() {
                 insets
             }
             
-            // 显示 FeedFragment
-            if (savedInstanceState == null) {
-                Log.d(TAG, "onCreate: Adding FeedFragment")
-                supportFragmentManager.commit {
-                    replace(R.id.fragment_container, FeedFragment())
-                }
-                Log.d(TAG, "onCreate: FeedFragment added")
-            } else {
-                Log.d(TAG, "onCreate: Restoring from saved state")
-            }
+            // NavHostFragment 会自动根据 main_nav_graph 的 startDestination 加载 FeedFragment
+            // 不需要手动 replace Fragment，让 Navigation 系统自动管理栈
+            Log.d(TAG, "onCreate: NavHostFragment will handle Fragment management")
             
             Log.d(TAG, "onCreate: Completed successfully")
         } catch (e: Exception) {
