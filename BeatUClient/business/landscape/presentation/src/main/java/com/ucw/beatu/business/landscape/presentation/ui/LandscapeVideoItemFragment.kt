@@ -19,8 +19,8 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
-import androidx.core.os.BundleCompat
 import androidx.core.content.ContextCompat
+import androidx.core.os.BundleCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -34,8 +34,6 @@ import com.ucw.beatu.business.landscape.presentation.viewmodel.LandscapeVideoIte
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
 
 /**
  * 单个横屏视频项 Fragment
@@ -113,7 +111,7 @@ class LandscapeVideoItemFragment : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         videoItem = arguments?.let {
-            BundleCompat.getParcelable(it, ARG_VIDEO_ITEM, VideoItem::class.java)
+            BundleCompat.getParcelable<VideoItem>(it, ARG_VIDEO_ITEM, VideoItem::class.java)
         }
 
         videoItem?.let { viewModel.bindVideoMeta(it) }
@@ -685,10 +683,28 @@ class LandscapeVideoItemFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        super.onDestroyView()
         hideControlPanelHandler.removeCallbacks(hideControlPanelRunnable)
-        viewModel.releaseCurrentPlayer()
+        if (viewModel.isHandoffFromPortrait()) {
+            viewModel.persistPlaybackSession()
+            viewModel.mediaPlayer()?.let { player ->
+                PlayerView.switchTargetView(player, playerView, null)
+            }
+            viewModel.releaseCurrentPlayer(force = false)
+        } else {
+            viewModel.releaseCurrentPlayer()
+        }
+        super.onDestroyView()
         playerView = null
         rootView = null
+    }
+
+    /**
+     * 供 Activity 在退出前调用，先保存进度并解绑 Surface，返回竖屏时可无缝继续。
+     */
+    fun prepareForExit() {
+        viewModel.persistPlaybackSession()
+        viewModel.mediaPlayer()?.let { player ->
+            PlayerView.switchTargetView(player, playerView, null)
+        }
     }
 }

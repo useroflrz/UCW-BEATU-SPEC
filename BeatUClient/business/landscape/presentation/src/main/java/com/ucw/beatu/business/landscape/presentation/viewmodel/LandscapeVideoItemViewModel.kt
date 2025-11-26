@@ -3,13 +3,19 @@ package com.ucw.beatu.business.landscape.presentation.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.Player
+import androidx.media3.ui.PlayerView
 import com.ucw.beatu.business.landscape.presentation.model.VideoItem
 import com.ucw.beatu.shared.common.logger.AppLogger
 import com.ucw.beatu.shared.common.time.Stopwatch
 import com.ucw.beatu.shared.player.VideoPlayer
 import com.ucw.beatu.shared.player.model.VideoSource
 import com.ucw.beatu.shared.player.pool.VideoPlayerPool
+import com.ucw.beatu.shared.player.session.PlaybackSession
+import com.ucw.beatu.shared.player.session.PlaybackSessionStore
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,7 +30,8 @@ import javax.inject.Inject
 @HiltViewModel
 class LandscapeVideoItemViewModel @Inject constructor(
     application: Application,
-    private val playerPool: VideoPlayerPool
+    private val playerPool: VideoPlayerPool,
+    private val playbackSessionStore: PlaybackSessionStore
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(LandscapeVideoItemUiState())
@@ -35,11 +42,13 @@ class LandscapeVideoItemViewModel @Inject constructor(
 
     private var currentPlayer: VideoPlayer? = null
     private var currentVideoId: String? = null
+    private var currentVideoUrl: String? = null
 
     private val startUpStopwatch = Stopwatch()
-    
-    // 播放进度更新
-    private var progressUpdateJob: kotlinx.coroutines.Job? = null
+
+    private var progressUpdateJob: Job? = null
+    private var playerListener: VideoPlayer.Listener? = null
+    private var handoffFromPortrait = false
 
     fun bindVideoMeta(videoItem: VideoItem) {
         _controlsState.value = LandscapeControlsState(
@@ -69,10 +78,11 @@ class LandscapeVideoItemViewModel @Inject constructor(
                 error = null
             )
             currentVideoId = videoId
+            currentVideoUrl = videoUrl
         }
     }
 
-    fun preparePlayer(videoId: String, videoUrl: String, playerView: androidx.media3.ui.PlayerView) {
+    fun preparePlayer(videoId: String, videoUrl: String, playerView: PlayerView) {
         viewModelScope.launch {
             try {
                 if (videoId.isBlank() || videoUrl.isBlank()) {
@@ -87,9 +97,11 @@ class LandscapeVideoItemViewModel @Inject constructor(
                 val source = VideoSource(videoId = videoId, url = videoUrl)
                 val player = playerPool.acquire(videoId)
                 currentPlayer = player
+                currentVideoUrl = videoUrl
                 startUpStopwatch.start()
 
-                player.addListener(object : VideoPlayer.Listener {
+                playerListener?.let { player.removeListener(it) }
+                val listener = object : VideoPlayer.Listener {
                     override fun onReady(videoId: String) {
                         val startUp = startUpStopwatch.elapsedMillis()
                         _uiState.value = _uiState.value.copy(
@@ -116,11 +128,19 @@ class LandscapeVideoItemViewModel @Inject constructor(
                         _uiState.value = _uiState.value.copy(isPlaying = false)
                         stopProgressUpdates()
                     }
-                })
+                }
+                player.addListener(listener)
+                playerListener = listener
 
                 player.attach(playerView)
-                player.prepare(source)
-                player.play()
+                val pendingSession = playbackSessionStore.consume(videoId)
+                handoffFromPortrait = pendingSession != null
+                if (pendingSession != null) {
+                    applyPlaybackSession(player, pendingSession)
+                } else {
+                    player.prepare(source)
+                    player.play()
+                }
 
                 _uiState.value = _uiState.value.copy(
                     currentVideoId = videoId,
@@ -206,20 +226,16 @@ class LandscapeVideoItemViewModel @Inject constructor(
         currentPlayer?.seekTo(positionMs)
         _uiState.value = _uiState.value.copy(currentPositionMs = positionMs)
     }
-    
-    fun getCurrentPosition(): Long {
-        return currentPlayer?.player?.currentPosition ?: 0L
-    }
-    
-    fun getDuration(): Long {
-        return currentPlayer?.player?.duration?.takeIf { it > 0 } ?: 0L
-    }
-    
+
+    fun getCurrentPosition(): Long = currentPlayer?.player?.currentPosition ?: 0L
+
+    fun getDuration(): Long = currentPlayer?.player?.duration?.takeIf { it > 0 } ?: 0L
+
     private fun startProgressUpdates() {
         stopProgressUpdates()
         progressUpdateJob = viewModelScope.launch {
             while (currentPlayer != null) {
-                kotlinx.coroutines.delay(500) // 每500ms更新一次
+                delay(500)
                 currentPlayer?.let { player ->
                     val position = player.player.currentPosition
                     val duration = player.player.duration.takeIf { it > 0 } ?: 0L
@@ -231,19 +247,34 @@ class LandscapeVideoItemViewModel @Inject constructor(
             }
         }
     }
-    
+
     private fun stopProgressUpdates() {
         progressUpdateJob?.cancel()
         progressUpdateJob = null
     }
 
-    fun releaseCurrentPlayer() {
+    fun releaseCurrentPlayer(force: Boolean = true) {
         stopProgressUpdates()
+        playerListener?.let { listener ->
+            currentPlayer?.removeListener(listener)
+        }
+        playerListener = null
+
+        if (!force && handoffFromPortrait) {
+            currentPlayer = null
+            currentVideoId = null
+            currentVideoUrl = null
+            handoffFromPortrait = false
+            return
+        }
+
         currentVideoId?.let { videoId ->
             playerPool.release(videoId)
         }
         currentPlayer = null
         currentVideoId = null
+        currentVideoUrl = null
+        handoffFromPortrait = false
         _uiState.value = _uiState.value.copy(
             currentVideoId = null,
             isPlaying = false,
@@ -257,6 +288,50 @@ class LandscapeVideoItemViewModel @Inject constructor(
         super.onCleared()
         releaseCurrentPlayer()
     }
+
+    fun persistPlaybackSession(): PlaybackSession? {
+        val session = snapshotPlayback() ?: return null
+        playbackSessionStore.save(session)
+        return session
+    }
+
+    fun snapshotPlayback(): PlaybackSession? {
+        val videoId = currentVideoId ?: return null
+        val videoUrl = currentVideoUrl ?: return null
+        val player = currentPlayer ?: return null
+        val mediaPlayer = player.player
+        return PlaybackSession(
+            videoId = videoId,
+            videoUrl = videoUrl,
+            positionMs = mediaPlayer.currentPosition,
+            speed = mediaPlayer.playbackParameters.speed,
+            playWhenReady = mediaPlayer.playWhenReady
+        )
+    }
+
+    fun mediaPlayer(): Player? = currentPlayer?.player
+
+    private fun applyPlaybackSession(player: VideoPlayer, session: PlaybackSession) {
+        if (player.player.currentMediaItem == null) {
+            player.prepare(VideoSource(session.videoId, session.videoUrl))
+        }
+        player.seekTo(session.positionMs)
+        player.setSpeed(session.speed)
+        if (session.playWhenReady) {
+            player.play()
+        } else {
+            player.pause()
+        }
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            showPlaceholder = false,
+            isPlaying = session.playWhenReady,
+            currentPositionMs = session.positionMs,
+            durationMs = player.player.duration.takeIf { it > 0 } ?: _uiState.value.durationMs
+        )
+    }
+
+    fun isHandoffFromPortrait(): Boolean = handoffFromPortrait
 
     companion object {
         private const val TAG = "LandscapeItemVM"

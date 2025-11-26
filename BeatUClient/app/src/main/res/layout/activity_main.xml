@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
@@ -8,8 +9,6 @@
     android:background="#FF000000"
     tools:context=".MainActivity">
 
-    <!-- 顶部导航栏（iOS风格）- 作为覆盖层浮在视频上方 -->
-    <!-- 高度设置为 wrap_content，实际高度会通过代码动态设置为 状态栏高度 + 56dp -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/top_navigation"
         android:layout_width="match_parent"
@@ -25,7 +24,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- 标签容器（用于iOS风格的等距分布） -->
         <LinearLayout
             android:id="@+id/tab_container"
             android:layout_width="0dp"
@@ -38,7 +36,6 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent">
 
-            <!-- 关注按钮 -->
             <TextView
                 android:id="@+id/btn_follow"
                 android:layout_width="0dp"
@@ -58,7 +55,6 @@
                 android:focusable="true"
                 android:includeFontPadding="false" />
 
-            <!-- 推荐按钮 -->
             <TextView
                 android:id="@+id/btn_recommend"
                 android:layout_width="0dp"
@@ -80,14 +76,13 @@
 
         </LinearLayout>
 
-        <!-- 我的图标（在搜索图标左侧） -->
         <ImageView
             android:id="@+id/iv_me"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@android:drawable/ic_menu_myplaces"
             android:contentDescription="我的"
-            android:tint="#FFFFFFFF"
+            app:tint="#FFFFFFFF"
             android:clickable="true"
             android:focusable="true"
             android:layout_marginEnd="16dp"
@@ -95,21 +90,19 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent" />
 
-        <!-- 搜索图标（固定在右侧） -->
         <ImageView
             android:id="@+id/iv_search"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@android:drawable/ic_menu_search"
             android:contentDescription="搜索"
-            android:tint="#FFFFFFFF"
+            app:tint="#FFFFFFFF"
             android:clickable="true"
             android:focusable="true"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent" />
 
-        <!-- 全局水滴指示器（覆盖在所有Tab上，高度覆盖整个导航栏以确保能绘制到文字中心） -->
         <com.ucw.beatu.shared.designsystem.widget.TabIndicatorView
             android:id="@+id/tab_indicator"
             android:layout_width="match_parent"
@@ -121,15 +114,14 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Fragment 容器 - 使用 NavHostFragment -->
     <androidx.fragment.app.FragmentContainerView
-        android:id="@+id/fragment_container"
+        android:id="@+id/nav_host_fragment"
         android:name="androidx.navigation.fragment.NavHostFragment"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         app:defaultNavHost="true"
         app:navGraph="@navigation/main_nav_graph"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/top_navigation"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FF000000">
@@ -18,14 +18,15 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- 返回按钮 -->
-        <ImageView
-            android:id="@+id/btn_back"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+        <ImageButton
+            android:id="@+id/btn_exit_landscape"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_revert"
-            android:contentDescription="返回"
-            android:tint="#FFFFFFFF"
+            android:contentDescription="@string/landscape_exit_description"
+            android:padding="12dp"
+            app:tint="#FFFFFFFF"
             android:clickable="true"
             android:focusable="true"
             app:layout_constraintStart_toStartOf="parent"
@@ -44,16 +45,11 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- 占位文本 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="横屏播放器（待实现）"
-            android:textSize="16sp"
-            android:textColor="#99FFFFFF"
-            android:layout_gravity="center" />
-
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/viewpager_landscape"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical" />
     </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-

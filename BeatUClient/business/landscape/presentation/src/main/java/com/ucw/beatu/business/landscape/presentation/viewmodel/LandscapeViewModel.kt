@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ucw.beatu.business.landscape.domain.usecase.LandscapeUseCases
 import com.ucw.beatu.business.landscape.presentation.model.VideoItem
-import com.ucw.beatu.business.videofeed.domain.model.Video
+import com.ucw.beatu.business.landscape.presentation.model.toPresentationModel
 import com.ucw.beatu.shared.common.logger.AppLogger
 import com.ucw.beatu.shared.common.result.AppResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,8 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * 横屏页 ViewModel
- * Repository -> UseCase -> Presentation 状态流
+ * 横屏列表 ViewModel：负责调用 UseCase、分页加载并保证首条为外部传入视频。
  */
 @HiltViewModel
 class LandscapeViewModel @Inject constructor(
@@ -29,21 +28,16 @@ class LandscapeViewModel @Inject constructor(
 
     private var currentPage = 1
     private val pageSize = 5
-    private var isLoadingMore = false
-    private var externalEntry: VideoItem? = null
+    private val maxCachedItems = 40
 
-    fun showExternalVideo(videoItem: VideoItem) {
-        externalEntry = videoItem
-        _uiState.value = LandscapeUiState(
-            videoList = listOf(videoItem),
-            isLoading = false,
-            error = null,
-            lastUpdated = System.currentTimeMillis()
-        )
-    }
+    private var pendingExternalVideo: VideoItem? = null
+    private var shouldReapplyExternalVideo = false
+    private var isDefaultListLoading = false
+    private var isLoadingMore = false
 
     fun loadVideoList() {
         currentPage = 1
+        isDefaultListLoading = true
         fetchPage(page = currentPage, append = false)
     }
 
@@ -69,13 +63,17 @@ class LandscapeViewModel @Inject constructor(
                             _uiState.update { it.copy(isLoading = true, error = null) }
                         }
                     }
+
                     is AppResult.Success -> {
-                        val mapped = result.data.map { it.toLandscapeItem() }
+                        val mapped = result.data.map { it.toPresentationModel() }
                         _uiState.update { state ->
-                            val baseList = if (append) state.videoList + mapped else mapped
-                            val finalList = baseList.withExternalPinned(externalEntry)
+                            val baseList = if (append) {
+                                state.videoList + mapped
+                            } else {
+                                mapped
+                            }
                             state.copy(
-                                videoList = finalList,
+                                videoList = baseList.takeLast(maxCachedItems),
                                 isLoading = false,
                                 error = null,
                                 lastUpdated = System.currentTimeMillis()
@@ -84,9 +82,13 @@ class LandscapeViewModel @Inject constructor(
                         if (append) {
                             currentPage = page
                             isLoadingMore = false
+                        } else {
+                            isDefaultListLoading = false
                         }
+                        applyPendingExternalVideo(forceInsert = false)
                         AppLogger.d(TAG, "Loaded landscape page=$page size=${mapped.size}")
                     }
+
                     is AppResult.Error -> {
                         _uiState.update {
                             it.copy(
@@ -95,10 +97,47 @@ class LandscapeViewModel @Inject constructor(
                             )
                         }
                         isLoadingMore = false
+                        isDefaultListLoading = false
                         AppLogger.e(TAG, "load landscape failed", result.throwable)
                     }
                 }
             }
+        }
+    }
+
+    fun showExternalVideo(videoItem: VideoItem) {
+        viewModelScope.launch {
+            pendingExternalVideo = videoItem
+            shouldReapplyExternalVideo =
+                isDefaultListLoading || _uiState.value.videoList.isEmpty()
+            applyPendingExternalVideo(forceInsert = true)
+            if (!shouldReapplyExternalVideo) {
+                pendingExternalVideo = null
+            }
+        }
+    }
+
+    private fun applyPendingExternalVideo(forceInsert: Boolean) {
+        val external = pendingExternalVideo ?: return
+        val currentList = _uiState.value.videoList
+        if (currentList.isEmpty() && !forceInsert) return
+
+        val merged = buildList {
+            add(external)
+            currentList.forEach { item ->
+                if (item.id != external.id) add(item)
+            }
+        }.take(maxCachedItems)
+
+        _uiState.value = _uiState.value.copy(
+            videoList = merged,
+            isLoading = false,
+            error = null
+        )
+
+        if (!forceInsert || !shouldReapplyExternalVideo) {
+            pendingExternalVideo = null
+            shouldReapplyExternalVideo = false
         }
     }
 
@@ -114,25 +153,3 @@ data class LandscapeUiState(
     val lastUpdated: Long? = null
 )
 
-private fun Video.toLandscapeItem(): VideoItem {
-    return VideoItem(
-        id = id,
-        videoUrl = playUrl,
-        title = title,
-        authorName = authorName,
-        likeCount = likeCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-        commentCount = commentCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-        favoriteCount = favoriteCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-        shareCount = shareCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-        isLiked = isLiked,
-        isFavorited = isFavorited,
-        defaultSpeed = 1.0f,
-        defaultQuality = "自动"
-    )
-}
-
-private fun List<VideoItem>.withExternalPinned(external: VideoItem? = null): List<VideoItem> {
-    val entry = external ?: return this
-    val filtered = this.filterNot { it.id == entry.id }
-    return listOf(entry) + filtered
-}

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="landscape_exit_description">退出横屏</string>
+    <string name="landscape_title">横屏播放</string>
+</resources>
+

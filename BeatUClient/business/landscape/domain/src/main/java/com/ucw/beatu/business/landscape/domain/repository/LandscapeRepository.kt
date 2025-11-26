@@ -1,6 +1,6 @@
 package com.ucw.beatu.business.landscape.domain.repository
 
-import com.ucw.beatu.business.videofeed.domain.model.Video
+import com.ucw.beatu.business.landscape.domain.model.VideoItem
 import com.ucw.beatu.shared.common.result.AppResult
 import kotlinx.coroutines.flow.Flow
 
@@ -15,7 +15,7 @@ interface LandscapeRepository {
      * @param limit 每页数量
      * @return Flow<AppResult<List<Video>>> 响应式数据流
      */
-    fun getLandscapeVideos(page: Int = 1, limit: Int = 20): Flow<AppResult<List<Video>>>
+    fun getLandscapeVideos(page: Int = 1, limit: Int = 20): Flow<AppResult<List<VideoItem>>>
 
     /**
      * 加载更多横屏视频
@@ -23,6 +23,6 @@ interface LandscapeRepository {
      * @param limit 每页数量
      * @return Flow<AppResult<List<Video>>> 响应式数据流
      */
-    fun loadMoreLandscapeVideos(page: Int, limit: Int = 20): Flow<AppResult<List<Video>>>
+    fun loadMoreLandscapeVideos(page: Int, limit: Int = 20): Flow<AppResult<List<VideoItem>>>
 }
 

@@ -1,12 +1,5 @@
-package com.ucw.beatu.business.videofeed.presentation.model
+package com.ucw.beatu.business.landscape.domain.model
 
-import android.os.Parcelable
-import kotlinx.parcelize.Parcelize
-
-/**
- * 视频项数据模型（硬编码测试数据）
- */
-@Parcelize
 data class VideoItem(
     val id: String,
     val videoUrl: String,
@@ -16,11 +9,14 @@ data class VideoItem(
     val commentCount: Int,
     val favoriteCount: Int,
     val shareCount: Int,
-    val orientation: VideoOrientation = VideoOrientation.PORTRAIT
-) : Parcelable
+    val isLiked: Boolean = false,
+    val isFavorited: Boolean = false,
+    val defaultSpeed: Float = 1.0f,
+    val defaultQuality: String = "自动",
+    val orientation: VideoOrientation = VideoOrientation.LANDSCAPE
+)
 
 enum class VideoOrientation {
     PORTRAIT,
     LANDSCAPE
 }
-

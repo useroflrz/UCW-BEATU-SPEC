@@ -1,0 +1,30 @@
+[33m860faa7[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mZX[m[33m, [m[1;31morigin/ZX[m[33m)[m Merge branch 'ZX' of github.com:useroflrz/UCW-BEATU-SPEC into ZX
+[33m10c3317[m 补充提交
+[33me533549[m Update development_plan.md
+[33m4cf69b0[m Changes
+[33m807752e[m Changes
+[33m1cfdea7[m Mergebranch'main' of github.com:useroflrz/UCW-BEATU-SPEC
+[33m364454d[m Merge pull request #5 from useroflrz/LRZ
+[33m650d38f[m[33m ([m[1;31morigin/LRZ[m[33m)[m 接入视频播放器，视频流效果完成
+[33m4132e94[m Merge pull request #4 from kebai633932/feature/search-fragment
+[33m27db5e1[m feat: 搜索界面xml 初步完成
+[33mebcfa4a[m Merge branch 'main' of github.com:useroflrz/UCW-BEATU-SPEC
+[33mb760aff[m[33m ([m[1;31morigin/feature/data-layer[m[33m, [m[1;32mfeature/data-layer[m[33m)[m WIP: 数据层搭建-未完成
+[33m6d361f2[m Merge pull request #3 from kebai633932/feature/user-profile-fragment
+[33mcc40b71[m feat: 用户个人主页xml 绘制初步完成
+[33mcda05e2[m feat: 完成推荐页视频播放器接入
+[33m3e0565f[m fix: 添加 .gitignore 规则，忽略所有 build 文件夹
+[33maa923ba[m 首页逻辑,添加滑动指示器,配置页面跳转路由表
+[33m59b0c98[m 修复构建bug，demo完成
+[33mfb41771[m 架构升级,尝试完成首页demo
+[33mcd68dd3[m 完成core核心基础设施搭建
+[33m47adb7a[m 去除子模块模式
+[33m064421b[m chore: 重命名子模块从 BeatU 到 BeatUClient
+[33mabe82fd[m 模块化架构骨架
+[33m275d706[m 模块化架构骨架搭建
+[33m5b1fead[m 文档及前期准备工作，目录构建
+[33m3988b4d[m chore: point BeatUClient submodule to new empty views base
+[33m82fb5df[m feat: 更新文档，其他模块的目录规划
+[33m17ade16[m feat: 更新文档，其他模块的目录规划
+[33m04cbea1[m docs: 娣诲姞 Git 浣跨敤璇存槑鏂囨。
+[33m56c0efb[m Add BeatU as submodule

@@ -298,6 +298,17 @@
   - 方案：复用 MainActivity 已有的“我”页面转场动画配置，抽象成共享的 `NavTransitionController`；在搜索入口点击时触发相同动画，并在 `MainActivity` 中通过状态机控制 Tab 的显隐（进入搜索隐藏、返回推荐显示）。Feed/Recommend Fragment 需感知 Tab 状态以避免布局跳动。
   - 完成情况：`action_feed_to_search` 与 `action_search_to_feed` 均接入 300ms iOS 风格滑动动效（同用户主页），`MainActivity` 的导航监听对搜索页执行 `hideTopNavigation()`，返回 Feed 时再 `showTopNavigation()`，手动录屏验证 10 次切换无闪烁，Tab 状态恢复率 100%。
 
+- [x] 横屏入口默认列表插入顺序修复  
+  - 2025-11-25 - done by GPT-5.1 Codex  
+  - 需求：竖屏切换横屏时传入的当前视频会在 `LandscapeViewModel.showExternalVideo` 中立即插入，但随后默认列表加载又覆盖了 state，导致横屏页重新回到 mock 列表第一个视频。需确保“加载默认列表 → 再插入外部视频”，保证切换后继续播放同一条内容。  
+  - 方案：在 `LandscapeViewModel` 中缓存待插入的视频，默认列表加载完成后统一执行插入逻辑；若列表已存在则即时插入，确保始终位于首条且不重复。  
+  - 指标：竖屏切换横屏后首条视频始终与切换前一致；`LandscapeViewModel` state 更新不再丢失外部视频；无新增 lint。
+
+- [x] Landscape 默认列表加载顺序再优化  
+  - 2025-11-25 - done by GPT-5.1 Codex  
+  - 需求：`LandscapeViewModel` 在 `init` 阶段自动调用 `loadVideoList()`，导致 Mock 列表永远先于外部 `showExternalVideo()` 执行，竖屏透传的视频依旧被覆盖。  
+  - 方案：移除 `init { loadVideoList() }`，在 `LandscapeFragment` 的 `onViewCreated()` 中先处理 `handleExternalVideoArgs()`（触发 `showExternalVideo()`）再手动调用 `loadVideoList()`，并在 `loadVideoList()` 完成后再次检测 `pendingExternalVideo` 进行插入。  
+  - 指标：实测竖屏→横屏后第一条内容始终是当前视频，即便横屏 Fragment 重建也不会回落到 Mock 列表第一个条目。
 > 后续迭代中，请将具体任务拆分为更细粒度条目，并在完成后标记 `[x]`，附上日期与负责人。
 
 

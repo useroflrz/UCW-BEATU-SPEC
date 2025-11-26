@@ -78,6 +78,7 @@ Data Layer (RemoteDataSource + LocalCache + PlayerDataSource)
 - PlayerPool：默认 2 个实例（当前+下一个），根据设备性能扩展到 3 个。利用 `ViewPager2` 的 `setOffscreenPageLimit(1)` 触发下一条预加载。
 - 预加载：借助 `CacheDataSource` 在后台拉取 N+1 前 1–2 MB，结合封面图实现首帧 < 500 ms。
 - 监控：`core/common/metrics` 记录 FPS、首帧时间、播放成功率、卡顿率、冷启动。数据上报到 `BeatUObservability`。
+- 横竖屏复用：`shared/player/session/PlaybackSessionStore` 负责缓存播放进度/倍速/播放状态；竖屏 `VideoItemViewModel` 与横屏 `LandscapeVideoItemViewModel` 在切换时通过 `VideoPlayerPool` 共享同一个 ExoPlayer，并用 `PlayerView.switchTargetView` 热插拔 Surface，确保切换无需重新缓冲且保持 KPI（首帧 <500 ms、切换黑屏 = 0）。
 - ViewPager2 子 Fragment 仅在 `RESUMED` 状态才会真正 `prepare+play` 播放器；离屏 Fragment 保持暂停并把 PlayerView 脱附，避免后台/错播。`onPause` 必定调用 `VideoPlayer.pause()`，`onDestroyView` 将 `PlayerView.player=null` 并把实例归还 `VideoPlayerPool`，保证同屏仅一条音画输出。
 - 应用层顶部导航（MainActivity）在频道切换时，通过 `FeedFragment` 将推荐页 Fragment 的可见性事件下沉到 `RecommendFragment`/`VideoItemFragment`，保证“离开频道即暂停、回到频道再恢复”，杜绝关注页可见时仍播放推荐视频的跨频道串音。
 

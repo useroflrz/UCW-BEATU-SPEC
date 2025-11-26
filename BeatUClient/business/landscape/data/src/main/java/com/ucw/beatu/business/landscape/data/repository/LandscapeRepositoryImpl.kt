@@ -1,7 +1,8 @@
 package com.ucw.beatu.business.landscape.data.repository
 
+import com.ucw.beatu.business.landscape.domain.model.VideoItem
+import com.ucw.beatu.business.landscape.domain.model.VideoOrientation
 import com.ucw.beatu.business.landscape.domain.repository.LandscapeRepository
-import com.ucw.beatu.business.videofeed.domain.model.Video
 import com.ucw.beatu.shared.common.result.AppResult
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,7 +35,7 @@ class LandscapeRepositoryImpl @Inject constructor() : LandscapeRepository {
         )
     )
 
-    override fun getLandscapeVideos(page: Int, limit: Int): Flow<AppResult<List<Video>>> {
+    override fun getLandscapeVideos(page: Int, limit: Int): Flow<AppResult<List<VideoItem>>> {
         return flow {
             emit(AppResult.Loading)
             delay(120)
@@ -44,7 +45,7 @@ class LandscapeRepositoryImpl @Inject constructor() : LandscapeRepository {
         }
     }
 
-    override fun loadMoreLandscapeVideos(page: Int, limit: Int): Flow<AppResult<List<Video>>> {
+    override fun loadMoreLandscapeVideos(page: Int, limit: Int): Flow<AppResult<List<VideoItem>>> {
         return flow {
             emit(AppResult.Loading)
             delay(100)
@@ -54,7 +55,7 @@ class LandscapeRepositoryImpl @Inject constructor() : LandscapeRepository {
         }
     }
 
-    private fun generatePage(page: Int, limit: Int): List<Video> {
+    private fun generatePage(page: Int, limit: Int): List<VideoItem> {
         return List(limit) { index ->
             val template = mockVideos[(page * limit + index) % mockVideos.size]
             val suffix = "p${page}_$index"
@@ -73,25 +74,16 @@ class LandscapeRepositoryImpl @Inject constructor() : LandscapeRepository {
         playUrl: String,
         title: String,
         author: String
-    ) = Video(
+    ) = VideoItem(
         id = id,
-        playUrl = playUrl,
-        coverUrl = "",
+        videoUrl = playUrl,
         title = title,
-        tags = listOf("landscape"),
-        durationMs = 180000,
-        orientation = "landscape",
-        authorId = "${author}_id",
         authorName = author,
-        authorAvatar = null,
         likeCount = 500,
         commentCount = 48,
         favoriteCount = 120,
         shareCount = 90,
-        viewCount = 2000,
-        isLiked = false,
-        isFavorited = false,
-        isFollowedAuthor = false
+        orientation = VideoOrientation.LANDSCAPE
     )
 }
 

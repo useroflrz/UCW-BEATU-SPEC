@@ -42,6 +42,9 @@ dependencies {
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
+
+    // DI annotations
+    implementation("javax.inject:javax.inject:1")
     
     // ExoPlayer
     implementation(libs.exoplayer.core)

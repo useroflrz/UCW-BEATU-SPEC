@@ -1,26 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <!-- ViewPager2 用于垂直滑动横屏视频流 -->
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/viewpager_landscape"
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/fragment_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-
-    <!-- 退出横屏按钮（左上角） -->
-    <ImageButton
-        android:id="@+id/btn_exit_landscape"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_margin="16dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_menu_revert"
-        android:contentDescription="退出横屏"
-        android:padding="12dp"
-        app:tint="#FFFFFF" />
+        android:layout_height="match_parent"
+        android:name="com.ucw.beatu.business.landscape.presentation.ui.LandscapeFragment"
+        tools:layout="@layout/fragment_landscape" />
 
 </FrameLayout>

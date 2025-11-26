@@ -4,6 +4,9 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ucw.beatu.business.videofeed.presentation.model.VideoItem
+import com.ucw.beatu.shared.common.mock.MockVideoCatalog
+import com.ucw.beatu.shared.common.mock.MockVideoCatalog.Orientation.PORTRAIT
+import com.ucw.beatu.shared.common.mock.Video
 import com.ucw.beatu.shared.player.VideoPlayer
 import com.ucw.beatu.shared.player.model.VideoSource
 import com.ucw.beatu.shared.player.pool.VideoPlayerPool
@@ -37,6 +40,8 @@ class RecommendViewModel @Inject constructor(
 
     private var currentPlayer: VideoPlayer? = null
     private var currentVideoId: String? = null
+    private var currentPage = 1
+    private val pageSize = 5
     
     init {
         // 初始化时加载视频列表
@@ -48,12 +53,14 @@ class RecommendViewModel @Inject constructor(
      */
     private fun loadVideoList() {
         viewModelScope.launch {
+            currentPage = 1
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             
             try {
                 delay(500) // 模拟网络请求延迟
                 
-                val videos = createMockVideoList()
+                val videos = MockVideoCatalog.getPage(PORTRAIT, currentPage, pageSize)
+                    .map { it.toVideoItem() }
                 _uiState.value = _uiState.value.copy(
                     videoList = videos,
                     isLoading = false
@@ -72,12 +79,14 @@ class RecommendViewModel @Inject constructor(
      */
     fun refreshVideoList() {
         viewModelScope.launch {
+            currentPage = 1
             _uiState.value = _uiState.value.copy(isRefreshing = true, error = null)
             
             try {
                 delay(1000) // 模拟网络请求延迟
                 
-                val newVideos = createMockVideoList()
+                val newVideos = MockVideoCatalog.getPage(PORTRAIT, currentPage, pageSize)
+                    .map { it.toVideoItem() }
                 _uiState.value = _uiState.value.copy(
                     videoList = newVideos,
                     isRefreshing = false
@@ -99,7 +108,9 @@ class RecommendViewModel @Inject constructor(
             try {
                 delay(500) // 模拟网络请求延迟
                 
-                val moreVideos = createMockVideoList()
+                currentPage++
+                val moreVideos = MockVideoCatalog.getPage(PORTRAIT, currentPage, pageSize)
+                    .map { it.toVideoItem() }
                 val currentList = _uiState.value.videoList.toMutableList()
                 currentList.addAll(moreVideos)
                 
@@ -114,64 +125,6 @@ class RecommendViewModel @Inject constructor(
         }
     }
 
-    /**
-     * 创建硬编码的测试视频列表
-     */
-    private fun createMockVideoList(): List<VideoItem> {
-        return listOf(
-            VideoItem(
-                id = "video_001",
-                videoUrl = "http://vjs.zencdn.net/v/oceans.mp4",
-                title = "《切腹》1/2上集:浪人为何要用竹刀这般折磨自己?# 影视解说#动作冒险",
-                authorName = "云哥讲电影",
-                likeCount = 535,
-                commentCount = 43,
-                favoriteCount = 159,
-                shareCount = 59
-            ),
-            VideoItem(
-                id = "video_002",
-                videoUrl = "http://www.w3school.com.cn/example/html5/mov_bbb.mp4",
-                title = "Big Buck Bunny - 经典动画短片 #动画#搞笑",
-                authorName = "动画世界",
-                likeCount = 1234,
-                commentCount = 89,
-                favoriteCount = 567,
-                shareCount = 234
-            ),
-            VideoItem(
-                id = "video_003",
-                videoUrl = "https://media.w3.org/2010/05/sintel/trailer.mp4",
-                title = "Sintel 高清预告片 - 奇幻冒险 #奇幻#冒险",
-                authorName = "电影推荐官",
-                likeCount = 890,
-                commentCount = 67,
-                favoriteCount = 345,
-                shareCount = 123
-            ),
-            VideoItem(
-                id = "video_004",
-                videoUrl = "http://vfx.mtime.cn/Video/2021/07/10/mp4/210710171112971120.mp4",
-                title = "影视片段 - 精彩剪辑 #影视#剪辑",
-                authorName = "剪辑大师",
-                likeCount = 2345,
-                commentCount = 156,
-                favoriteCount = 789,
-                shareCount = 456
-            ),
-            VideoItem(
-                id = "video_005",
-                videoUrl = "http://vjs.zencdn.net/v/oceans.mp4",
-                title = "海洋世界 - 自然风光 #自然#海洋",
-                authorName = "自然探索",
-                likeCount = 678,
-                commentCount = 45,
-                favoriteCount = 234,
-                shareCount = 89
-            )
-        )
-    }
-
     override fun onCleared() {
         super.onCleared()
         releaseCurrentPlayer()
@@ -184,5 +137,33 @@ class RecommendViewModel @Inject constructor(
         currentPlayer = null
         currentVideoId = null
     }
+
+    private fun Video.toVideoItem(): VideoItem =
+        VideoItem(
+            id = id,
+            videoUrl = url,
+            title = title,
+            authorName = author,
+            likeCount = likeCount,
+            commentCount = commentCount,
+            favoriteCount = favoriteCount,
+            shareCount = shareCount,
+            orientation = when (orientation) {
+                MockVideoCatalog.Orientation.PORTRAIT -> com.ucw.beatu.business.videofeed.presentation.model.VideoOrientation.PORTRAIT
+                MockVideoCatalog.Orientation.LANDSCAPE -> com.ucw.beatu.business.videofeed.presentation.model.VideoOrientation.LANDSCAPE
+            }
+        )
+
+    fun restoreState(videos: List<VideoItem>, restoredPage: Int) {
+        currentPage = restoredPage.coerceAtLeast(1)
+        _uiState.value = _uiState.value.copy(
+            videoList = videos,
+            isLoading = false,
+            isRefreshing = false,
+            error = null
+        )
+    }
+
+    fun getCurrentPage(): Int = currentPage
 }
 
