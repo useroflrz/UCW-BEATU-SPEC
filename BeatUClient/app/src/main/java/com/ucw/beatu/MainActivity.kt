@@ -305,8 +305,9 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
             // 根据当前目标页面控制顶部导航栏的显示/隐藏
             when (destination.id) {
                 R.id.userProfile,
-                R.id.search -> {
-                    // 进入个人主页或搜索页时隐藏顶部导航栏
+                R.id.search,
+                R.id.landscape -> {
+                    // 进入个人主页、搜索或横屏页面时隐藏顶部导航栏
                     hideTopNavigation()
                 }
                 R.id.feed -> {
