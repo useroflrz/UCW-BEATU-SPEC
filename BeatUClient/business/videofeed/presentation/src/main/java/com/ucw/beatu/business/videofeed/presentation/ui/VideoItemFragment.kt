@@ -175,10 +175,13 @@ class VideoItemFragment : Fragment() {
         hasPreparedPlayer = true
     }
 
-    // ✅ 修复：重绑定播放器逻辑
+    // ✅ 修复：重绑定播放器逻辑（统一走 preparePlayer，让 PlaybackSession 决定是否续播）
     private fun reattachPlayer() {
-        if (!isAdded || playerView == null) return
-        viewModel.onHostResume(playerView) // 确保调用 ViewModel 的恢复逻辑
+        if (!isAdded) return
+        val item = videoItem ?: return
+        val pv = playerView ?: return
+        Log.d(TAG, "reattachPlayer: re-preparing video ${item.id}")
+        viewModel.preparePlayer(item.id, item.videoUrl, pv)
         hasPreparedPlayer = true
     }
 
