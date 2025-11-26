@@ -305,10 +305,13 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
             // 根据当前目标页面控制顶部导航栏的显示/隐藏
             when (destination.id) {
                 R.id.userProfile,
-                R.id.search,
-                R.id.landscape -> {
-                    // 进入个人主页、搜索或横屏页面时隐藏顶部导航栏
+                R.id.search -> {
+                    // 进入个人主页或搜索页面时隐藏顶部导航栏（带动画）
                     hideTopNavigation()
+                }
+                R.id.landscape -> {
+                    // 横屏页面需要立即移除顶部导航栏，避免出现双退出按钮
+                    hideTopNavigation(immediate = true)
                 }
                 R.id.feed -> {
                     // 返回 Feed 页面时显示顶部导航栏
@@ -324,7 +327,7 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
     /**
      * 隐藏顶部导航栏（带动画）
      */
-    private fun hideTopNavigation() {
+    private fun hideTopNavigation(immediate: Boolean = false) {
         topNavigation?.let { nav ->
             if (nav.visibility == View.VISIBLE) {
                 val height = if (nav.height > 0) nav.height else {
@@ -335,15 +338,22 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
                     val contentHeight = (56 * resources.displayMetrics.density).toInt()
                     statusBarHeight + contentHeight
                 }
-                nav.animate()
-                    .alpha(0f)
-                    .translationY(-height.toFloat())
-                    .setDuration(300)
-                    .setInterpolator(android.view.animation.AccelerateInterpolator())
-                    .withEndAction {
-                        nav.visibility = View.GONE
-                    }
-                    .start()
+                if (immediate) {
+                    nav.animate().cancel()
+                    nav.alpha = 0f
+                    nav.translationY = -height.toFloat()
+                    nav.visibility = View.GONE
+                } else {
+                    nav.animate()
+                        .alpha(0f)
+                        .translationY(-height.toFloat())
+                        .setDuration(300)
+                        .setInterpolator(android.view.animation.AccelerateInterpolator())
+                        .withEndAction {
+                            nav.visibility = View.GONE
+                        }
+                        .start()
+                }
             }
         }
     }

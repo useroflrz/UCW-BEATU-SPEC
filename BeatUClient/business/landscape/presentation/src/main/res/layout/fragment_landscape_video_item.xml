@@ -29,16 +29,6 @@
             android:gravity="center_vertical"
             android:layout_gravity="top">
 
-            <!-- 退出全屏按钮 -->
-            <ImageButton
-                android:id="@+id/btn_exit_fullscreen"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:src="@android:drawable/ic_menu_revert"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#FFFFFF"
-                android:contentDescription="退出全屏" />
-
             <View
                 android:layout_width="0dp"
                 android:layout_height="1dp"

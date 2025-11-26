@@ -349,11 +349,6 @@ class LandscapeVideoItemFragment : Fragment() {
     }
 
     private fun setupButtonClickListeners(view: View) {
-        // 退出全屏
-        view.findViewById<ImageButton>(R.id.btn_exit_fullscreen)?.setOnClickListener {
-            requireActivity().finish()
-        }
-
         // 点赞
         likeButton?.setOnClickListener {
             toggleLike()
