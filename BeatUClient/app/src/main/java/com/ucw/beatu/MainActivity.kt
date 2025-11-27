@@ -56,15 +56,13 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
         setContentView(R.layout.activity_main)
 
         topNavigation = findViewById(R.id.top_navigation)
+        // 处理 WindowInsets：让导航栏浮在内容上方，内容延伸到状态栏下方
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { view, insets ->
-            view.setPadding(
-                view.paddingLeft,
-                view.paddingTop,
-                view.paddingRight,
-                view.paddingBottom
-            )
+            // 主容器不需要 padding，让内容延伸到边缘
+            view.setPadding(0, 0, 0, 0)
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val contentHeight = (56 * resources.displayMetrics.density).toInt()
+            // 导航栏需要状态栏高度的 padding，确保内容在状态栏下方
             topNavigation?.setPadding(
                 topNavigation?.paddingLeft ?: 0,
                 systemBars.top,
@@ -302,23 +300,32 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
      */
     private fun setupNavigationListener() {
         navController?.addOnDestinationChangedListener { _, destination, _ ->
-            // 根据当前目标页面控制顶部导航栏的显示/隐藏
+            // 根据当前目标页面控制顶部导航栏的显示/隐藏和视频播放
             when (destination.id) {
                 R.id.userProfile,
                 R.id.search -> {
                     // 进入个人主页或搜索页面时隐藏顶部导航栏（带动画）
                     hideTopNavigation()
+                    // 暂停所有视频
+                    (feedFragmentCallback as? FeedFragment)?.pauseAllVideos()
                 }
                 R.id.landscape -> {
                     // 横屏页面需要立即移除顶部导航栏，避免出现双退出按钮
                     hideTopNavigation(immediate = true)
+                    // 横屏模式会自己管理播放器，这里不需要暂停
                 }
                 R.id.feed -> {
                     // 返回 Feed 页面时显示顶部导航栏
                     showTopNavigation()
+                    // 恢复当前可见的视频
+                    (feedFragmentCallback as? FeedFragment)?.resumeVisibleVideo()
                 }
                 else -> {
                     // 其他页面保持当前状态或根据需求调整
+                    // 如果导航到其他页面，也暂停视频
+                    if (destination.id != R.id.landscape) {
+                        (feedFragmentCallback as? FeedFragment)?.pauseAllVideos()
+                    }
                 }
             }
         }

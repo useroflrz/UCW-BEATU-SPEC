@@ -1,5 +1,3 @@
-@file:OptIn(UnstableApi::class)
-
 package com.ucw.beatu.business.videofeed.presentation.ui
 
 import android.os.Bundle
@@ -14,7 +12,6 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
 import androidx.navigation.fragment.findNavController
@@ -121,7 +118,12 @@ class VideoItemFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         navigatingToLandscape = false
-        // ✅ 修复：不再自动播放，由 onStart() 或 onParentVisibilityChanged() 控制
+        // 延迟检查 View 是否在屏幕上可见，确保 View 已经布局完成
+        view?.post {
+            if (isResumed) {
+                checkVisibilityAndPauseIfNeeded()
+            }
+        }
     }
 
     override fun onPause() {
@@ -150,6 +152,66 @@ class VideoItemFragment : Fragment() {
 
     fun onParentTabVisibilityChanged(isVisible: Boolean) {
         onParentVisibilityChanged(isVisible)
+    }
+    
+    /**
+     * 检查可见性并播放：如果 View 在屏幕上可见则播放，否则暂停
+     */
+    fun checkVisibilityAndPlay() {
+        if (isViewVisibleOnScreen()) {
+            startPlaybackIfNeeded()
+        } else {
+            if (hasPreparedPlayer) {
+                viewModel.pause()
+                Log.d(TAG, "Video not visible on screen, paused")
+            }
+        }
+    }
+    
+    /**
+     * 检查可见性并在需要时暂停：如果 View 不在屏幕上可见则暂停
+     */
+    private fun checkVisibilityAndPauseIfNeeded() {
+        if (!isViewVisibleOnScreen() && hasPreparedPlayer) {
+            viewModel.pause()
+            Log.d(TAG, "Video not visible on screen in onResume, paused")
+        }
+    }
+    
+    /**
+     * 检测 View 是否真正在屏幕上可见
+     * 使用 getGlobalVisibleRect 来检测 View 是否在屏幕范围内
+     */
+    private fun isViewVisibleOnScreen(): Boolean {
+        val view = view ?: return false
+        if (!isAdded || !isVisible || view.visibility != View.VISIBLE) {
+            return false
+        }
+        
+        // 检查 View 是否在屏幕上可见
+        val rect = android.graphics.Rect()
+        val isVisible = view.getGlobalVisibleRect(rect)
+        
+        if (!isVisible) {
+            return false
+        }
+        
+        // 检查可见区域是否足够大（至少 10% 可见）
+        val viewArea = view.width * view.height
+        val visibleArea = rect.width() * rect.height()
+        val visibilityRatio = if (viewArea > 0) {
+            visibleArea.toFloat() / viewArea.toFloat()
+        } else {
+            0f
+        }
+        
+        val isSignificantlyVisible = visibilityRatio >= 0.1f
+        
+        if (!isSignificantlyVisible) {
+            Log.d(TAG, "View visibility ratio too low: $visibilityRatio")
+        }
+        
+        return isSignificantlyVisible
     }
 
     private fun startPlaybackIfNeeded(forcePrepare: Boolean = false) {

@@ -9,6 +9,7 @@
     android:background="#FF000000"
     tools:context=".MainActivity">
 
+    <!-- 顶部导航栏：透明背景，浮在内容上方 -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/top_navigation"
         android:layout_width="match_parent"
@@ -17,7 +18,7 @@
         android:background="#00000000"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
-        android:elevation="4dp"
+        android:elevation="8dp"
         android:clickable="true"
         android:focusable="true"
         app:layout_constraintTop_toTopOf="parent"
@@ -114,6 +115,7 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <!-- 导航容器：覆盖整个屏幕，包括顶部导航栏区域，让视频可以延伸到状态栏下方 -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/nav_host_fragment"
         android:name="androidx.navigation.fragment.NavHostFragment"
@@ -121,7 +123,7 @@
         android:layout_height="0dp"
         app:defaultNavHost="true"
         app:navGraph="@navigation/main_nav_graph"
-        app:layout_constraintTop_toBottomOf="@id/top_navigation"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />

@@ -7,7 +7,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.view.GestureDetectorCompat
+import androidx.core.os.BundleCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -47,7 +47,7 @@ class RecommendFragment : Fragment() {
     private var pendingRestoreIndex: Int? = null
     private var pendingResumeRequest = false
 
-    private var gestureDetector: GestureDetectorCompat? = null
+    private var gestureDetector: GestureDetector? = null
     private var rootView: View? = null
 
     override fun onCreateView(
@@ -76,6 +76,8 @@ class RecommendFragment : Fragment() {
                     if (position >= (adapter?.itemCount ?: 0) - 2) {
                         viewModel.loadMoreVideos()
                     }
+                    // 通知当前选中的 Fragment 播放，其他暂停
+                    handlePageSelected(position)
                 }
             })
 
@@ -165,7 +167,7 @@ class RecommendFragment : Fragment() {
 
     private fun setupSwipeLeftGesture() {
         rootView?.let { view ->
-            gestureDetector = GestureDetectorCompat(
+            gestureDetector = GestureDetector(
                 requireContext(),
                 object : GestureDetector.SimpleOnGestureListener() {
                     override fun onFling(
@@ -221,17 +223,45 @@ class RecommendFragment : Fragment() {
         pendingResumeRequest = false
     }
 
-    private fun pauseAllVideoItems() {
+    /**
+     * 暂停所有视频（供外部调用，如 FeedFragment）
+     */
+    fun pauseAllVideoItems() {
         childFragmentManager.fragments
             .filterIsInstance<VideoItemFragment>()
             .forEach { it.onParentVisibilityChanged(false) }
     }
 
-    private fun resumeVisibleVideoItem() {
+    /**
+     * 恢复当前可见的视频（供外部调用，如 FeedFragment）
+     */
+    fun resumeVisibleVideoItem() {
+        val currentPosition = viewPager?.currentItem ?: -1
+        if (currentPosition >= 0) {
+            handlePageSelected(currentPosition)
+        }
+    }
+    
+    /**
+     * 处理页面选中事件：暂停所有视频，只播放当前可见的视频
+     */
+    private fun handlePageSelected(position: Int) {
+        // ViewPager2 的 FragmentStateAdapter 使用 "f" + position 作为 Fragment tag
+        val currentFragmentTag = "f$position"
+        val currentFragment = childFragmentManager.findFragmentByTag(currentFragmentTag) as? VideoItemFragment
+        
+        // 暂停所有视频 Fragment
         childFragmentManager.fragments
             .filterIsInstance<VideoItemFragment>()
-            .firstOrNull { it.isVisible }
-            ?.onParentVisibilityChanged(true)
+            .forEach { fragment ->
+                if (fragment == currentFragment && fragment.isVisible) {
+                    // 当前选中的 Fragment，检查是否真正在屏幕上可见
+                    fragment.checkVisibilityAndPlay()
+                } else {
+                    // 其他 Fragment 暂停
+                    fragment.onParentVisibilityChanged(false)
+                }
+            }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -245,7 +275,7 @@ class RecommendFragment : Fragment() {
     }
 
     private fun restoreState(savedInstanceState: Bundle) {
-        val videos = savedInstanceState.getParcelableArrayList<VideoItem>(STATE_VIDEOS)
+        val videos = BundleCompat.getParcelableArrayList(savedInstanceState, STATE_VIDEOS, VideoItem::class.java)
         val restoredIndex = savedInstanceState.getInt(STATE_VIEWPAGER_INDEX, 0)
         val restoredPage = savedInstanceState.getInt(STATE_CURRENT_PAGE, 1)
         if (!videos.isNullOrEmpty()) {

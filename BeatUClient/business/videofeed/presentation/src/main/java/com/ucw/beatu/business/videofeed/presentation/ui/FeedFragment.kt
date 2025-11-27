@@ -47,6 +47,18 @@ class FeedFragment : Fragment(), FeedFragmentCallback {
         setupViewPagerListener()
     }
     
+    override fun onResume() {
+        super.onResume()
+        // 当 FeedFragment 恢复时，恢复当前可见的视频
+        resumeVisibleVideo()
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        // 当 FeedFragment 暂停时（比如切换到其他页面），暂停所有视频
+        pauseAllVideos()
+    }
+    
     /**
      * 设置ViewPager2的监听器
      */
@@ -114,6 +126,27 @@ class FeedFragment : Fragment(), FeedFragmentCallback {
     override fun onIndicatorTabSelected(position: Int) {
         // 这个方法由 MainActivity 调用，但实际更新逻辑在 MainActivity 中
         // 这里不需要实现，因为指示器在 MainActivity 中
+    }
+    
+    /**
+     * 暂停所有视频（当导航到其他页面时调用）
+     */
+    fun pauseAllVideos() {
+        // 暂停推荐页面的所有视频
+        recommendFragment?.pauseAllVideoItems()
+        // TODO: 当 FollowFragment 实现视频播放功能后，也需要暂停关注页面的视频
+    }
+    
+    /**
+     * 恢复当前可见的视频（当返回 Feed 页面时调用）
+     */
+    fun resumeVisibleVideo() {
+        // 恢复当前 Tab 的视频
+        if (currentPage == 1) {
+            // 推荐页面
+            recommendFragment?.resumeVisibleVideoItem()
+        }
+        // TODO: 当 FollowFragment 实现视频播放功能后，也需要恢复关注页面的视频
     }
     
     /**
