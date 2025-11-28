@@ -1,5 +1,6 @@
 package com.ucw.beatu.business.videofeed.presentation.ui
 
+import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -93,6 +94,7 @@ class VideoItemFragment : Fragment() {
         view.findViewById<View>(R.id.iv_comment)?.setOnClickListener { /* TODO: 打开评论弹层 */ }
         view.findViewById<View>(R.id.iv_share)?.setOnClickListener { /* TODO: 打开分享弹层 */ }
         view.findViewById<View>(R.id.iv_fullscreen)?.setOnClickListener { openLandscapeMode() }
+
     }
 
     private fun observeViewModel() {
@@ -139,7 +141,7 @@ class VideoItemFragment : Fragment() {
         // 延迟检查 View 是否在屏幕上可见，确保 View 已经布局完成
         view?.post {
             if (isResumed) {
-                checkVisibilityAndPauseIfNeeded()
+                checkVisibilityAndPlay()
             }
         }
     }
@@ -147,6 +149,7 @@ class VideoItemFragment : Fragment() {
     override fun onPause() {
         super.onPause()
         if (!navigatingToLandscape && hasPreparedPlayer) {
+            Log.d(TAG, "onPause: pausing video ${videoItem?.id}")
             viewModel.pause()
         }
     }
@@ -154,16 +157,21 @@ class VideoItemFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         playerView?.player = null
-        viewModel.releaseCurrentPlayer()
+        if (!navigatingToLandscape) {
+            viewModel.releaseCurrentPlayer()
+            hasPreparedPlayer = false
+        } else {
+            Log.d(TAG, "onDestroyView: skip release because navigatingToLandscape=true")
+        }
         playerView = null
         playButton = null
-        hasPreparedPlayer = false
     }
 
     fun onParentVisibilityChanged(isVisible: Boolean) {
         if (isVisible) {
             startPlaybackIfNeeded()
         } else if (hasPreparedPlayer) {
+            Log.d(TAG, "onParentVisibilityChanged: fragment hidden, pausing ${videoItem?.id}")
             viewModel.pause()
         }
     }
@@ -239,15 +247,15 @@ class VideoItemFragment : Fragment() {
             return
         }
 
-        if (!hasPreparedPlayer || forcePrepare) {
-            Log.d(TAG, "startPlaybackIfNeeded: preparing player for first time")
+        val needsReprepare = forcePrepare || !hasPreparedPlayer || playerView?.player == null
+        if (needsReprepare) {
+            Log.d(TAG, "startPlaybackIfNeeded: (re)preparing player (force=$forcePrepare, hasPrepared=$hasPreparedPlayer, playerView.player=${playerView?.player})")
             preparePlayerForFirstTime()
-            // ✅ 修复：准备完成后立即播放（此时 Fragment 已经可见）
-            viewModel.resume()
         } else {
-            Log.d(TAG, "startPlaybackIfNeeded: player already prepared, resuming")
-            viewModel.resume()
+            Log.d(TAG, "startPlaybackIfNeeded: player already prepared and attached, resuming")
         }
+        // Fragment 已可见，确保播放状态恢复
+        viewModel.resume()
     }
 
     // ✅ 修复：首次加载逻辑
@@ -258,6 +266,7 @@ class VideoItemFragment : Fragment() {
         viewModel.playVideo(item.id, item.videoUrl)
         viewModel.preparePlayer(item.id, item.videoUrl, pv)
         hasPreparedPlayer = true
+        Log.d(TAG, "preparePlayerForFirstTime: hasPreparedPlayer=$hasPreparedPlayer, playerView.player=${pv.player}")
     }
 
     // ✅ 修复：重绑定播放器逻辑（统一走 preparePlayer，让 PlaybackSession 决定是否续播）
@@ -268,6 +277,7 @@ class VideoItemFragment : Fragment() {
         Log.d(TAG, "reattachPlayer: re-preparing video ${item.id}")
         viewModel.preparePlayer(item.id, item.videoUrl, pv)
         hasPreparedPlayer = true
+        Log.d(TAG, "reattachPlayer: hasPreparedPlayer=$hasPreparedPlayer, playerView.player=${pv.player}")
     }
 
     private fun openLandscapeMode() {

@@ -61,6 +61,7 @@ class LandscapeVideoItemFragment : Fragment() {
 
     private var playerView: PlayerView? = null
     private var videoItem: VideoItem? = null
+    private var isCurrentlyVisibleToUser = false
     private var latestControlsState = LandscapeControlsState()
     private var speedBeforeBoost: Float? = null
 
@@ -658,6 +659,11 @@ class LandscapeVideoItemFragment : Fragment() {
             playerView?.let { pv ->
                 viewModel.playVideo(item.id, item.videoUrl)
                 viewModel.preparePlayer(item.id, item.videoUrl, pv)
+                if (isCurrentlyVisibleToUser) {
+                    viewModel.resume()
+                } else {
+                    viewModel.pause()
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading video", e)
@@ -677,9 +683,22 @@ class LandscapeVideoItemFragment : Fragment() {
         }
     }
 
+    fun onParentVisibilityChanged(isVisible: Boolean) {
+        isCurrentlyVisibleToUser = isVisible
+        if (isVisible) {
+            Log.d(TAG, "onParentVisibilityChanged: visible -> resume video ${videoItem?.id}")
+            viewModel.resume()
+        } else {
+            Log.d(TAG, "onParentVisibilityChanged: hidden -> pause video ${videoItem?.id}")
+            viewModel.pause()
+        }
+    }
+
     override fun onDestroyView() {
         hideControlPanelHandler.removeCallbacks(hideControlPanelRunnable)
-        if (viewModel.isHandoffFromPortrait()) {
+        val handoff = viewModel.isHandoffFromPortrait()
+        Log.d(TAG, "onDestroyView: handoff=$handoff, videoId=${viewModel.uiState.value.currentVideoId}")
+        if (handoff) {
             viewModel.persistPlaybackSession()
             viewModel.mediaPlayer()?.let { player ->
                 PlayerView.switchTargetView(player, playerView, null)
@@ -697,6 +716,7 @@ class LandscapeVideoItemFragment : Fragment() {
      * 供 Activity 在退出前调用，先保存进度并解绑 Surface，返回竖屏时可无缝继续。
      */
     fun prepareForExit() {
+        Log.d(TAG, "prepareForExit: videoId=${viewModel.uiState.value.currentVideoId}")
         viewModel.persistPlaybackSession()
         viewModel.mediaPlayer()?.let { player ->
             PlayerView.switchTargetView(player, playerView, null)

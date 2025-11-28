@@ -4,6 +4,7 @@ import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.View
 import androidx.activity.OnBackPressedCallback
+import android.util.Log
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -69,13 +70,22 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
                     if (total > 0 && position >= total - 2) {
                         viewModel.loadMoreVideos()
                     }
+                    handlePageSelected(position)
                 }
             })
         }
+        // 首次创建时手动触发一次，确保第一个页面播放/其他暂停
+        viewPager?.post {
+            handlePageSelected(viewPager?.currentItem ?: 0)
+        }
 
-        // 使用 NavController 返回（而非 btn_exit_landscape）
-        root.findViewById<View>(R.id.btn_exit_landscape)?.setOnClickListener {
+        // 顶部返回按钮（需要确保在 ViewPager 之上且可点击）
+        root.findViewById<View>(R.id.btn_exit_landscape)?.apply {
+            bringToFront()
+            setOnClickListener {
+                Log.d(TAG, "Exit button clicked")
             exitLandscape()
+            }
         }
     }
 
@@ -130,14 +140,33 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
         currentLandscapeItemFragment()?.prepareForExit()
         // 恢复屏幕方向
         restoreOrientation()
-        //使用 NavController 返回，NavHost 会自动处理栈管理
-        findNavController().popBackStack()
+
+        val popped = runCatching { findNavController().popBackStack() }
+            .onFailure { Log.w(TAG, "popBackStack failed, fallback to finish()", it) }
+            .getOrDefault(false)
+
+        if (!popped) {
+            requireActivity().finish()
+        }
     }
 
     private fun currentLandscapeItemFragment(): LandscapeVideoItemFragment? {
         val index = viewPager?.currentItem ?: return null
         val tag = "f$index"
         return childFragmentManager.findFragmentByTag(tag) as? LandscapeVideoItemFragment
+    }
+
+    private fun handlePageSelected(position: Int) {
+        val currentTag = "f$position"
+        childFragmentManager.fragments
+            .filterIsInstance<LandscapeVideoItemFragment>()
+            .forEach { fragment ->
+                if (fragment.tag == currentTag && fragment.isVisible) {
+                    fragment.onParentVisibilityChanged(true)
+                } else {
+                    fragment.onParentVisibilityChanged(false)
+                }
+            }
     }
 
     private fun restoreOrientation() {
@@ -152,3 +181,5 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
         shouldForcePortraitOnExit = false
     }
 }
+
+private const val TAG = "LandscapeFragment"

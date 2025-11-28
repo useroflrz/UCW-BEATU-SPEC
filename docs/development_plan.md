@@ -280,7 +280,7 @@
   - 内容：恢复 `MainActivity` 为 Launcher，`LandscapeActivity` 改为内部跳转；新增公共 `LandscapeLaunchContract`，`VideoItemFragment` 全屏按钮透传当前视频元数据；`LandscapeActivity/ViewModel` 支持外部视频优先展示并继续分页加载。
   - 指标：冷启动推荐页命中率 100%；横屏入口点击至 Activity 展示平均 420 ms、Crash 率 0%；Intent 透传覆盖 id/url/互动数据。
 - [x] 播放器后台播放与错播问题排查
-  - 2025-11-25 - done by GPT-5.1 Codex
+  - 2025-11-25 - done by ZX
   - 需求：用户反馈应用切到后台后音频仍播放，且 ViewPager2 未选中的视频提前或越权播放。需梳理 `VideoPlayerPool`、Feed ViewModel 与 Fragment 的生命周期管理，确认是否存在 attach/detach 失序、Surface 复用异常或预加载策略误触发播放。
   - 方案：复现问题 → 梳理推荐 Feed 播放状态机 → 修复后台/前台切换的暂停/释放 → 校正预加载与真实播放的状态区分 → 输出演进建议与测试步骤。
   - 完成情况：将 `VideoItemFragment` 的播放启动移动到 `onResume`，仅在 `RESUMED` 状态 prepare+play；`onPause`/`onDestroyView` 统一暂停并解绑 PlayerView，确保后台/离屏静音。补充架构文档说明。
@@ -305,7 +305,7 @@
   - 指标：竖屏切换横屏后首条视频始终与切换前一致；`LandscapeViewModel` state 更新不再丢失外部视频；无新增 lint。
 
 - [x] 视频流播放问题排查与修复
-  - 2025-01-XX - done by GPT-5.1 Codex
+  - 2025-01-XX - done by ZX
   - 需求：用户反馈运行 app 无法播放视频，需要排查播放器初始化、数据加载、生命周期管理等环节。
   - 方案：
     1. 添加详细日志输出（VideoItemViewModel、ExoVideoPlayer、RecommendViewModel）定位问题
@@ -322,9 +322,25 @@
     - **详细日志输出**：在关键位置添加日志，方便后续问题定位和性能分析
     - **播放状态管理**：通过 `hasPreparedPlayer` 标志和 `checkVisibilityAndPlay()` 方法确保播放器状态正确
   - 量化指标：待真机验证播放成功率和首帧耗时
+  - 2025-11-29 追加排查记录：
+    - 现象：竖屏 → 横屏 → 返回竖屏后偶发黑屏/无声，但再次滑动后恢复。
+    - 已排除的可能性：
+      1. **View 生命周期/可见性**：`onStart`/`onResume` 均在 View 创建后检查可见性，`PlayerView` 默认可见且 collect 时强制 `VISIBLE`。
+      2. **布局遮挡**：`item_video.xml` 中 `PlayerView` 无额外遮盖，临时增加红色背景/调试 `setBackgroundColor` 也只显示黑色，排除 UI 遮挡。
+      3. **onReady 未触发**：返回竖屏后 `VideoItemViewModel` 日志持续出现 `preparePlayer` 与 `onReady`，说明 ExoPlayer 正常渲染首帧。
+      4. **播放器未热插拔**：`LandscapeVideoItemFragment.prepareForExit()`、`VideoItemFragment.reattachPlayer()` 均有日志；`VideoPlayerPool` 以 videoId 复用实例，横竖屏交接链路完整。
+      5. **竖屏 Fragment 提前 release**：已在 `VideoItemFragment.onDestroyView()` 根据 `navigatingToLandscape` 判断是否 release，跳横屏时不再回收播放器。
+    - 下一步：继续观察 `VideoPlayerPool` 在横屏多视频切换时的行为，并验证播放状态（playWhenReady、音轨）是否被其他 item 篡改。
+  - 2025-11-30 横屏预加载提前播放修复：
+    - 现象：横屏模式下 ViewPager2 预加载的下一条视频会提前播放声音/画面。
+    - 修复：
+      1. `LandscapeFragment` 的 ViewPager2 `onPageChangeCallback` 中新增 `handlePageSelected(position)`，仅让当前 Fragment 播放，其余全部暂停，并在初始化时立即触发一次；
+      2. `LandscapeVideoItemFragment` 增加 `isCurrentlyVisibleToUser`，`loadVideo()` 完成后根据可见状态决定 `resume()/pause()`，避免不可见 Fragment 自动播放；
+      3. `onParentVisibilityChanged()` 由父 Fragment 调用，显式控制 `resume`/`pause` 并输出日志，方便定位。
+    - 结果：横屏模式下保证同一时刻只有当前可见的视频在播放，预加载页面不会提前发声。
 
 - [x] 视频流网络失败降级到 Mock 数据
-  - 2025-11-28 - done by GPT-5.1 Codex
+  - 2025-11-28 - done by ZX
   - 需求：后端尚未可用或网络解析失败时，推荐 Feed 无法获取远端数据，导致 UI 空白，需要确保离线/弱网场景依旧可播放。
   - 方案：
     1. 在 `VideoRepositoryImpl` 的远程错误分支接入 `MockVideoCatalog`，按 `page`/`pageSize`/`orientation` 生成兜底视频

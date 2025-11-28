@@ -111,6 +111,12 @@ class RecommendFragment : Fragment() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        pauseAllVideoItems()
+        pendingResumeRequest = true
+    }
+
     private fun setupPullToRefresh(viewPager: ViewPager2) {
         var touchStartY = 0f
         var hasTriggeredRefresh = false
@@ -259,6 +265,7 @@ class RecommendFragment : Fragment() {
                     fragment.checkVisibilityAndPlay()
                 } else {
                     // 其他 Fragment 暂停
+                    Log.d(TAG, "handlePageSelected: pause fragment tag=${fragment.tag}")
                     fragment.onParentVisibilityChanged(false)
                 }
             }

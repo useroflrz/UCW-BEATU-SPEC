@@ -156,6 +156,7 @@ class VideoItemViewModel @Inject constructor(
                 // 绑定播放器到 PlayerView
                 android.util.Log.d("VideoItemViewModel", "preparePlayer: attaching player to PlayerView")
                 player.attach(playerView)
+                android.util.Log.d("VideoItemViewModel", "preparePlayer: attached player to PlayerView, playerView.player=${playerView.player}")
 
                 val pendingSession = playbackSessionStore.consume(videoId)
                 handoffInProgress = pendingSession != null
@@ -163,15 +164,13 @@ class VideoItemViewModel @Inject constructor(
                     android.util.Log.d("VideoItemViewModel", "preparePlayer: applying pending session for videoId=$videoId")
                     applyPlaybackSession(player, pendingSession)
                 } else {
-                    android.util.Log.d("VideoItemViewModel", "preparePlayer: preparing videoId=$videoId, url=$videoUrl (not playing yet, will play when fragment is visible)")
+                    android.util.Log.d("VideoItemViewModel", "preparePlayer: preparing videoId=$videoId, url=$videoUrl (waiting for visibility)")
                     player.prepare(source)
-                    // ✅ 修复：不立即播放，等待 Fragment 真正可见时再播放（由 checkVisibilityAndPlay() 触发）
-                    // player.play() 将在 Fragment 可见时由 resume() 或 startPlaybackIfNeeded() 调用
                 }
 
                 _uiState.value = _uiState.value.copy(
                     currentVideoId = videoId,
-                    isPlaying = false  // ✅ 修复：初始状态为 false，等待 Fragment 可见时再设置为 true
+                    isPlaying = handoffInProgress && pendingSession?.playWhenReady == true
                 )
                 startProgressUpdates()
 
@@ -205,7 +204,10 @@ class VideoItemViewModel @Inject constructor(
      * 暂停播放
      */
     fun pause() {
-        currentPlayer?.pause()
+        currentPlayer?.let {
+            android.util.Log.d("VideoItemViewModel", "pause: videoId=${currentVideoId}")
+            it.pause()
+        }
         _uiState.value = _uiState.value.copy(isPlaying = false)
     }
 
@@ -213,7 +215,10 @@ class VideoItemViewModel @Inject constructor(
      * 恢复播放
      */
     fun resume() {
-        currentPlayer?.play()
+        currentPlayer?.let {
+            android.util.Log.d("VideoItemViewModel", "resume: videoId=${currentVideoId}, player=${it.player}")
+            it.play()
+        }
         _uiState.value = _uiState.value.copy(isPlaying = true)
     }
 
