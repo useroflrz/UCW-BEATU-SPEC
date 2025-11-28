@@ -1,0 +1,20 @@
+# 核心原则与工作流
+
+## 核心原则
+- 目标：实现沉浸式视频流 App，但更重要的是以架构、性能、交互和 AI 融合展示团队级工程能力，让评审一眼看到技术深度。
+- **文档优先**：开始任何任务前必须先阅读并对齐以下文档——`README.md`、`docs/getting_started.md`、`docs/architecture.md`、`docs/development_plan.md`、`docs/api_reference.md`。
+- 所有改动需要明确技术亮点及可量化指标（含基准数据、Profiler 截图、视频播放性能数据）。
+
+## 工作流（文档驱动）
+- 需求 -> 技术方案 -> 开发 -> 测试 -> 文档更新，链路不可缺失。
+- **任务开始前**：确认任务已记录在 `docs/development_plan.md`，理解其在整体架构中的位置，并补充必要的需求/方案描述。
+- **开发过程中**：遵循模块化设计，保持与既有代码一致的风格与架构边界，必要时让 Cursor 生成/校验模板代码。
+- **任务完成后**：
+  - 在 `docs/development_plan.md` 中将对应条目标记为 `[x]`，补充完成日期与简述。
+  - 若触达架构/接口/核心流程，分别更新 `docs/architecture.md`、`docs/api_reference.md`、工作流/进度文档。
+  - 记录可量化效果（播放成功率、首帧耗时、卡顿率、内存占用峰值、FPS、冷启动等）并附证据。
+
+## 需求跟踪机制
+- 任何需求、Bug、技术债都必须先写入 `docs/development_plan.md`；未登记的禁止开工。
+- 完成后在清单前标记 `[x]` 并写上 `YYYY-MM-DD - done by XXX`。
+- 重大变更需同步 `docs/architecture.md` 与 PR 描述，保证历史可追溯。

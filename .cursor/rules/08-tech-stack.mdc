@@ -1,0 +1,15 @@
+# 技术栈与运行规范
+
+- Kotlin + Jetpack 组件（ViewModel/LiveData/StateFlow/Navigation/Paging）。
+- **UI 系统**：**原生 View 系统**（TextView、ImageView、RecyclerView 等）+ **Jetpack View 组件**（ViewPager2、Navigation、MotionLayout）+ 传统 XML 布局。**注意：本项目不使用 Jetpack Compose，统一采用 Activity/Fragment + 原生 View + XML 布局。**
+- **播放器**：ExoPlayer（核心，支持 DASH、HLS 等协议）。
+- 数据：Room、Retrofit/OkHttp、Hilt 或 Koin。
+- AI：ML Kit、TFLite 或自研推理组件。
+- 构建：Gradle（优先 Kotlin DSL），CI 同步使用相同任务。
+- 终端操作：首次进入终端必须执行 `cd /d D:\Projects\andriod` 并保持会话；需要构建时使用 `./gradlew` 系列命令，先 `./gradlew clean assembleDebug` 验证；如需特定环境（如 Conda/SDK），在 `README.md` 中声明并遵守。
+
+## Cursor 使用约定
+- 用 Cursor 生成标准化模板（包结构、Base 类、Repository 接口、UseCase 壳、播放器接口）、性能/交互最佳实践示例，保障一致性。
+- 利用 Cursor 帮忙排查潜在瓶颈（主线程阻塞、内存泄漏、播放器资源未释放、动画过载）或快速集成 ExoPlayer/AI SDK。
+- 让 Cursor 协助理解 ExoPlayer 的 API 和最佳实践，生成播放器生命周期管理代码。
+- 提交前让 Cursor 列出关键优化点与亮点（特别是播放性能、内存管理、交互体验），确保价值点被记录到文档与 PR。
