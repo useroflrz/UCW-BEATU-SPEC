@@ -529,18 +529,22 @@
 
 - [x] 修复搜索框不能输入文本的bug
     - 2025-11-29 - done by KJH
-    - kotlin.UninitializedPropertyAccessException: lateinit property scrollBeforeSearch has not been initialized
-    - scrollBeforeSearch 来自 fragment_search.xml 的 @id/scroll_before_search，但在 initViews() 里没有 findViewById，
-    - 导致第一次调用 switchToState()（比如输入文字时）直接访问未初始化的 lateinit，抛出 UninitializedPropertyAccessException
+    - 现象：kotlin.UninitializedPropertyAccessException: lateinit property scrollBeforeSearch has not been initialized
+    - 原因：scrollBeforeSearch 来自 fragment_search.xml 的 @id/scroll_before_search，但在 initViews() 里没有 findViewById，
+           导致第一次调用 switchToState()（比如输入文字时）直接访问未初始化的 lateinit，抛出 UninitializedPropertyAccessException
     - 解决：补充 findViewById 方法
 
-- [ ] 修复点击搜索不能跳转搜索结果页的bug
+- [x] 修复点击搜索不能跳转搜索结果页的bug
     - 2025-11-29 - done by KJH
-    - 成果：
+    - 现象：java.lang.NullPointerException: findViewById(...) must not be null。SearchResultFragment 的 ResultViewHolder
+           但当时的 `item_search_result.xml` 里并没有 `@+id/tv_duration`
+    - 解决：补充 @+id/tv_duration
 
 - [ ] 修复点击ai搜索不能跳转ai搜索结果页的bug
     - 2025-11-29 - done by KJH
-    - 成果：
+    - 现象：java.lang.NullPointerException: findViewById(...) must not be null。SearchResultFragment 的 ResultViewHolder
+      但当时的 `item_search_result.xml` 里并没有 `@+id/tv_duration`
+    - 解决：补充 @+id/tv_duration
 
 - [ ] 优化ai搜索页面UI，使用流传输ai对话与历史记录
     - 2025-11-29 - done by KJH
