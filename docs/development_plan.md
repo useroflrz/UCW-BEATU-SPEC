@@ -121,6 +121,9 @@
 - [x] 竖/横屏交互图标接口文档  
   - 2025-12-01 - done by ZX  
   - 内容：在 `docs/interaction_icons_api.md` 统一描述竖屏 `VideoControlsView` 与横屏 `LandscapeVideoItemFragment` 的点赞/收藏/评论/分享交互事件、UseCase/Repository 契约、API 接口与降级策略，供后续业务层接入真实后端时参考。
+- [x] 横屏亮度手势文档补充 & bug 记录  
+  - 2025-12-02 - done by ZX  
+  - 内容：在 `docs/interaction_icons_api.md` 新增“亮度长按手势”段落，说明长按亮度按钮调节屏幕亮度、椭圆进度条的可视化效果，以及已知问题“上下拖动偶发触发 ViewPager2 滑动（待修复）”。
 - [x] BeatUClient 闪退 & Binder Transaction Failure 排查  
   - 2025-11-24 - done by GPT-5.1 Codex  
   - 需求：实机调试中，`com.ucw.beatu` 进程在播放过程中多次输出 `DKMediaNative/JNI FfmExtractor av_read_frame reached eof AVERROR_EOF`，随后出现大量 `IPCThreadState Binder transaction failure ... error: -1 (Operation not permitted)`，最终 App 闪退。需分析日志触发条件，定位是否为播放器 EOF 处理异常、Binder 调用滥用或权限受限导致，并给出修复方案。  

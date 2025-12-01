@@ -180,6 +180,10 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
         }
         shouldForcePortraitOnExit = false
     }
+
+    fun setPagingEnabled(enabled: Boolean) {
+        viewPager?.isUserInputEnabled = enabled
+    }
 }
 
 private const val TAG = "LandscapeFragment"

@@ -10,6 +10,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.GestureDetector
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -20,6 +21,7 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.FrameLayout
 import androidx.core.content.ContextCompat
 import androidx.core.os.BundleCompat
 import androidx.fragment.app.Fragment
@@ -28,6 +30,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.ui.PlayerView
+import android.provider.Settings
 import com.ucw.beatu.business.landscape.presentation.R
 import com.ucw.beatu.business.landscape.presentation.model.VideoItem
 import com.ucw.beatu.business.landscape.presentation.viewmodel.LandscapeControlsState
@@ -52,6 +55,8 @@ class LandscapeVideoItemFragment : Fragment() {
         private val LIKE_ACTIVE_COLOR = 0xFFFF4D4F.toInt()
         private val FAVORITE_ACTIVE_COLOR = 0xFFFFD700.toInt()
         private val ICON_INACTIVE_COLOR = 0xFFFFFFFF.toInt()
+        private const val MIN_SCREEN_BRIGHTNESS = 0.08f
+        private const val MAX_SCREEN_BRIGHTNESS = 1.0f
 
         fun newInstance(videoItem: VideoItem): LandscapeVideoItemFragment {
             return LandscapeVideoItemFragment().apply {
@@ -90,12 +95,17 @@ class LandscapeVideoItemFragment : Fragment() {
     // 亮度/音量相关
     private var brightnessButton: ImageButton? = null
     private var volumeButton: ImageButton? = null
-    private var brightnessIndicator: LinearLayout? = null
+    private var brightnessIndicator: FrameLayout? = null
     private var volumeIndicator: LinearLayout? = null
     private var brightnessProgress: View? = null
     private var volumeProgress: View? = null
+    private var brightnessPercentText: TextView? = null
     private var audioManager: AudioManager? = null
     private var windowManager: WindowManager? = null
+    private val brightnessLongPressHandler = Handler(Looper.getMainLooper())
+    private val brightnessLongPressRunnable = Runnable { startBrightnessAdjustment() }
+    private var isBrightnessButtonPressed = false
+    private var lastBrightnessDragY = 0f
 
     // 进度条相关
     private var seekIndicator: LinearLayout? = null
@@ -174,6 +184,7 @@ class LandscapeVideoItemFragment : Fragment() {
         brightnessIndicator = view.findViewById(R.id.brightness_indicator)
         volumeIndicator = view.findViewById(R.id.volume_indicator)
         brightnessProgress = view.findViewById(R.id.brightness_progress)
+        brightnessPercentText = view.findViewById(R.id.tv_brightness_percent)
         volumeProgress = view.findViewById(R.id.volume_progress)
 
         seekIndicator = view.findViewById(R.id.seek_indicator)
@@ -252,20 +263,6 @@ class LandscapeVideoItemFragment : Fragment() {
                     isVerticalSwipe = false
                     isSeeking = false
 
-                    // 检查是否按下亮度/音量按钮
-                    brightnessButton?.let { btn ->
-                        val location = IntArray(2)
-                        btn.getLocationOnScreen(location)
-                        val btnX = event.rawX
-                        val btnY = event.rawY
-                        if (btnX >= location[0] && btnX <= location[0] + btn.width &&
-                            btnY >= location[1] && btnY <= location[1] + btn.height) {
-                            isBrightnessAdjusting = true
-                            showBrightnessIndicator()
-                            return@setOnTouchListener true
-                        }
-                    }
-
                     volumeButton?.let { btn ->
                         val location = IntArray(2)
                         btn.getLocationOnScreen(location)
@@ -284,12 +281,6 @@ class LandscapeVideoItemFragment : Fragment() {
                     val deltaX = abs(event.x - touchStartX)
                     val deltaY = abs(event.y - touchStartY)
                     val touchSlop = ViewConfiguration.get(requireContext()).scaledTouchSlop
-
-                    // 亮度调节
-                    if (isBrightnessAdjusting) {
-                        adjustBrightness(event.y - touchStartY)
-                        return@setOnTouchListener true
-                    }
 
                     // 音量调节
                     if (isVolumeAdjusting) {
@@ -316,11 +307,6 @@ class LandscapeVideoItemFragment : Fragment() {
                 }
 
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    if (isBrightnessAdjusting) {
-                        isBrightnessAdjusting = false
-                        hideBrightnessIndicator()
-                    }
-
                     if (isVolumeAdjusting) {
                         isVolumeAdjusting = false
                         hideVolumeIndicator()
@@ -403,6 +389,37 @@ class LandscapeVideoItemFragment : Fragment() {
         unlockButton?.setOnClickListener {
             unlockScreen()
         }
+
+        brightnessButton?.setOnTouchListener { v, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    touchStartY = event.rawY
+                    lastBrightnessDragY = event.rawY
+                    isBrightnessButtonPressed = true
+                    scheduleBrightnessLongPress()
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (!isBrightnessButtonPressed) return@setOnTouchListener false
+                    if (!isTouchInsideView(v, event.rawX, event.rawY)) {
+                        cancelBrightnessTouch()
+                        return@setOnTouchListener true
+                    }
+                    if (isBrightnessAdjusting) {
+                        val delta = event.rawY - lastBrightnessDragY
+                        lastBrightnessDragY = event.rawY
+                        adjustBrightness(delta)
+                        return@setOnTouchListener true
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    cancelBrightnessTouch()
+                    true
+                }
+                else -> false
+            }
+        }
     }
 
     /**
@@ -444,21 +461,21 @@ class LandscapeVideoItemFragment : Fragment() {
 
     private fun showBrightnessIndicator() {
         brightnessIndicator?.visibility = View.VISIBLE
-        updateBrightnessIndicator()
+        brightnessIndicator?.post { updateBrightnessIndicator() }
     }
 
     private fun hideBrightnessIndicator() {
         brightnessIndicator?.visibility = View.GONE
+        brightnessPercentText?.text = ""
     }
 
     private fun adjustBrightness(deltaY: Float) {
         val window = requireActivity().window
         val layoutParams = window.attributes
 
-        // 计算亮度变化（上滑增加，下滑减少）
         val brightnessChange = -deltaY / (rootView?.height ?: 1) * 0.5f
-        val currentBrightness = layoutParams.screenBrightness
-        val newBrightness = (currentBrightness + brightnessChange).coerceIn(0.1f, 1.0f)
+        val currentBrightness = getCurrentBrightness()
+        val newBrightness = (currentBrightness + brightnessChange).coerceIn(MIN_SCREEN_BRIGHTNESS, MAX_SCREEN_BRIGHTNESS)
         layoutParams.screenBrightness = newBrightness
         window.attributes = layoutParams
 
@@ -466,12 +483,73 @@ class LandscapeVideoItemFragment : Fragment() {
     }
 
     private fun updateBrightnessIndicator() {
-        val window = requireActivity().window
-        val brightness = window.attributes.screenBrightness
-        val progress = ((brightness - 0.1f) / 0.9f * 100).toInt().coerceIn(0, 100)
+        val brightness = getCurrentBrightness()
+        val progress = (((brightness - MIN_SCREEN_BRIGHTNESS) / (MAX_SCREEN_BRIGHTNESS - MIN_SCREEN_BRIGHTNESS)) * 100).toInt().coerceIn(0, 100)
 
-        brightnessProgress?.layoutParams?.height = (brightnessIndicator?.height ?: 0) * progress / 100
+        val indicatorHeight = (brightnessIndicator?.height ?: 0) - (brightnessIndicator?.paddingTop ?: 0) - (brightnessIndicator?.paddingBottom ?: 0)
+        if (indicatorHeight > 0) {
+            val fillHeight = indicatorHeight * progress / 100
+            val params = (brightnessProgress?.layoutParams as? FrameLayout.LayoutParams)
+            params?.height = fillHeight
+            params?.gravity = Gravity.BOTTOM
+            brightnessProgress?.layoutParams = params
+        }
+        brightnessPercentText?.text = "$progress%"
         brightnessProgress?.requestLayout()
+    }
+
+    private fun getCurrentBrightness(): Float {
+        val windowBrightness = requireActivity().window.attributes.screenBrightness
+        if (windowBrightness in 0f..1f) return windowBrightness
+        return runCatching {
+            Settings.System.getInt(requireContext().contentResolver, Settings.System.SCREEN_BRIGHTNESS) / 255f
+        }.getOrDefault(0.5f).coerceIn(MIN_SCREEN_BRIGHTNESS, MAX_SCREEN_BRIGHTNESS)
+    }
+
+    private fun scheduleBrightnessLongPress() {
+        brightnessLongPressHandler.removeCallbacks(brightnessLongPressRunnable)
+        brightnessLongPressHandler.postDelayed(
+            brightnessLongPressRunnable,
+            ViewConfiguration.getLongPressTimeout().toLong()
+        )
+    }
+
+    private fun startBrightnessAdjustment() {
+        if (!isBrightnessButtonPressed || isBrightnessAdjusting) return
+        isBrightnessAdjusting = true
+        lastBrightnessDragY = touchStartY
+        disallowParentIntercept(true)
+        setParentPagingEnabled(false)
+        showBrightnessIndicator()
+    }
+
+    private fun cancelBrightnessTouch() {
+        brightnessLongPressHandler.removeCallbacks(brightnessLongPressRunnable)
+        isBrightnessButtonPressed = false
+        if (isBrightnessAdjusting) {
+            isBrightnessAdjusting = false
+            hideBrightnessIndicator()
+            disallowParentIntercept(false)
+            setParentPagingEnabled(true)
+        }
+    }
+
+    private fun isTouchInsideView(view: View, rawX: Float, rawY: Float): Boolean {
+        val location = IntArray(2)
+        view.getLocationOnScreen(location)
+        val left = location[0]
+        val top = location[1]
+        val right = left + view.width
+        val bottom = top + view.height
+        return rawX >= left && rawX <= right && rawY >= top && rawY <= bottom
+    }
+
+    private fun disallowParentIntercept(disallow: Boolean) {
+        rootView?.parent?.requestDisallowInterceptTouchEvent(disallow)
+    }
+
+    private fun setParentPagingEnabled(enabled: Boolean) {
+        (parentFragment as? LandscapeFragment)?.setPagingEnabled(enabled)
     }
 
     // ========== 音量调节 ==========

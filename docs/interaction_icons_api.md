@@ -54,6 +54,13 @@ controlsView?.state = VideoControlsView.VideoControlsState(
 | 分享 `btn_share` | `ImageButton` | 预留日志 | 分享面板 | - | - |
 | 右侧亮度/音量/锁屏 | `btn_brightness` 等 | Fragment 直接控制 | `LandscapeVideoItemViewModel` | - | - |
 
+#### 亮度长按手势（2025-12-02）
+
+- **交互说明**：长按右侧亮度按钮 (`btn_brightness`) 进入调节模式，保持按压状态时上下滑动即可增减 `WindowManager.LayoutParams.screenBrightness`，范围 `0.08f~1.0f`。放开按钮或滑出其区域即退出。
+- **可视化**：`fragment_landscape_video_item.xml` 中新增椭圆形 `brightness_indicator` 与百分比文本，实时展示亮度百分比，并以渐变填充表示相对值。
+- **实现要点**：按钮通过 `setOnTouchListener` 拦截事件，触发长按后调用 `LandscapeFragment.setPagingEnabled(false)` 与 `requestDisallowInterceptTouchEvent(true)` 暂停 ViewPager2 滑动。调节结束再恢复。
+- **已知问题**：在部分机型上，上下拖动仍可能触发 ViewPager2 纵向滑动（导致视频换页）。当前版本已通过 `isUserInputEnabled=false` 与拦截请求尽量规避，但该 bug 仍待彻底修复，需在后续版本继续排查输入冲突。
+
 #### 横屏 UI 状态渲染
 
 ```642:660:BeatUClient/business/landscape/presentation/src/main/java/com/ucw/beatu/business/landscape/presentation/ui/LandscapeVideoItemFragment.kt
