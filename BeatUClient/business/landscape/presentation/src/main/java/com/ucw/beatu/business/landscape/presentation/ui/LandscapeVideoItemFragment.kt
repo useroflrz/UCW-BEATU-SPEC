@@ -3,6 +3,7 @@ package com.ucw.beatu.business.landscape.presentation.ui
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.media.AudioManager
 import android.os.Bundle
 import android.os.Handler
@@ -32,6 +33,7 @@ import com.ucw.beatu.business.landscape.presentation.model.VideoItem
 import com.ucw.beatu.business.landscape.presentation.viewmodel.LandscapeControlsState
 import com.ucw.beatu.business.landscape.presentation.viewmodel.LandscapeVideoItemViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import com.ucw.beatu.shared.designsystem.R as DesignSystemR
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -47,6 +49,9 @@ class LandscapeVideoItemFragment : Fragment() {
         private const val ARG_VIDEO_ITEM = "video_item"
         private const val CONTROL_PANEL_AUTO_HIDE_DELAY = 3000L // 3秒后自动隐藏
         private const val SEEK_SENSITIVITY = 0.01f // 进度调节灵敏度
+        private val LIKE_ACTIVE_COLOR = 0xFFFF4D4F.toInt()
+        private val FAVORITE_ACTIVE_COLOR = 0xFFFFD700.toInt()
+        private val ICON_INACTIVE_COLOR = 0xFFFFFFFF.toInt()
 
         fun newInstance(videoItem: VideoItem): LandscapeVideoItemFragment {
             return LandscapeVideoItemFragment().apply {
@@ -98,6 +103,7 @@ class LandscapeVideoItemFragment : Fragment() {
     private var seekProgressBar: ProgressBar? = null
 
     // 交互按钮
+    private var rotateButton: ImageButton? = null
     private var likeButton: ImageButton? = null
     private var favoriteButton: ImageButton? = null
     private var commentButton: ImageButton? = null
@@ -106,6 +112,7 @@ class LandscapeVideoItemFragment : Fragment() {
     private var qualityButton: TextView? = null
     private var lockButton: ImageButton? = null
     private var unlockButton: ImageButton? = null
+    private var videoProgressBar: ProgressBar? = null
 
     // 状态
 
@@ -181,12 +188,12 @@ class LandscapeVideoItemFragment : Fragment() {
         qualityButton = view.findViewById(R.id.btn_quality)
         lockButton = view.findViewById(R.id.btn_lock)
         unlockButton = view.findViewById(R.id.btn_unlock)
+        videoProgressBar = view.findViewById(R.id.progress_video)
 
         // 更新视频信息
         videoItem?.let { item ->
             view.findViewById<TextView>(R.id.tv_like_count)?.text = item.likeCount.toString()
             view.findViewById<TextView>(R.id.tv_favorite_count)?.text = item.favoriteCount.toString()
-            view.findViewById<TextView>(R.id.tv_comment_count)?.text = item.commentCount.toString()
         }
     }
 
@@ -350,6 +357,11 @@ class LandscapeVideoItemFragment : Fragment() {
     }
 
     private fun setupButtonClickListeners(view: View) {
+        // 旋转/退出全屏
+        rotateButton?.setOnClickListener {
+            exitLandscape()
+        }
+
         // 点赞
         likeButton?.setOnClickListener {
             toggleLike()
@@ -391,6 +403,14 @@ class LandscapeVideoItemFragment : Fragment() {
         unlockButton?.setOnClickListener {
             unlockScreen()
         }
+    }
+
+    /**
+     * 退出横屏模式
+     */
+    private fun exitLandscape() {
+        prepareForExit()
+        requireActivity().finish()
     }
 
     // ========== 控制面板显示/隐藏 ==========
@@ -599,8 +619,14 @@ class LandscapeVideoItemFragment : Fragment() {
                         hideControlPanel()
                     }
 
-                    // 更新进度显示（如果控制面板可见）
-                    if (controlPanelVisible && state.durationMs > 0) {
+                    // 更新底部进度条
+                    if (state.durationMs > 0) {
+                        val progress = ((state.currentPositionMs.toFloat() / state.durationMs * 100).toInt()).coerceIn(0, 100)
+                        videoProgressBar?.progress = progress
+                    }
+
+                    // 更新进度显示（如果控制面板可见且正在Seek）
+                    if (controlPanelVisible && isSeeking && state.durationMs > 0) {
                         seekTimeText?.text = formatTime(state.currentPositionMs) + " / " + formatTime(state.durationMs)
                         seekProgressBar?.progress = ((state.currentPositionMs.toFloat() / state.durationMs * 100).toInt()).coerceIn(0, 100)
                     }
@@ -625,18 +651,18 @@ class LandscapeVideoItemFragment : Fragment() {
     }
 
     private fun renderControlState(state: LandscapeControlsState) {
-        likeButton?.setImageResource(
-            if (state.isLiked) android.R.drawable.btn_star_big_on else android.R.drawable.btn_star_big_off
-        )
-        likeButton?.setColorFilter(
-            if (state.isLiked) 0xFFFF0000.toInt() else 0xFFFFFFFF.toInt()
-        )
-        favoriteButton?.setImageResource(
-            if (state.isFavorited) android.R.drawable.star_big_on else android.R.drawable.star_big_off
-        )
-        favoriteButton?.setColorFilter(
-            if (state.isFavorited) 0xFFFFD700.toInt() else 0xFFFFFFFF.toInt()
-        )
+        likeButton?.apply {
+            setImageResource(DesignSystemR.drawable.ic_like)
+            imageTintList = ColorStateList.valueOf(
+                if (state.isLiked) LIKE_ACTIVE_COLOR else ICON_INACTIVE_COLOR
+            )
+        }
+        favoriteButton?.apply {
+            setImageResource(DesignSystemR.drawable.ic_favorite)
+            imageTintList = ColorStateList.valueOf(
+                if (state.isFavorited) FAVORITE_ACTIVE_COLOR else ICON_INACTIVE_COLOR
+            )
+        }
         view?.findViewById<TextView>(R.id.tv_like_count)?.text = state.likeCount.toString()
         view?.findViewById<TextView>(R.id.tv_favorite_count)?.text = state.favoriteCount.toString()
         speedButton?.text = formatSpeedLabel(state.currentSpeed)

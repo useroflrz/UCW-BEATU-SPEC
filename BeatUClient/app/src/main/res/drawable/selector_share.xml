@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- 已点赞状态（通过 state_selected 区分） -->
-<!--    <item android:state_selected="true" android:drawable="@drawable/ic_like" />-->
-<!--    &lt;!&ndash; 按下时反馈（可选） &ndash;&gt;-->
-<!--    <item android:state_pressed="true" android:drawable="@drawable/ic_like" />-->
-    <!-- 默认（未点赞） -->
-    <item android:drawable="@drawable/ic_share" />
-</selector>

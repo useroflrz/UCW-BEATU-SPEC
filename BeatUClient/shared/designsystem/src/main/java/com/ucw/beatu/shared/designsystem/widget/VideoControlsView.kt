@@ -1,6 +1,7 @@
 package com.ucw.beatu.shared.designsystem.widget
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -27,6 +28,12 @@ class VideoControlsView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : FrameLayout(context, attrs, defStyleAttr) {
+
+    companion object {
+        private val LIKE_ACTIVE_COLOR = 0xFFFF4D4F.toInt()
+        private val FAVORITE_ACTIVE_COLOR = 0xFFFFD700.toInt()
+        private val ICON_INACTIVE_COLOR = 0xFFFFFFFF.toInt()
+    }
 
     data class VideoControlsState(
         val isPlaying: Boolean = false,
@@ -142,11 +149,17 @@ class VideoControlsView @JvmOverloads constructor(
         // 播放按钮覆盖层：播放中隐藏，暂停时显示
         playButton.visibility = if (state.isPlaying) View.GONE else View.VISIBLE
 
-        // 点赞/收藏数量
+        // 点赞/收藏数量 + 点亮状态
         likeCountText.text = state.likeCount.toString()
         favoriteCountText.text = state.favoriteCount.toString()
-
-        // TODO: 根据 isLiked / isFavorited 切换不同图标资源
+        likeIcon.setImageResource(R.drawable.ic_like)
+        likeIcon.imageTintList = ColorStateList.valueOf(
+            if (state.isLiked) LIKE_ACTIVE_COLOR else ICON_INACTIVE_COLOR
+        )
+        favoriteIcon.setImageResource(R.drawable.ic_favorite)
+        favoriteIcon.imageTintList = ColorStateList.valueOf(
+            if (state.isFavorited) FAVORITE_ACTIVE_COLOR else ICON_INACTIVE_COLOR
+        )
 
         // 进度条数值更新
         val duration = state.durationMs.coerceAtLeast(0L)

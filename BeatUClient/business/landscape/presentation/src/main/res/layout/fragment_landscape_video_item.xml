@@ -20,7 +20,7 @@
         android:background="#80000000"
         android:visibility="gone">
 
-        <!-- 顶部控制栏 -->
+        <!-- 顶部控制栏：右上角评论和分享（无需重复返回按钮） -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -34,46 +34,32 @@
                 android:layout_height="1dp"
                 android:layout_weight="1" />
 
-            <!-- 倍速按钮 -->
-            <TextView
-                android:id="@+id/btn_speed"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="1.0x"
-                android:textSize="14sp"
-                android:textColor="#FFFFFF"
-                android:padding="8dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:clickable="true"
-                android:focusable="true"
-                android:layout_marginEnd="16dp" />
-
-            <!-- 清晰度按钮 -->
-            <TextView
-                android:id="@+id/btn_quality"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="高清"
-                android:textSize="14sp"
-                android:textColor="#FFFFFF"
-                android:padding="8dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:clickable="true"
-                android:focusable="true"
-                android:layout_marginEnd="16dp" />
-
-            <!-- 锁屏按钮 -->
+            <!-- 右上角：评论和分享 -->
             <ImageButton
-                android:id="@+id/btn_lock"
+                android:id="@+id/btn_comment"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:src="@android:drawable/ic_lock_idle_lock"
+                android:src="@drawable/selector_comment"
+                android:scaleType="centerInside"
+                android:padding="12dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 app:tint="#FFFFFF"
-                android:contentDescription="锁定屏幕" />
+                android:contentDescription="评论"
+                android:layout_marginEnd="16dp" />
+
+            <ImageButton
+                android:id="@+id/btn_share"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/selector_share"
+                android:scaleType="centerInside"
+                android:padding="12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                app:tint="#FFFFFF"
+                android:contentDescription="分享" />
         </LinearLayout>
 
-        <!-- 底部交互按钮 -->
+        <!-- 右侧垂直功能栏：亮度、锁定、音量 -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -87,10 +73,25 @@
                 android:id="@+id/btn_brightness"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:src="@android:drawable/ic_menu_view"
+                android:src="@drawable/selector_brightness"
+                android:scaleType="centerInside"
+                android:padding="12dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 app:tint="#FFFFFF"
                 android:contentDescription="亮度"
+                android:layout_marginBottom="16dp" />
+
+            <!-- 锁定/解锁按钮 -->
+            <ImageButton
+                android:id="@+id/btn_lock"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/selector_screen_lock"
+                android:scaleType="centerInside"
+                android:padding="12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                app:tint="#FFFFFF"
+                android:contentDescription="锁定屏幕"
                 android:layout_marginBottom="16dp" />
 
             <!-- 音量按钮 -->
@@ -98,99 +99,149 @@
                 android:id="@+id/btn_volume"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:src="@android:drawable/ic_lock_silent_mode"
+                android:src="@drawable/selector_volume"
+                android:scaleType="centerInside"
+                android:padding="12dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 app:tint="#FFFFFF"
-                android:contentDescription="音量"
+                android:contentDescription="音量" />
+        </LinearLayout>
+
+        <!-- 底部控制区域：进度条 + 左侧喜欢/收藏 + 右侧倍速/清晰度 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:layout_gravity="bottom"
+            android:background="@android:color/transparent">
+
+            <!-- 进度条 -->
+            <ProgressBar
+                android:id="@+id/progress_video"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:max="100"
+                android:progress="0"
+                android:progressTint="#2196F3"
+                android:progressBackgroundTint="#80FFFFFF"
                 android:layout_marginBottom="16dp" />
 
-            <!-- 点赞 -->
+            <!-- 底部按钮区域 -->
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:gravity="center"
-                android:layout_marginBottom="16dp">
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-                <ImageButton
-                    android:id="@+id/btn_like"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:src="@android:drawable/btn_star_big_off"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    app:tint="#FFFFFF"
-                    android:contentDescription="点赞" />
-
-                <TextView
-                    android:id="@+id/tv_like_count"
+                <!-- 左侧：喜欢和收藏 -->
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="0"
-                    android:textSize="12sp"
-                    android:textColor="#FFFFFF" />
-            </LinearLayout>
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
 
-            <!-- 收藏 -->
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:gravity="center"
-                android:layout_marginBottom="16dp">
+                    <!-- 喜欢 -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:layout_marginEnd="24dp">
 
-                <ImageButton
-                    android:id="@+id/btn_favorite"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:src="@android:drawable/star_big_off"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    app:tint="#FFFFFF"
-                    android:contentDescription="收藏" />
+                        <ImageButton
+                            android:id="@+id/btn_like"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:srcCompat="@drawable/selector_like"
+                            android:scaleType="centerInside"
+                            android:padding="12dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="点赞" />
 
-                <TextView
-                    android:id="@+id/tv_favorite_count"
+                        <TextView
+                            android:id="@+id/tv_like_count"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textSize="12sp"
+                            android:textColor="#FFFFFF" />
+                    </LinearLayout>
+
+                    <!-- 收藏 -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center">
+
+                        <ImageButton
+                            android:id="@+id/btn_favorite"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:srcCompat="@drawable/selector_favorite"
+                            android:scaleType="centerInside"
+                            android:padding="12dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="收藏" />
+
+                        <TextView
+                            android:id="@+id/tv_favorite_count"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textSize="12sp"
+                            android:textColor="#FFFFFF" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <!-- 右侧：倍速和清晰度按钮 -->
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="0"
-                    android:textSize="12sp"
-                    android:textColor="#FFFFFF" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <!-- 倍速按钮 -->
+                    <TextView
+                        android:id="@+id/btn_speed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="倍速"
+                        android:textSize="14sp"
+                        android:textColor="#FFFFFF"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="8dp"
+                        android:background="@drawable/bg_button_border"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:layout_marginEnd="12dp" />
+
+                    <!-- 清晰度按钮 -->
+                    <TextView
+                        android:id="@+id/btn_quality"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="清晰度"
+                        android:textSize="14sp"
+                        android:textColor="#FFFFFF"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="8dp"
+                        android:background="@drawable/bg_button_border"
+                        android:clickable="true"
+                        android:focusable="true" />
+                </LinearLayout>
             </LinearLayout>
-
-            <!-- 评论 -->
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:gravity="center"
-                android:layout_marginBottom="16dp">
-
-                <ImageButton
-                    android:id="@+id/btn_comment"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:src="@android:drawable/ic_menu_recent_history"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    app:tint="#FFFFFF"
-                    android:contentDescription="评论" />
-
-                <TextView
-                    android:id="@+id/tv_comment_count"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="0"
-                    android:textSize="12sp"
-                    android:textColor="#FFFFFF" />
-            </LinearLayout>
-
-            <!-- 分享 -->
-            <ImageButton
-                android:id="@+id/btn_share"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:src="@android:drawable/ic_menu_share"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#FFFFFF"
-                android:contentDescription="分享" />
         </LinearLayout>
 
         <!-- 亮度条（左侧） -->
@@ -269,7 +320,9 @@
         android:id="@+id/btn_unlock"
         android:layout_width="64dp"
         android:layout_height="64dp"
-        android:src="@drawable/ic_lock_idle_unlock"
+        android:src="@drawable/selector_screen_unlock"
+        android:scaleType="centerInside"
+        android:padding="16dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         app:tint="#FFFFFF"
         android:contentDescription="解锁"

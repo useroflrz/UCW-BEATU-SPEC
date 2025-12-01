@@ -112,6 +112,15 @@
   - 2025-11-21 - owner GPT-5.1 Codex  
   - 需求：执行 `:app:assembleDebug` 时，`:app`、`:business:videofeed:presentation`、`:shared:player` 等任务均因无法解析 `androidx.media3` 的 `2.19.1` 版本而失败。需确认 `libs.versions.toml` 中的播放器依赖是否使用正确的 Media3 版本，并保证官方 Maven 仓库可获取。  
   - 方案：调研 Media3 最新稳定版本（>=1.4.x），更新 `versions.exoplayer` 及相关依赖坐标；同步验证 `shared/player` 的依赖块与文档描述，确保播放器层可顺利构建。
+- [x] 竖屏点赞/收藏点亮逻辑与横屏对齐  
+  - 2025-12-01 - done by ZX 
+  - 内容：在 `VideoControlsView.renderState` 中接入设计系统的 `ic_like`/`ic_favorite` 并根据 `isLiked`/`isFavorited` 设置红色/金色 `imageTintList`，使命中与横屏同色。竖屏 Feed 现已通过 ViewModel 的 `controlsState` 即时驱动点赞与收藏图标的点亮/熄灭。
+- [x] 竖屏点赞/收藏本地化交互（去网络化）  
+  - 2025-12-01 - done by ZX
+  - 内容：`VideoItemViewModel.toggleLike/toggleFavorite` 取消网络 UseCase 调用，直接比照横屏逻辑在本地更新 `_uiState` 的 `isLiked/isFavorited` 与计数，避免 Retrofit `ApiResponse<Unit>` 转换错误导致的按钮失效，实现横竖屏一致的离线可用体验。
+- [x] 竖/横屏交互图标接口文档  
+  - 2025-12-01 - done by ZX  
+  - 内容：在 `docs/interaction_icons_api.md` 统一描述竖屏 `VideoControlsView` 与横屏 `LandscapeVideoItemFragment` 的点赞/收藏/评论/分享交互事件、UseCase/Repository 契约、API 接口与降级策略，供后续业务层接入真实后端时参考。
 - [x] BeatUClient 闪退 & Binder Transaction Failure 排查  
   - 2025-11-24 - done by GPT-5.1 Codex  
   - 需求：实机调试中，`com.ucw.beatu` 进程在播放过程中多次输出 `DKMediaNative/JNI FfmExtractor av_read_frame reached eof AVERROR_EOF`，随后出现大量 `IPCThreadState Binder transaction failure ... error: -1 (Operation not permitted)`，最终 App 闪退。需分析日志触发条件，定位是否为播放器 EOF 处理异常、Binder 调用滥用或权限受限导致，并给出修复方案。  

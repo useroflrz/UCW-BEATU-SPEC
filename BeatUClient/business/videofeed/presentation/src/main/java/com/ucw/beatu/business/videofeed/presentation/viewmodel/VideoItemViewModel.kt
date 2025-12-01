@@ -5,11 +5,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
-import com.ucw.beatu.business.videofeed.domain.usecase.FavoriteVideoUseCase
-import com.ucw.beatu.business.videofeed.domain.usecase.LikeVideoUseCase
-import com.ucw.beatu.business.videofeed.domain.usecase.UnfavoriteVideoUseCase
-import com.ucw.beatu.business.videofeed.domain.usecase.UnlikeVideoUseCase
-import com.ucw.beatu.shared.common.result.AppResult
 import com.ucw.beatu.shared.player.VideoPlayer
 import com.ucw.beatu.shared.player.model.VideoSource
 import com.ucw.beatu.shared.player.pool.VideoPlayerPool
@@ -49,11 +44,7 @@ data class VideoItemUiState(
 class VideoItemViewModel @Inject constructor(
     application: Application,
     private val playerPool: VideoPlayerPool,
-    private val playbackSessionStore: PlaybackSessionStore,
-    private val likeVideoUseCase: LikeVideoUseCase,
-    private val unlikeVideoUseCase: UnlikeVideoUseCase,
-    private val favoriteVideoUseCase: FavoriteVideoUseCase,
-    private val unfavoriteVideoUseCase: UnfavoriteVideoUseCase
+    private val playbackSessionStore: PlaybackSessionStore
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(VideoItemUiState())
@@ -442,96 +433,38 @@ class VideoItemViewModel @Inject constructor(
      * 切换点赞状态
      */
     fun toggleLike() {
-        val videoId = currentVideoId ?: return
         val currentState = _uiState.value
-        
-        // 乐观更新UI
         val newIsLiked = !currentState.isLiked
         val newLikeCount = if (newIsLiked) {
             currentState.likeCount + 1
         } else {
             (currentState.likeCount - 1).coerceAtLeast(0)
         }
-        
-        _uiState.value = _uiState.value.copy(
+        _uiState.value = currentState.copy(
             isLiked = newIsLiked,
             likeCount = newLikeCount,
-            isInteracting = true
+            isInteracting = false,
+            error = null
         )
-        
-        viewModelScope.launch {
-            val result = if (newIsLiked) {
-                likeVideoUseCase(videoId)
-            } else {
-                unlikeVideoUseCase(videoId)
-            }
-            
-            when (result) {
-                is AppResult.Success<Unit> -> {
-                    _uiState.value = _uiState.value.copy(isInteracting = false)
-                }
-                is AppResult.Error -> {
-                    // 回滚乐观更新
-                    _uiState.value = _uiState.value.copy(
-                        isLiked = currentState.isLiked,
-                        likeCount = currentState.likeCount,
-                        isInteracting = false,
-                        error = result.message ?: result.throwable.message ?: "操作失败"
-                    )
-                }
-                else -> {
-                    _uiState.value = _uiState.value.copy(isInteracting = false)
-                }
-            }
-        }
     }
 
     /**
      * 切换收藏状态
      */
     fun toggleFavorite() {
-        val videoId = currentVideoId ?: return
         val currentState = _uiState.value
-        
-        // 乐观更新UI
         val newIsFavorited = !currentState.isFavorited
         val newFavoriteCount = if (newIsFavorited) {
             currentState.favoriteCount + 1
         } else {
             (currentState.favoriteCount - 1).coerceAtLeast(0)
         }
-        
-        _uiState.value = _uiState.value.copy(
+        _uiState.value = currentState.copy(
             isFavorited = newIsFavorited,
             favoriteCount = newFavoriteCount,
-            isInteracting = true
+            isInteracting = false,
+            error = null
         )
-        
-        viewModelScope.launch {
-            val result = if (newIsFavorited) {
-                favoriteVideoUseCase(videoId)
-            } else {
-                unfavoriteVideoUseCase(videoId)
-            }
-            
-            when (result) {
-                is AppResult.Success<Unit> -> {
-                    _uiState.value = _uiState.value.copy(isInteracting = false)
-                }
-                is AppResult.Error -> {
-                    // 回滚乐观更新
-                    _uiState.value = _uiState.value.copy(
-                        isFavorited = currentState.isFavorited,
-                        favoriteCount = currentState.favoriteCount,
-                        isInteracting = false,
-                        error = result.message ?: result.throwable.message ?: "操作失败"
-                    )
-                }
-                else -> {
-                    _uiState.value = _uiState.value.copy(isInteracting = false)
-                }
-            }
-        }
     }
 }
 
