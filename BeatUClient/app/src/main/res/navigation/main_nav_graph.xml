@@ -133,33 +133,12 @@
             android:defaultValue="" />
     </fragment>
 
-    <!-- AI 搜索入口页面 -->
+    <!-- AI 搜索页面 -->
     <fragment
         android:id="@+id/aiSearch"
         android:name="com.ucw.beatu.business.search.presentation.ui.AiSearchFragment"
         android:label="AiSearch"
         tools:layout="@layout/fragment_ai_search">
-        <argument
-            android:name="ai_query"
-            app:argType="string"
-            android:defaultValue="" />
-
-        <!-- 从 AI 搜索入口跳到 AI 搜索结果页面 -->
-        <action
-            android:id="@+id/action_aiSearch_to_aiSearchResult"
-            app:destination="@id/aiSearchResult"
-            app:enterAnim="@anim/slide_in_from_right"
-            app:exitAnim="@anim/slide_out_to_left"
-            app:popEnterAnim="@anim/slide_in_from_left"
-            app:popExitAnim="@anim/slide_out_to_right" />
-    </fragment>
-
-    <!-- AI 搜索结果页面 -->
-    <fragment
-        android:id="@+id/aiSearchResult"
-        android:name="com.ucw.beatu.business.search.presentation.ui.AiSearchResultFragment"
-        android:label="AiSearchResult"
-        tools:layout="@layout/fragment_ai_search_result">
         <argument
             android:name="ai_query"
             app:argType="string"

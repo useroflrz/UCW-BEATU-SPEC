@@ -584,7 +584,6 @@
       - 返回体验：`popBackStack()` 返回后 `UserProfileFragment` 的 `RecyclerView` 位置保持不变，手动复验 10 次无重建日志。
     - 待完善：与数据层的交互未完善，用户数据未取出，视频数据还是数据库全部视频
 
-
 - [x] 个人主页添加返回按钮
     - 2025-12-01 - done by KJH
     - 内容：
@@ -592,15 +591,18 @@
         - `UserProfileFragment` 中通过 `toolbar.setNavigationOnClickListener` 接入返回逻辑：优先调用 `findNavController().popBackStack()` 回退到上一个页面，兜底走 `requireActivity().onBackPressedDispatcher.onBackPressed()`，保证稳定返回上一级。
         - 与「个人主页作品播放页」顶部返回按钮风格保持一致，避免出现“主页可以返回，但作品播放页不行”或反向不一致的体验。
 
-- [ ] 优化ai搜索页面UI，使用流传输ai对话与历史记录
-    - 2025-11- - done by KJH
-    - 成果：
+- [x] 优化ai搜索页面UI，去除独立结果页
+    - 2025-12-02 - done by KJH
+    - 内容：
+        - `AiSearchFragment` 直接承担输入、历史对话与结果展示，移除 `AiSearchResultFragment`，所有操作都在同一页面完成，减少跳转延迟。
+        - 对话 UI 统一为“AI 在左、用户在右”的气泡布局（蓝 / 深灰），`RecyclerView + LinearLayoutManager(stackFromEnd)` 保证任何时候滚动到底部可见最新消息。
+        - 模拟流式输出：AI 固定回复“暂不支持该功能，后续对接后端接口”，字符按约 28 ms 间隔逐字输出，由 `AiChatAdapter.updateAiMessage` 增量刷新；真实流式接口后续可直接替换数据源。
 
-
-
-- [ ] 视频播放的暂停，进度条，主页的按钮交互
+- [ ] 主页的按钮交互 (评论，收藏，转发，点赞)
     - 
     - 成果：
+
+
 > 后续迭代中，请将具体任务拆分为更细粒度条目，并在完成后标记 `[x]`，附上日期与负责人。
 
 
