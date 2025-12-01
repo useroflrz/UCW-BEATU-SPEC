@@ -49,9 +49,8 @@
   - `presentation/`：
     - `SearchFragment`：搜索入口页面，包含搜索框、搜索历史（FlowLayout）、热门搜索（FlowLayout）、搜索建议列表（RecyclerView），右下角 AI 搜索按钮。
     - `SearchResultFragment`：常规搜索结果页面，显示视频列表（网格布局），支持重新搜索。
-    - `AiSearchFragment`：AI 搜索入口页面，包含输入框和发送按钮，支持接收初始提问参数。
-    - `AiSearchResultFragment`：AI 搜索结果页面，显示对话列表（RecyclerView），支持多轮对话，底部输入框可继续提问。
-    - 所有搜索相关页面复用统一的 `view_search_header.xml` 布局（返回按钮、搜索框、清除按钮、搜索按钮）。
+    - `AiSearchFragment`：AI 搜索与对话合一的页面，顶部 Toolbar + `RecyclerView` 展示多轮对话（AI 左/用户右），底部输入框即时发送，支持接收搜索页传入的初始提问参数。
+    - 所有搜索相关页面复用统一的 `view_search_header.xml` 布局（返回按钮、搜索框、清除按钮、搜索按钮），AI 页面使用标题栏。
   - `domain/`：SearchRepository 接口、UseCase（待实现，当前使用 Mock 数据）。
   - `data/`：SearchRepository 实现（待实现，当前使用 Mock 数据）。
 - `business/ai/`（AI 业务）

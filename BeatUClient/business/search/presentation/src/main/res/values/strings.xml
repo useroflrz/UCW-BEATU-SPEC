@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ai_search_placeholder_reply">暂不支持该功能，后续对接后端接口</string>
+</resources>
+
