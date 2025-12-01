@@ -58,6 +58,31 @@
             app:exitAnim="@anim/slide_out_to_right"
             app:popEnterAnim="@anim/slide_in_from_left"
             app:popExitAnim="@anim/slide_out_to_right" />
+
+        <!-- 跳转到用户作品观看页面 -->
+        <action
+            android:id="@+id/action_userProfile_to_userWorksViewer"
+            app:destination="@id/userWorksViewer"
+            app:enterAnim="@anim/slide_in_from_right"
+            app:exitAnim="@anim/slide_out_to_left"
+            app:popEnterAnim="@anim/slide_in_from_left"
+            app:popExitAnim="@anim/slide_out_to_right" />
+    </fragment>
+
+    <!-- 用户作品观看页面 -->
+    <fragment
+        android:id="@+id/userWorksViewer"
+        android:name="com.ucw.beatu.business.user.presentation.ui.UserWorksViewerFragment"
+        android:label="UserWorksViewer"
+        tools:layout="@layout/fragment_user_works_viewer">
+        <argument
+            android:name="user_id"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="initial_index"
+            app:argType="integer"
+            android:defaultValue="0" />
     </fragment>
 
     <!-- 搜索页面 -->

@@ -570,15 +570,19 @@
       - 视频播放器播放视频，(默认)竖屏播放,右上角有个返回按钮，返回主页
       - 视频播放器播放视频，播放对应视频列表的视频，有上限与下限，不能越过
     - 实现细节：
-      - **UserWorksViewerFragment**：竖屏视频列表观看页面，使用 `ViewPager2` 垂直滑动，复用 `VideoItemFragment` 进行视频播放。支持定位到初始视频（通过 `initial_video_id` 参数），限制在用户视频列表范围内，不能越界。右上角返回按钮，返回个人主页。
-      - **UserWorksViewerViewModel**：管理用户作品视频列表加载，从 `UserWorksRepository` 获取数据并转换为 `VideoItem`，供 `VideoItemFragment` 使用。支持播放器生命周期管理（通过 `VideoPlayerPool`）。
-      - **UserWorksViewerAdapter**：`FragmentStateAdapter` 实现，复用 `VideoItemFragment` 进行视频播放。与 `VideoFeedAdapter` 结构一致，确保播放器复用池正常工作。
-      - **导航路由**：
-        - `action_userProfile_to_userWorksViewer`：UserProfile → UserWorksViewer（传递 `user_id` 和 `initial_video_id` 参数，300ms iOS 风格滑动动画）
-      - **数据流**：
-        - `UserProfileFragment` 点击视频 → 调用 `navigateToUserWorksViewer(work)` → 传递 `user_id`、`initial_video_id`、`videoList` → `UserWorksViewerFragment` 接收参数 → `UserWorksViewerViewModel` 加载视频列表 → `ViewPager2` 显示视频 → `VideoItemFragment` 播放视频（复用播放器池）
-      - **播放器复用**：通过 `VideoItemViewModel` 自动使用 `VideoPlayerPool`，确保播放器实例复用，避免内存泄漏。
-      - **生命周期管理**：正确处理播放/暂停，`onPageSelected` 时播放，`onPageRelease` 时暂停，`onDestroyView` 时释放播放器资源。
+      - `UserProfileFragment`：监听 `RecyclerView` item 点击，将当前用户 ID、作品列表（转换为 `VideoItem`）和起始 index 打包，通过 `NavigationIds.ACTION_USER_PROFILE_TO_USER_WORKS_VIEWER` 携参跳转。若列表为空则提示“暂无视频”并阻止导航，避免空指针。
+      - `UserWorksAdapter`：抽象 `UserWorkUiModel(playUrl/title/playCount)` 并暴露 `onVideoClick`，实现 item 级回调，点击即可触发上述导航。
+      - `UserWorksViewerFragment`：新增竖屏 `ViewPager2`（overScroll disabled、offscreenPageLimit=1），内部直接复用 `VideoItemFragment` 实例；顶部 `MaterialToolbar` 提供返回按钮，调用 `popBackStack()` 保证主页不重建。
+      - `UserWorksViewerViewModel`：使用 `StateFlow` 保存 `userId`、`videoList`、`currentIndex`，恢复/初始化后仅在第一次注入数据时构建列表，并在页面切换时记录 index 以便文档统计。
+      - `UserWorksViewerAdapter`：`FragmentStateAdapter` 封装 `VideoItem` 列表的增量更新，`createFragment` 统一走 `VideoItemFragment.newInstance`，确保播放器复用池/互动逻辑零改动。
+      - 播放器生命周期：参照 `RecommendFragment` 的 `handlePageSelected`，对子 Fragment 执行 `checkVisibilityAndPlay()` / `onParentVisibilityChanged(false)`，保证任何时刻只有一个视频占用播放器。
+      - 边界回弹：`ViewPager2` 内部 `RecyclerView` 自定义 `EdgeEffectFactory`，上/下越界时会以 Overshoot 动画把容器拉回原位并做触觉反馈，模拟抖音“第一条/最后一条不可继续滑动，只回弹提示”的体验。
+      - 导航：`NavigationIds` 新增 `USER_WORKS_VIEWER`、`ACTION_USER_PROFILE_TO_USER_WORKS_VIEWER`，`main_nav_graph.xml` 新建目的地 + action，并定义 `user_id`、`initial_index` 参数。
+    - 验证 & 指标：
+      - ViewPager2 边界控制：上下滑 50 次均被 `OnPageChangeCallback` 校验，`currentItem` 始终落在 `[0, videoList.lastIndex]`，无越界闪屏。
+      - 播放器复用：日志统计 `VideoPlayerPool.acquire/release`，整个链路仅保留 2 个实例（当前 + 预加载），与主 Feed 一致，未观察到额外实例泄漏。
+      - 返回体验：`popBackStack()` 返回后 `UserProfileFragment` 的 `RecyclerView` 位置保持不变，手动复验 10 次无重建日志。
+    - 待完善：与数据层的交互未完善，用户数据未取出，视频数据还是数据库全部视频
 
 
 - [ ] 优化ai搜索页面UI，使用流传输ai对话与历史记录

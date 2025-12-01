@@ -8,14 +8,17 @@ import android.graphics.Outline
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -23,12 +26,18 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.navigation.fragment.findNavController
 import com.ucw.beatu.business.user.domain.model.User
 import com.ucw.beatu.business.user.domain.model.UserWork
 import com.ucw.beatu.business.user.presentation.R
 import com.ucw.beatu.business.user.presentation.ui.adapter.UserWorkUiModel
 import com.ucw.beatu.business.user.presentation.ui.adapter.UserWorksAdapter
+import com.ucw.beatu.business.user.presentation.ui.UserWorksViewerFragment
 import com.ucw.beatu.business.user.presentation.viewmodel.UserProfileViewModel
+import com.ucw.beatu.business.videofeed.presentation.model.VideoItem
+import com.ucw.beatu.business.videofeed.presentation.model.VideoOrientation
+import com.ucw.beatu.shared.common.navigation.NavigationHelper
+import com.ucw.beatu.shared.common.navigation.NavigationIds
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.io.File
@@ -74,7 +83,11 @@ class UserProfileFragment : Fragment() {
     // 当前选中的标签
     private var selectedTab: TextView? = null
     
-    private val worksAdapter = UserWorksAdapter()
+    private val worksAdapter by lazy {
+        UserWorksAdapter { work -> navigateToUserWorksViewer(work.id) }
+    }
+    private var latestUser: User? = null
+    private var latestUserWorks: List<UserWork> = emptyList()
 
     // 用户ID（从参数获取，默认为当前用户）
     private val userId: String
@@ -222,11 +235,15 @@ class UserProfileFragment : Fragment() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     viewModel.user.collect { user ->
-                        user?.let { updateUserInfo(it) }
+                        user?.let {
+                            latestUser = it
+                            updateUserInfo(it)
+                        }
                     }
                 }
                 launch {
                     viewModel.userWorks.collect { works ->
+                        latestUserWorks = works
                         worksAdapter.submitList(works.map { it.toUiModel() })
                     }
                 }
@@ -343,7 +360,9 @@ class UserProfileFragment : Fragment() {
     private fun UserWork.toUiModel(): UserWorkUiModel = UserWorkUiModel(
         id = id,
         thumbnailUrl = coverUrl,
-        playCount = viewCount
+        playCount = viewCount,
+        playUrl = playUrl,
+        title = title
     )
 
     /**
@@ -430,7 +449,55 @@ class UserProfileFragment : Fragment() {
         }
     }
 
+    private fun navigateToUserWorksViewer(selectedWorkId: String) {
+        val works = latestUserWorks
+        if (works.isEmpty()) {
+            Toast.makeText(requireContext(), "暂无可播放的视频", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val navController = runCatching { findNavController() }.getOrNull()
+        if (navController == null) {
+            Log.e(TAG, "NavController not found, cannot open user works viewer")
+            return
+        }
+        val actionId = NavigationHelper.getResourceId(
+            requireContext(),
+            NavigationIds.ACTION_USER_PROFILE_TO_USER_WORKS_VIEWER
+        )
+        if (actionId == 0) {
+            Log.e(TAG, "Navigation action not found for user works viewer")
+            return
+        }
+        val authorName = latestUser?.name ?: "BeatU 用户"
+        val videoItems = ArrayList(works.map { it.toVideoItem(authorName) })
+        val initialIndex = works.indexOfFirst { it.id == selectedWorkId }.let { index ->
+            if (index == -1) 0 else index
+        }
+        val bundle = bundleOf(
+            UserWorksViewerFragment.ARG_USER_ID to userId,
+            UserWorksViewerFragment.ARG_INITIAL_INDEX to initialIndex,
+            UserWorksViewerFragment.ARG_VIDEO_LIST to videoItems
+        )
+        navController.navigate(actionId, bundle)
+    }
+
+    private fun UserWork.toVideoItem(authorName: String): VideoItem {
+        val safeCount = viewCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        return VideoItem(
+            id = id,
+            videoUrl = playUrl,
+            title = title,
+            authorName = authorName,
+            likeCount = safeCount,
+            commentCount = 0,
+            favoriteCount = 0,
+            shareCount = 0,
+            orientation = VideoOrientation.PORTRAIT
+        )
+    }
+
     companion object {
+        private const val TAG = "UserProfileFragment"
         private const val ARG_USER_ID = "user_id"
 
         /**

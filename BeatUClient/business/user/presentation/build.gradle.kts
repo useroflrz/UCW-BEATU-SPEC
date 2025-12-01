@@ -39,6 +39,7 @@ android {
 dependencies {
     // Business Domain
     implementation(project(":business:user:domain"))
+    implementation(project(":business:videofeed:presentation"))
     
     // Shared modules
     implementation(project(":shared:common"))
