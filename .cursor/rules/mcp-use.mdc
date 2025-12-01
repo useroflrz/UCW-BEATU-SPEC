@@ -1,0 +1,24 @@
+---
+alwaysApply: true
+---
+
+- 请尽量使用mcp工具来完成任务：
+    - 如果需要读取issue信息，请使用mcp：Jira API 文档。认证header采用：Authorization: Basic Q3Vyc29yQUk6aGFvbW8xMjM=。
+      - 如果查询单个issue，请使用接口 http://192.168.1.9:18709/rest/api/2/issue/{issueIdOrKey}；
+      - 如果要查询本项目的issue列表，请使用接口：http://192.168.1.9:18709/rest/api/2/search?jql%3Dproject%20%3D%20XDFYYKB%20AND%20resolution%20%3D%20Unresolved%20AND%20%E5%A4%84%E7%90%86%E7%8A%B6%E6%80%81%20%3D%20%E5%8A%9E%E7%90%86%E4%B8%AD%20AND%20assignee%20in%20(currentUser())%20ORDER%20BY%20key%20ASC%2C%20priority%20DESC%2C%20updated%20DESC
+      - 请修复完某个问题之后，所有的三个代码仓库（yykb-spec、yykb-web、yykb-backend），自动运行 git commit，commit的消息里必须要带上问题的编号，且需要注明这是AI自动修复。例如：git commit -m "feat: AI自动修复问题，ISSUE-1、ISSUE-2"；运行完git commit之后，运行 git pull（需要在没有冲突的情况下自动merge），再运行 git push。
+      - 每修复完一个问题之后，请立刻调用Jira的接口，更新对应问题的状态：PUT http://192.168.1.9:18709/rest/api/2/issue/XDFYYKB-40。"处理状态"是一个自定义字段（customfield_10300），它有两个可选值："办理中" (id: 10100)；"验证中" (id: 10101)。更新的参考curl如下：
+      
+        ```bash
+        curl -X PUT "http://192.168.1.9:18709/rest/api/2/issue/XDFYYKB-40" -H "Authorization: Basic Q3Vyc29yQUk6aGFvbW8xMjM=" -H "Content-Type: application/json" -d '{"fields":{"customfield_10300":{"id":"10101"}}}'
+        ```
+      - 每修复完一个问题之后，请立刻将对应问题的修复总结成comment，提交给jira的问题，方便用户知道你是如何思考和修改这个问题的。使用接口：POST http://192.168.1.9:18709/rest/api/2/issue/{issueIdOrKey}/comment
+    - 如果需要自动创建jira问题，请使用curl（issue类型：10002=任务, 10100=故障, 10102=新需求, 10101=优化；处理状态：10100=办理中, 10101=验证中）：
+
+      ```bash
+      curl -X POST "http://192.168.1.9:18709/rest/api/2/issue" -H "Authorization: Basic Q3Vyc29yQUk6aGFvbW8xMjM=" -H "Content-Type: application/json" -d '{"fields":{"project":{"key":"XDFYYKB"},"summary":"issue标题","description":"issue描述内容","issuetype":{"id":"10002"},"assignee":{"name":"CursorAI"},"customfield_10300":{"id":"10100"}}}'
+      ```
+
+      - 重启后台，只需要等待20秒即可；
+    - 后台的日志文件目录为：jeecg-boot/logs
+    

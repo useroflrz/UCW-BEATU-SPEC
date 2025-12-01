@@ -67,7 +67,9 @@ class RecommendFragment : Fragment() {
             vp.orientation = ViewPager2.ORIENTATION_VERTICAL
             vp.offscreenPageLimit = 1
 
-            adapter = VideoFeedAdapter(requireActivity())
+            // 使用当前 Fragment 作为 FragmentStateAdapter 的宿主，
+            // 以便子页面 Fragment 能够挂在 childFragmentManager 下，被 handlePageSelected 正确管理
+            adapter = VideoFeedAdapter(this@RecommendFragment)
             vp.adapter = adapter
 
             vp.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
@@ -148,6 +150,7 @@ class RecommendFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     if (state.videoList.isNotEmpty()) {
+                        val hasInitialData = (adapter?.itemCount ?: 0) == 0
                         adapter?.updateVideoList(state.videoList)
 
                         // ✅ 修复：先处理状态恢复，再处理刷新
@@ -160,6 +163,12 @@ class RecommendFragment : Fragment() {
                         if (isRefreshing && !state.isRefreshing) {
                             isRefreshing = false
                             viewPager?.setCurrentItem(0, false)
+                        }
+
+                        // 首次加载完成时，手动触发当前页的播放/轮播（包括图文）
+                        if (hasInitialData) {
+                            val currentIndex = viewPager?.currentItem ?: 0
+                            viewPager?.post { handlePageSelected(currentIndex) }
                         }
                     }
 
@@ -233,9 +242,12 @@ class RecommendFragment : Fragment() {
      * 暂停所有视频（供外部调用，如 FeedFragment）
      */
     fun pauseAllVideoItems() {
-        childFragmentManager.fragments
-            .filterIsInstance<VideoItemFragment>()
-            .forEach { it.onParentVisibilityChanged(false) }
+        childFragmentManager.fragments.forEach { fragment ->
+            when (fragment) {
+                is VideoItemFragment -> fragment.onParentVisibilityChanged(false)
+                is ImagePostFragment -> fragment.onParentVisibilityChanged(false)
+            }
+        }
     }
 
     /**
@@ -254,21 +266,28 @@ class RecommendFragment : Fragment() {
     private fun handlePageSelected(position: Int) {
         // ViewPager2 的 FragmentStateAdapter 使用 "f" + position 作为 Fragment tag
         val currentFragmentTag = "f$position"
-        val currentFragment = childFragmentManager.findFragmentByTag(currentFragmentTag) as? VideoItemFragment
-        
-        // 暂停所有视频 Fragment
-        childFragmentManager.fragments
-            .filterIsInstance<VideoItemFragment>()
-            .forEach { fragment ->
-                if (fragment == currentFragment && fragment.isVisible) {
-                    // 当前选中的 Fragment，检查是否真正在屏幕上可见
-                    fragment.checkVisibilityAndPlay()
-                } else {
-                    // 其他 Fragment 暂停
-                    Log.d(TAG, "handlePageSelected: pause fragment tag=${fragment.tag}")
-                    fragment.onParentVisibilityChanged(false)
+        val currentFragment = childFragmentManager.findFragmentByTag(currentFragmentTag)
+
+        childFragmentManager.fragments.forEach { fragment ->
+            when (fragment) {
+                is VideoItemFragment -> {
+                    if (fragment == currentFragment && fragment.isVisible) {
+                        fragment.checkVisibilityAndPlay()
+                    } else {
+                        Log.d(TAG, "handlePageSelected: pause VideoItemFragment tag=${fragment.tag}")
+                        fragment.onParentVisibilityChanged(false)
+                    }
+                }
+                is ImagePostFragment -> {
+                    if (fragment == currentFragment && fragment.isVisible) {
+                        fragment.checkVisibilityAndPlay()
+                    } else {
+                        Log.d(TAG, "handlePageSelected: pause ImagePostFragment tag=${fragment.tag}")
+                        fragment.onParentVisibilityChanged(false)
+                    }
                 }
             }
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

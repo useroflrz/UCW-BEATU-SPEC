@@ -71,5 +71,7 @@ dependencies {
     
     // Material
     implementation(libs.material)
+    // Coil for image loading in ImagePostFragment
+    implementation(libs.coil)
 }
 

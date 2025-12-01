@@ -186,6 +186,83 @@ class VideoItemViewModel @Inject constructor(
     }
 
     /**
+     * 为图文内容准备仅音频播放的 BGM
+     * 不绑定 PlayerView，只使用现有的 VideoPlayerPool 与 ExoPlayer 播放音频。
+     */
+    fun prepareAudioOnly(videoId: String, audioUrl: String) {
+        viewModelScope.launch {
+            try {
+                if (videoId.isBlank() || audioUrl.isBlank()) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = "音频ID或URL为空",
+                        isPlaying = false
+                    )
+                    return@launch
+                }
+
+                val source = VideoSource(
+                    videoId = videoId,
+                    url = audioUrl
+                )
+
+                val player = playerPool.acquire(videoId)
+                currentPlayer = player
+                currentVideoId = videoId
+                currentVideoUrl = audioUrl
+
+                playerListener?.let { player.removeListener(it) }
+                val listener = object : VideoPlayer.Listener {
+                    override fun onReady(videoId: String) {
+                        // 仅音频场景下，依然使用 READY 状态更新 UI（此时没有画面，但有时长信息）
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            showPlaceholder = false,
+                            isPlaying = true,
+                            durationMs = player.player.duration.takeIf { it > 0 }
+                                ?: _uiState.value.durationMs
+                        )
+                    }
+
+                    override fun onError(videoId: String, throwable: Throwable) {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            error = throwable.message ?: "BGM 播放失败",
+                            isPlaying = false
+                        )
+                    }
+
+                    override fun onPlaybackEnded(videoId: String) {
+                        _uiState.value = _uiState.value.copy(
+                            isPlaying = false
+                        )
+                    }
+                }
+                player.addListener(listener)
+                playerListener = listener
+
+                // 仅音频模式：不调用 attach(PlayerView)，直接 prepare + play，并设置单曲循环
+                player.player.repeatMode = Player.REPEAT_MODE_ONE
+                player.prepare(source)
+
+                _uiState.value = _uiState.value.copy(
+                    currentVideoId = videoId,
+                    isPlaying = true,
+                    isLoading = false,
+                    showPlaceholder = false
+                )
+                startProgressUpdates()
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = e.message ?: "BGM 播放初始化失败",
+                    isPlaying = false
+                )
+            }
+        }
+    }
+
+    /**
      * 暂停/播放切换
      */
     fun togglePlayPause() {

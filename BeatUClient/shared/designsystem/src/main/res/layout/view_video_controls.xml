@@ -185,7 +185,8 @@
                         android:textColor="#FFFFFFFF" />
                 </LinearLayout>
 
-                <!-- 右侧：互动按钮 -->
+                <!-- 右侧：互动按钮（按“点赞 → 分享 → 收藏 → 评论”顺序展示，均为图标 + 数字） -->
+
                 <!-- 点赞 -->
                 <LinearLayout
                     android:layout_width="wrap_content"
@@ -198,7 +199,7 @@
                         android:id="@+id/iv_like"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@android:drawable/ic_menu_add"
+                        android:src="@drawable/ic_interaction_like"
                         android:tint="#FFFFFFFF"
                         android:contentDescription="点赞"
                         android:clickable="true"
@@ -213,7 +214,34 @@
                         android:textColor="#FFFFFFFF" />
                 </LinearLayout>
 
-                <!-- 收藏 -->
+                <!-- 分享 -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:layout_marginEnd="16dp">
+
+                    <ImageView
+                        android:id="@+id/iv_share"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_interaction_share"
+                        android:tint="#FFFFFFFF"
+                        android:contentDescription="分享"
+                        android:clickable="true"
+                        android:focusable="true" />
+
+                    <TextView
+                        android:id="@+id/tv_share_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textSize="12sp"
+                        android:textColor="#FFFFFFFF" />
+                </LinearLayout>
+
+                <!-- 收藏（爱心） -->
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -225,7 +253,7 @@
                         android:id="@+id/iv_favorite"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@android:drawable/ic_menu_save"
+                        android:src="@drawable/ic_interaction_favorite"
                         android:tint="#FFFFFFFF"
                         android:contentDescription="收藏"
                         android:clickable="true"
@@ -241,27 +269,30 @@
                 </LinearLayout>
 
                 <!-- 评论 -->
-                <ImageView
-                    android:id="@+id/iv_comment"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_edit"
-                    android:tint="#FFFFFFFF"
-                    android:contentDescription="评论"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:layout_marginEnd="16dp" />
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center">
 
-                <!-- 分享 -->
-                <ImageView
-                    android:id="@+id/iv_share"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_share"
-                    android:tint="#FFFFFFFF"
-                    android:contentDescription="分享"
-                    android:clickable="true"
-                    android:focusable="true" />
+                    <ImageView
+                        android:id="@+id/iv_comment"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_interaction_comment"
+                        android:tint="#FFFFFFFF"
+                        android:contentDescription="评论"
+                        android:clickable="true"
+                        android:focusable="true" />
+
+                    <TextView
+                        android:id="@+id/tv_comment_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textSize="12sp"
+                        android:textColor="#FFFFFFFF" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 向右上方的分享箭头 -->
+    <path
+        android:strokeWidth="1.6"
+        android:strokeColor="#FFFFFFFF"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M7,16 L17,8" />
+
+    <path
+        android:strokeWidth="1.6"
+        android:strokeColor="#FFFFFFFF"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M11,8 L17,8 L17,14" />
+
+    <!-- 底部圆点，营造“分享端点”感觉 -->
+    <path
+        android:strokeWidth="1.6"
+        android:strokeColor="#FFFFFFFF"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M6,16.5 A1.5,1.5 0 1,0 9,16.5 A1.5,1.5 0 1,0 6,16.5" />
+
+</vector>
+
+
+

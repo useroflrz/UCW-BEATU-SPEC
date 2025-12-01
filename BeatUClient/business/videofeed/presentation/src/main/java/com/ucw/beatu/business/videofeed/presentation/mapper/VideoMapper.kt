@@ -1,6 +1,7 @@
 package com.ucw.beatu.business.videofeed.presentation.mapper
 
 import com.ucw.beatu.business.videofeed.domain.model.Video
+import com.ucw.beatu.business.videofeed.presentation.model.FeedContentType
 import com.ucw.beatu.business.videofeed.presentation.model.VideoItem
 import com.ucw.beatu.business.videofeed.presentation.model.VideoOrientation
 
@@ -26,7 +27,11 @@ fun Video.toVideoItem(): VideoItem {
             "portrait", "vertical" -> VideoOrientation.PORTRAIT
             "landscape", "horizontal" -> VideoOrientation.LANDSCAPE
             else -> VideoOrientation.PORTRAIT
-        }
+        },
+        // 默认仍按视频处理；后续如果后端提供 contentType/imageUrls/bgmUrl，可在此处映射
+        type = FeedContentType.VIDEO,
+        imageUrls = emptyList(),
+        bgmUrl = null
     )
 }
 

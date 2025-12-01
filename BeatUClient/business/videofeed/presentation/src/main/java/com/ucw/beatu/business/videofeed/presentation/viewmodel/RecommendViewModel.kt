@@ -5,7 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ucw.beatu.business.videofeed.domain.usecase.GetFeedUseCase
 import com.ucw.beatu.business.videofeed.presentation.mapper.toVideoItem
+import com.ucw.beatu.business.videofeed.presentation.model.FeedContentType
 import com.ucw.beatu.business.videofeed.presentation.model.VideoItem
+import com.ucw.beatu.business.videofeed.presentation.model.VideoOrientation
 import com.ucw.beatu.shared.common.result.AppResult
 import com.ucw.beatu.shared.player.VideoPlayer
 import com.ucw.beatu.shared.player.model.VideoSource
@@ -72,12 +74,16 @@ class RecommendViewModel @Inject constructor(
                         }
                         is AppResult.Success -> {
                             val videos = result.data.map { it.toVideoItem() }
+                            // 在第一页顶部插入一条静态图文+BGM，用于体验“图文+音乐”效果
+                            val mixed = mutableListOf<VideoItem>()
+                            mixed.add(createMockImagePost(1))
+                            mixed.addAll(videos)
                             android.util.Log.d("RecommendViewModel", "loadVideoList: Success, loaded ${videos.size} videos")
                             videos.forEachIndexed { index, video ->
                                 android.util.Log.d("RecommendViewModel", "Video[$index]: id=${video.id}, url=${video.videoUrl}, title=${video.title}")
                             }
                             _uiState.value = _uiState.value.copy(
-                                videoList = videos,
+                                videoList = mixed,
                                 isLoading = false,
                                 error = null
                             )
@@ -116,8 +122,11 @@ class RecommendViewModel @Inject constructor(
                         }
                         is AppResult.Success -> {
                             val videos = result.data.map { it.toVideoItem() }
+                            val mixed = mutableListOf<VideoItem>()
+                            mixed.add(createMockImagePost(1))
+                            mixed.addAll(videos)
                             _uiState.value = _uiState.value.copy(
-                                videoList = videos,
+                                videoList = mixed,
                                 isRefreshing = false,
                                 error = null
                             )
@@ -157,8 +166,15 @@ class RecommendViewModel @Inject constructor(
                         is AppResult.Success -> {
                             val moreVideos = result.data.map { it.toVideoItem() }
                             val currentList = _uiState.value.videoList.toMutableList()
-                            currentList.addAll(moreVideos)
-                            
+
+                            // 从第二页开始，每一页也插入一条图文+BGM 内容，
+                            // 让用户在“无限刷视频”的过程中持续刷到图文卡片，而不是只在第一页看到一次
+                            val mixedMore = mutableListOf<VideoItem>()
+                            mixedMore.add(createMockImagePost(currentPage))
+                            mixedMore.addAll(moreVideos)
+
+                            currentList.addAll(mixedMore)
+
                             _uiState.value = _uiState.value.copy(
                                 videoList = currentList,
                                 error = null
@@ -200,5 +216,30 @@ class RecommendViewModel @Inject constructor(
     }
 
     fun getCurrentPage(): Int = currentPage
+
+    /**
+     * 推荐页中的静态图文+BGM，用于体验“图文+音乐”效果
+     * index 用于区分出现在不同页的示例卡片，方便后续接入真实后端数据时替换
+     */
+    private fun createMockImagePost(index: Int): VideoItem {
+        return VideoItem(
+            id = "image_post_mock_$index",
+            videoUrl = "",
+            title = "这是一个图文+BGM 示例（第 $index 段）",
+            authorName = "BeatU 官方",
+            likeCount = 1314,
+            commentCount = 99,
+            favoriteCount = 520,
+            shareCount = 66,
+            orientation = VideoOrientation.PORTRAIT,
+            type = FeedContentType.IMAGE_POST,
+            imageUrls = listOf(
+                "https://images.pexels.com/photos/572897/pexels-photo-572897.jpeg",
+                "https://images.pexels.com/photos/210186/pexels-photo-210186.jpeg",
+                "https://images.pexels.com/photos/1103970/pexels-photo-1103970.jpeg"
+            ),
+            bgmUrl = "https://samplelib.com/lib/preview/mp3/sample-6s.mp3"
+        )
+    }
 }
 

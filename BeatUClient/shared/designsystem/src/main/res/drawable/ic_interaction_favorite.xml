@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 空心爱心收藏图标 -->
+    <path
+        android:strokeWidth="1.6"
+        android:strokeColor="#FFFFFFFF"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M12,19 L10.6,17.8 C6.5,14.2 4,11.9 4,9 C4,6.8 5.6,5 7.8,5 C9.1,5 10.4,5.7 11.1,6.8 C11.8,5.7 13.1,5 14.4,5 C16.6,5 18.2,6.8 18.2,9 C18.2,11.9 15.7,14.2 11.6,17.8 Z" />
+
+</vector>
+
+
+

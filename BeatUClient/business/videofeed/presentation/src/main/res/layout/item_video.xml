@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="#FF000000">
 
-    <!-- 全屏视频播放器 -->
+    <!-- 全屏视频播放器（视频内容使用） -->
     <androidx.media3.ui.PlayerView
         android:id="@+id/player_view"
         android:layout_width="match_parent"
@@ -15,6 +15,14 @@
         app:surface_type="surface_view"
         app:use_controller="false"
         app:resize_mode="fit" />
+
+    <!-- 图文内容容器：全屏图片轮播，用于“图文+音乐”场景 -->
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/image_pager"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        tools:visibility="gone" />
 
     <!-- 通用视频控制视图：播放覆盖层 + 底部完整信息区（集数/标题/进度/点赞等） -->
     <com.ucw.beatu.shared.designsystem.widget.VideoControlsView
