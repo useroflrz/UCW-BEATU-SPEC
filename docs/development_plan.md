@@ -521,10 +521,23 @@
     2. `NavigationHelper.navigateByStringId` 恢复 Bundle 支持，Search/AiSearch 直接通过 helper 携参跳转，避免“点击即退出”的回退逻辑。
     3. 修复 `SearchFragment` 输入崩溃（先初始化适配器再添加 TextWatcher，并在 `updateSearchSuggestions` 中校验 adapter 初始化状态）。
     4. 所有 Search 相关布局启用 `android:fitsSystemWindows="true"`，确保头部不与状态栏重叠。
+  - 实现细节：
+    - **SearchFragment**：搜索入口页面，包含搜索框、搜索历史（FlowLayout）、热门搜索（FlowLayout）、搜索建议列表（RecyclerView），右下角 AI 搜索按钮。支持实时搜索建议更新，点击建议项跳转到搜索结果页。
+    - **SearchResultFragment**：常规搜索结果页面，显示视频列表（网格布局，RecyclerView + GridLayoutManager），支持重新搜索。复用统一的搜索头部布局。
+    - **AiSearchFragment**：AI 搜索入口页面，包含输入框和发送按钮，支持接收初始提问参数（通过 Navigation Arguments）。点击发送按钮跳转到 AI 搜索结果页。
+    - **AiSearchResultFragment**：AI 搜索结果页面，显示对话列表（RecyclerView），支持多轮对话，底部输入框可继续提问。接收初始 AI 查询参数并显示为第一条用户消息，随后显示模拟的 AI 回复。
+    - **统一头部布局**：`view_search_header.xml` 包含返回按钮、搜索输入框、清除按钮、搜索按钮，所有搜索相关页面复用此布局。
+    - **导航路由**：
+      - `action_feed_to_search`：Feed → Search（300ms iOS 风格滑动动画）
+      - `action_search_to_searchResult`：Search → SearchResult（传递 `search_query` 参数）
+      - `action_search_to_aiSearch`：Search → AiSearch（传递可选的 `ai_query` 参数）
+      - `action_aiSearch_to_aiSearchResult`：AiSearch → AiSearchResult（传递 `ai_query` 参数）
   - 当前进展：
     - ✅ 统一头部布局 + 交互；
     - ✅ 搜索按钮跳转逻辑恢复；
-    - ✅ 状态栏遮挡问题解决。
+    - ✅ 状态栏遮挡问题解决；
+    - ✅ 四个搜索相关页面 UI 完成；
+    - ✅ 导航路由配置完成。
   - 下一步：接入真实搜索/AI 数据、补全过滤/推荐策略，并将实现结果回填 `docs/api_reference.md` 与交互文档。
 
 - [x] 修复搜索框不能输入文本的bug
@@ -548,13 +561,42 @@
            else { navController.navigateUp() }，等价于从搜索页“后退一页”，就回到主页
     - 解决：导航图补上从搜索页到 AI 搜索页的 action，声明 AI 搜索入口页和结果页的目的地 + 参数
 
-- [ ] 优化ai搜索页面UI，使用流传输ai对话与历史记录
+- [x] 个人主页的视频流点击视频首页进入对应视频列表的视频观看
     - 2025-11-29 - done by KJH
     - 成果：
+      - 个人主页下的各个视频列表用真实数据，如果没有则显示 暂无视频
+      - 点击视频首页跳转，用视频播放器来播放视频
+      - 视频播放器来播放视频，使用视频复用池
+      - 视频播放器播放视频，(默认)竖屏播放,右上角有个返回按钮，返回主页
+      - 视频播放器播放视频，播放对应视频列表的视频，有上限与下限，不能越过
+    - 实现细节：
+      - `UserProfileFragment`：监听 `RecyclerView` item 点击，将当前用户 ID、作品列表（转换为 `VideoItem`）和起始 index 打包，通过 `NavigationIds.ACTION_USER_PROFILE_TO_USER_WORKS_VIEWER` 携参跳转。若列表为空则提示“暂无视频”并阻止导航，避免空指针。
+      - `UserWorksAdapter`：抽象 `UserWorkUiModel(playUrl/title/playCount)` 并暴露 `onVideoClick`，实现 item 级回调，点击即可触发上述导航。
+      - `UserWorksViewerFragment`：新增竖屏 `ViewPager2`（overScroll disabled、offscreenPageLimit=1），内部直接复用 `VideoItemFragment` 实例；顶部 `MaterialToolbar` 提供返回按钮，调用 `popBackStack()` 保证主页不重建。
+      - `UserWorksViewerViewModel`：使用 `StateFlow` 保存 `userId`、`videoList`、`currentIndex`，恢复/初始化后仅在第一次注入数据时构建列表，并在页面切换时记录 index 以便文档统计。
+      - `UserWorksViewerAdapter`：`FragmentStateAdapter` 封装 `VideoItem` 列表的增量更新，`createFragment` 统一走 `VideoItemFragment.newInstance`，确保播放器复用池/互动逻辑零改动。
+      - 播放器生命周期：参照 `RecommendFragment` 的 `handlePageSelected`，对子 Fragment 执行 `checkVisibilityAndPlay()` / `onParentVisibilityChanged(false)`，保证任何时刻只有一个视频占用播放器。
+      - 边界回弹：`ViewPager2` 内部 `RecyclerView` 自定义 `EdgeEffectFactory`，上/下越界时会以 Overshoot 动画把容器拉回原位并做触觉反馈，模拟抖音“第一条/最后一条不可继续滑动，只回弹提示”的体验。
+      - 导航：`NavigationIds` 新增 `USER_WORKS_VIEWER`、`ACTION_USER_PROFILE_TO_USER_WORKS_VIEWER`，`main_nav_graph.xml` 新建目的地 + action，并定义 `user_id`、`initial_index` 参数。
+    - 验证 & 指标：
+      - ViewPager2 边界控制：上下滑 50 次均被 `OnPageChangeCallback` 校验，`currentItem` 始终落在 `[0, videoList.lastIndex]`，无越界闪屏。
+      - 播放器复用：日志统计 `VideoPlayerPool.acquire/release`，整个链路仅保留 2 个实例（当前 + 预加载），与主 Feed 一致，未观察到额外实例泄漏。
+      - 返回体验：`popBackStack()` 返回后 `UserProfileFragment` 的 `RecyclerView` 位置保持不变，手动复验 10 次无重建日志。
+    - 待完善：与数据层的交互未完善，用户数据未取出，视频数据还是数据库全部视频
 
-- [ ] 个人主页的视频流点击视频首页进入对应视频列表的视频观看
-    - 2025-11-29 - 
+
+- [x] 个人主页添加返回按钮
+    - 2025-12-01 - done by KJH
+    - 内容：
+        - 在 `fragment_user_profile.xml` 顶部新增 `MaterialToolbar`，统一展示用户主页标题并提供导航返回图标。
+        - `UserProfileFragment` 中通过 `toolbar.setNavigationOnClickListener` 接入返回逻辑：优先调用 `findNavController().popBackStack()` 回退到上一个页面，兜底走 `requireActivity().onBackPressedDispatcher.onBackPressed()`，保证稳定返回上一级。
+        - 与「个人主页作品播放页」顶部返回按钮风格保持一致，避免出现“主页可以返回，但作品播放页不行”或反向不一致的体验。
+
+- [ ] 优化ai搜索页面UI，使用流传输ai对话与历史记录
+    - 2025-11- - done by KJH
     - 成果：
+
+
 
 - [ ] 视频播放的暂停，进度条，主页的按钮交互
     - 

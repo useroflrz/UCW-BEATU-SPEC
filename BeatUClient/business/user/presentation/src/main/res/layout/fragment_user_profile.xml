@@ -4,8 +4,22 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FF000000">
+    android:background="#FF000000"
+    android:fitsSystemWindows="true">
 
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar_user_profile"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:navigationIcon="?attr/homeAsUpIndicator"
+        app:title="@string/user_profile_title"
+        app:titleTextColor="@android:color/white" />
 
     <!-- 可滚动内容区域（只包含用户信息和统计信息） -->
     <androidx.core.widget.NestedScrollView
@@ -13,7 +27,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:fillViewport="false"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar_user_profile"
         app:layout_constraintBottom_toTopOf="@id/tabs_container"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -29,7 +43,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingStart="36dp"
-                android:paddingTop="72dp"
+                android:paddingTop="32dp"
                 android:paddingEnd="36dp"
                 android:paddingBottom="20dp"
                 app:layout_constraintEnd_toEndOf="parent"

@@ -33,13 +33,27 @@
   - `domain/`：FeedRepository 接口、UseCase（GetFeedUseCase、LikeVideoUseCase、CommentUseCase 等）。
   - `data/`：FeedRepository 实现、RemoteDataSource、LocalDataSource、Mapper。
 - `business/user/`（用户业务）
-  - `presentation/`：个人主页/作者主页、关注状态同步、用户作品网格（直接消费视频流缓存）。
-  - `domain/`：UserRepository、UserWorksRepository 接口、UseCase。
-  - `data/`：UserRepository、UserWorksRepository 实现，依赖 `shared/database` 的 `VideoDao` 复用 Feed 缓存。
+  - `presentation/`：
+    - `UserProfileFragment`：个人主页/作者主页，显示用户头像、昵称、简介、作品列表（网格布局），支持头像/昵称/简介编辑，四个 Tab（作品/收藏/点赞/历史）切换。
+    - `UserWorksViewerFragment`：用户作品视频列表观看页面（竖屏），使用 `ViewPager2` 垂直滑动，复用 `VideoItemFragment` 和播放器复用池，支持定位到初始视频，限制在用户视频列表范围内。
+    - `UserProfileViewModel`：管理用户信息加载、作品列表订阅、用户信息更新（头像/昵称/简介）。
+    - `UserWorksViewerViewModel`：管理用户作品视频列表加载，从 `UserWorksRepository` 获取数据并转换为 `VideoItem`。
+  - `domain/`：
+    - `UserRepository` 接口：`observeUserById(userId)`, `getUserById(userId)`, `saveUser(user)`
+    - `UserWorksRepository` 接口：`observeUserWorks(userId, limit)`，复用视频流缓存数据
+    - UseCase：用户信息查询、作品列表查询
+  - `data/`：
+    - `UserRepository` 实现：依赖 `shared/database` 的 `UserDao`，本地持久化用户信息
+    - `UserWorksRepository` 实现：依赖 `shared/database` 的 `VideoDao`，复用 Feed 缓存，将 `VideoEntity` 转换为 `UserWork`
 - `business/search/`（搜索业务）
-  - `presentation/`：频道切换、话题发现。
-  - `domain/`：SearchRepository 接口、UseCase。
-  - `data/`：SearchRepository 实现。
+  - `presentation/`：
+    - `SearchFragment`：搜索入口页面，包含搜索框、搜索历史（FlowLayout）、热门搜索（FlowLayout）、搜索建议列表（RecyclerView），右下角 AI 搜索按钮。
+    - `SearchResultFragment`：常规搜索结果页面，显示视频列表（网格布局），支持重新搜索。
+    - `AiSearchFragment`：AI 搜索入口页面，包含输入框和发送按钮，支持接收初始提问参数。
+    - `AiSearchResultFragment`：AI 搜索结果页面，显示对话列表（RecyclerView），支持多轮对话，底部输入框可继续提问。
+    - 所有搜索相关页面复用统一的 `view_search_header.xml` 布局（返回按钮、搜索框、清除按钮、搜索按钮）。
+  - `domain/`：SearchRepository 接口、UseCase（待实现，当前使用 Mock 数据）。
+  - `data/`：SearchRepository 实现（待实现，当前使用 Mock 数据）。
 - `business/ai/`（AI 业务）
   - `presentation/`：评论区 `@元宝` AI 问答 UI。
   - `domain/`：AiRepository 接口、UseCase（AiReplyUseCase、RecommendUseCase）。

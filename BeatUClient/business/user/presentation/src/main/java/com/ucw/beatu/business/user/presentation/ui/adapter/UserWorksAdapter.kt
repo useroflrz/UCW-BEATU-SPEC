@@ -11,8 +11,9 @@ import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import com.ucw.beatu.business.user.presentation.R
 
-class UserWorksAdapter :
-    ListAdapter<UserWorkUiModel, UserWorksAdapter.UserWorkViewHolder>(DiffCallback) {
+class UserWorksAdapter(
+    private val onVideoClick: (UserWorkUiModel) -> Unit
+) : ListAdapter<UserWorkUiModel, UserWorksAdapter.UserWorkViewHolder>(DiffCallback) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): UserWorkViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -21,14 +22,14 @@ class UserWorksAdapter :
     }
 
     override fun onBindViewHolder(holder: UserWorkViewHolder, position: Int) {
-        holder.bind(getItem(position))
+        holder.bind(getItem(position), onVideoClick)
     }
 
     class UserWorkViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val thumbnail: ImageView = itemView.findViewById(R.id.iv_thumbnail)
         private val playCount: TextView = itemView.findViewById(R.id.tv_play_count)
 
-        fun bind(item: UserWorkUiModel) {
+        fun bind(item: UserWorkUiModel, onVideoClick: (UserWorkUiModel) -> Unit) {
             val placeholderRes = R.drawable.ic_avatar_placeholder
             thumbnail.load(item.thumbnailUrl ?: placeholderRes) {
                 crossfade(true)
@@ -36,6 +37,7 @@ class UserWorksAdapter :
                 error(placeholderRes)
             }
             playCount.text = formatPlayCount(item.playCount)
+            itemView.setOnClickListener { onVideoClick(item) }
         }
 
         private fun formatPlayCount(count: Long): String {
@@ -65,6 +67,8 @@ class UserWorksAdapter :
 data class UserWorkUiModel(
     val id: String,
     val thumbnailUrl: String?,
-    val playCount: Long
+    val playCount: Long,
+    val playUrl: String,
+    val title: String
 )
 
