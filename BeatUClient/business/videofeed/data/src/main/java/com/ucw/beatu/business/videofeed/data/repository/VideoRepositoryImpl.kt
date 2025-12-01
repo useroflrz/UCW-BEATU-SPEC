@@ -37,9 +37,10 @@ class VideoRepositoryImpl @Inject constructor(
         val remoteResult = remoteDataSource.getVideoFeed(page, limit, orientation)
         when (remoteResult) {
             is AppResult.Success -> {
-                // 保存到本地缓存（仅第一页且没有orientation筛选）
+                // 保存到本地缓存（仅第一页且没有orientation筛选），并异步生成缩略图
                 if (page == 1 && orientation == null) {
                     localDataSource.saveVideos(remoteResult.data)
+                    localDataSource.enqueueThumbnailGeneration(remoteResult.data)
                 }
                 emit(remoteResult)
             }
@@ -58,6 +59,7 @@ class VideoRepositoryImpl @Inject constructor(
                         // 将 Mock 数据写入本地缓存（仅第一页且无 orientation 筛选），便于后续离线复用
                         if (page == 1 && orientation == null) {
                             localDataSource.saveVideos(fallbackVideos)
+                            localDataSource.enqueueThumbnailGeneration(fallbackVideos)
                         }
                         emit(AppResult.Success(fallbackVideos))
                         return@flow

@@ -24,6 +24,9 @@ interface VideoDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(item: VideoEntity)
 
+    @Query("UPDATE videos SET coverUrl = :coverUrl WHERE id = :id")
+    suspend fun updateCoverUrl(id: String, coverUrl: String)
+
     @Query("DELETE FROM videos")
     suspend fun clear()
 
