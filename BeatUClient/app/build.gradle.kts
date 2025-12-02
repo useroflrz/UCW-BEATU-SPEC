@@ -51,18 +51,16 @@ dependencies {
     
     // Business modules - Presentation layers
     implementation(project(":business:videofeed:presentation"))
+    implementation(project(":business:videofeed:data"))
     implementation(project(":business:user:presentation"))
+    implementation(project(":business:user:data"))
+    implementation(project(":business:user:domain"))
     implementation(project(":business:search:presentation"))
     implementation(project(":business:ai:presentation"))
     implementation(project(":business:landscape:presentation"))
     implementation(project(":business:settings:presentation"))
-    
-    // Business modules - Data layers (for Hilt DI modules)
-    implementation(project(":business:videofeed:data"))
     implementation(project(":business:landscape:data"))
     implementation(project(":business:settings:data"))
-    implementation(project(":business:user:data"))
-    implementation(project(":business:search:data"))
     
     // Fragment
     implementation(libs.androidx.fragment.ktx)

@@ -17,15 +17,29 @@ USE `jeecg-boot3`;
 -- ============================================
 -- 1. 删除现有表（如果存在）
 -- ============================================
+DROP TABLE IF EXISTS beatu_watch_history;
+DROP TABLE IF EXISTS beatu_user_follows;
 DROP TABLE IF EXISTS beatu_metrics_interaction;
 DROP TABLE IF EXISTS beatu_metrics_playback;
 DROP TABLE IF EXISTS beatu_interactions;
 DROP TABLE IF EXISTS beatu_comments;
 DROP TABLE IF EXISTS beatu_videos;
+DROP TABLE IF EXISTS beatu_users;
 
--- ============================================
--- 2. 创建表结构
--- ============================================
+-- 用户信息表
+CREATE TABLE beatu_users (
+    id VARCHAR(64) PRIMARY KEY COMMENT '用户唯一ID',
+    nickname VARCHAR(100) NOT NULL COMMENT '昵称',
+    avatar VARCHAR(500) DEFAULT NULL COMMENT '头像地址',
+    bio VARCHAR(500) DEFAULT NULL COMMENT '个人简介',
+    followers BIGINT NOT NULL DEFAULT 0 COMMENT '粉丝数',
+    followings BIGINT NOT NULL DEFAULT 0 COMMENT '关注数',
+    likes_received BIGINT NOT NULL DEFAULT 0 COMMENT '累计获赞',
+    works_count BIGINT NOT NULL DEFAULT 0 COMMENT '作品数量',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_user_nickname (nickname)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户信息表';
 
 -- 视频信息表
 CREATE TABLE beatu_videos (
@@ -50,7 +64,8 @@ CREATE TABLE beatu_videos (
     
     INDEX idx_orientation_created (orientation, created_at DESC),
     INDEX idx_author_id (author_id),
-    INDEX idx_duration (duration_ms)
+    INDEX idx_duration (duration_ms),
+    FOREIGN KEY (author_id) REFERENCES beatu_users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='视频信息表';
 
 -- 评论表
@@ -87,8 +102,43 @@ CREATE TABLE beatu_interactions (
     UNIQUE KEY uk_video_user_type (user_id, video_id, type),
     UNIQUE KEY uk_author_user_type (user_id, author_id, type),
     INDEX idx_user_video (user_id, video_id),
-    FOREIGN KEY (video_id) REFERENCES beatu_videos(id) ON DELETE CASCADE
+    FOREIGN KEY (video_id) REFERENCES beatu_videos(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES beatu_users(id) ON DELETE CASCADE,
+    FOREIGN KEY (author_id) REFERENCES beatu_users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户互动表';
+
+-- 用户关注关系表
+CREATE TABLE beatu_user_follows (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    follower_id VARCHAR(64) NOT NULL COMMENT '粉丝ID',
+    followee_id VARCHAR(64) NOT NULL COMMENT '被关注用户ID',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '关注时间',
+    
+    UNIQUE KEY uk_follow_pair (follower_id, followee_id),
+    INDEX idx_followee (followee_id, created_at DESC),
+    INDEX idx_follower (follower_id, created_at DESC),
+    FOREIGN KEY (follower_id) REFERENCES beatu_users(id) ON DELETE CASCADE,
+    FOREIGN KEY (followee_id) REFERENCES beatu_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户关注关系表';
+
+-- 用户观看历史聚合表
+CREATE TABLE beatu_watch_history (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    user_id VARCHAR(64) NOT NULL COMMENT '用户ID',
+    video_id VARCHAR(64) NOT NULL COMMENT '视频ID',
+    last_watch_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '最近观看时间',
+    watch_count INT NOT NULL DEFAULT 1 COMMENT '累计观看次数',
+    last_seek_ms BIGINT NOT NULL DEFAULT 0 COMMENT '最近一次的播放进度',
+    last_duration_ms BIGINT NOT NULL DEFAULT 0 COMMENT '最近一次观看时长',
+    total_duration_ms BIGINT NOT NULL DEFAULT 0 COMMENT '累计观看时长',
+    completion_rate DOUBLE NOT NULL DEFAULT 0 COMMENT '最近一次播放完成度',
+    
+    UNIQUE KEY uk_user_video_history (user_id, video_id),
+    INDEX idx_history_user (user_id, last_watch_at DESC),
+    INDEX idx_history_video (video_id, last_watch_at DESC),
+    FOREIGN KEY (user_id) REFERENCES beatu_users(id) ON DELETE CASCADE,
+    FOREIGN KEY (video_id) REFERENCES beatu_videos(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户观看历史聚合表';
 
 -- 播放指标表
 CREATE TABLE beatu_metrics_playback (
@@ -117,6 +167,25 @@ CREATE TABLE beatu_metrics_interaction (
 -- ============================================
 -- 3. 插入示例数据
 -- ============================================
+
+-- 插入用户数据
+INSERT INTO beatu_users (
+    id, nickname, avatar, bio,
+    followers, followings, likes_received, works_count
+) VALUES
+('user_001', '云哥讲电影', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_001.jpg', '专注分享电影幕后故事', 1250000, 320, 3580000, 420),
+('user_002', '美食博主小美', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_002.jpg', '热爱厨房与旅行的美食记录者', 980000, 210, 2100000, 180),
+('user_003', '旅行摄影师', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_003.jpg', '记录世界的每一次日落', 560000, 120, 860000, 95),
+('user_004', '游戏解说员', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_004.jpg', '硬核玩法讲解', 450000, 160, 1200000, 150),
+('user_005', '电影爱好者', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_005.jpg', '每天一部好电影推荐', 300000, 200, 560000, 110),
+('user_006', '健身教练', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_006.jpg', '科学健身，拒绝瞎练', 750000, 180, 980000, 205),
+('user_007', '竖屏视频1', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_007.jpg', '生活方式记录者', 380000, 90, 420000, 88),
+('user_008', '评论用户1', NULL, '热爱互动的评论家', 13000, 58, 2800, 12),
+('user_009', '评论用户2', NULL, '喜欢分享观点', 9600, 32, 1500, 7),
+('user_010', '评论用户3', NULL, '影评爱好者', 7800, 25, 1180, 5),
+('user_011', '评论用户4', NULL, '旅行中', 5200, 18, 830, 3),
+('demo-user', 'BeatU 用户', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/demo_user.jpg', '客户端默认登录用户', 36, 58, 1200, 8),
+('ai_beatu', 'BeatU AI 助手', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/ai_beatu.jpg', '智能互动助手', 0, 0, 0, 0);
 
 -- 插入视频数据（根据 MockVideoCatalog.kt 中的 mock 数据）
 INSERT INTO beatu_videos (
@@ -349,6 +418,26 @@ INSERT INTO beatu_interactions (
 ('demo-user', NULL, 'user_001', 'FOLLOW_AUTHOR', NOW() - INTERVAL 5 DAY),
 ('demo-user', NULL, 'user_002', 'FOLLOW_AUTHOR', NOW() - INTERVAL 3 DAY),
 ('demo-user', NULL, 'user_003', 'FOLLOW_AUTHOR', NOW() - INTERVAL 2 DAY);
+
+-- 插入关注关系数据
+INSERT INTO beatu_user_follows (
+    follower_id, followee_id, created_at
+) VALUES
+('demo-user', 'user_001', NOW() - INTERVAL 5 DAY),
+('demo-user', 'user_002', NOW() - INTERVAL 3 DAY),
+('demo-user', 'user_003', NOW() - INTERVAL 2 DAY),
+('user_002', 'user_001', NOW() - INTERVAL 10 DAY),
+('user_003', 'user_002', NOW() - INTERVAL 8 DAY);
+
+-- 插入观看历史聚合数据
+INSERT INTO beatu_watch_history (
+    user_id, video_id, last_watch_at, watch_count, last_seek_ms,
+    last_duration_ms, total_duration_ms, completion_rate
+) VALUES
+('demo-user', 'video_0011', NOW() - INTERVAL 2 DAY, 3, 12000, 42000, 126000, 0.84),
+('demo-user', 'video_0012', NOW() - INTERVAL 1 DAY, 2, 8000, 30000, 60000, 0.65),
+('demo-user', 'video_007', NOW() - INTERVAL 3 DAY, 4, 0, 60000, 180000, 1.00),
+('user_002', 'video_002', NOW() - INTERVAL 4 DAY, 1, 5000, 45000, 45000, 0.50);
 
 -- 插入播放指标数据（示例）
 INSERT INTO beatu_metrics_playback (

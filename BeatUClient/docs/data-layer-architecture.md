@@ -27,12 +27,20 @@ Repository (仓储层) - 统一数据访问接口
 - `BeatUDatabase`: Room数据库主类
 - `VideoDao`: 视频数据访问对象
 - `CommentDao`: 评论数据访问对象
-- `InteractionStateDao`: 交互状态数据访问对象
+- `UserDao`: 用户数据访问对象
+- `UserVideoRelationDao`: 用户-作品关系 DAO
+- `UserFollowDao`: 用户关注关系 DAO（本地缓存后端 `beatu_user_follows`）
+- `UserInteractionDao`: 用户互动 DAO（本地缓存后端 `beatu_interactions`）
+- `WatchHistoryDao`: 观看历史 DAO（本地缓存后端 `beatu_watch_history`）
 
 **实体类**:
 - `VideoEntity`: 视频实体
 - `CommentEntity`: 评论实体
-- `InteractionStateEntity`: 交互状态实体
+- `UserEntity`: 用户实体
+- `UserVideoRelationEntity`: 用户-作品关系实体
+- `UserFollowEntity`: 用户关注关系实体
+- `UserInteractionEntity`: 用户互动实体（点赞/收藏/关注作者）
+- `WatchHistoryEntity`: 观看历史聚合实体
 
 **使用示例**:
 ```kotlin
@@ -130,7 +138,7 @@ Repository协调两个数据源：
         └─→ 获取最新数据并更新缓存
 ```
 
-### 使用示例
+### 使用示例：首页视频流「本地/Mock 先展示，远端异步刷新」
 
 ```kotlin
 @Inject lateinit var videoRepository: VideoRepository
@@ -141,15 +149,17 @@ viewModelScope.launch {
         .collect { result ->
             when (result) {
                 is AppResult.Loading -> {
-                    // 显示加载状态
+                    // 显示加载状态（首帧 shimmer 等）
                 }
                 is AppResult.Success -> {
-                    // 显示视频列表
+                    // 首先可能是本地缓存 / Mock，稍后会被远端最新数据刷新
                     val videos = result.data
+                    // 渲染视频列表
                 }
                 is AppResult.Error -> {
-                    // 显示错误信息
+                    // 所有兜底方案都失败时才会走到这里
                     val error = result.throwable
+                    // 显示错误信息 / 空态
                 }
             }
         }

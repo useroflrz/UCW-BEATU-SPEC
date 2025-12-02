@@ -173,6 +173,10 @@ object MockVideoCatalog {
         )
     )
 
+    /**
+     * 获取原始视频列表（用于生成用户数据等场景）
+     */
+    fun getPortraitVideos(): List<Video> = portraitVideos
 
     private val landscapeVideos: List<Video> = portraitVideos.map { template ->
         template.copy(

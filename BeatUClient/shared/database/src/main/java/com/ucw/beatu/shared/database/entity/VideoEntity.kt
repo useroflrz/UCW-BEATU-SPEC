@@ -18,9 +18,6 @@ data class VideoEntity(
     val commentCount: Long,
     val favoriteCount: Long,
     val shareCount: Long,
-    val viewCount: Long,
-    val isLiked: Boolean,
-    val isFavorited: Boolean,
-    val isFollowedAuthor: Boolean
+    val viewCount: Long
 )
 

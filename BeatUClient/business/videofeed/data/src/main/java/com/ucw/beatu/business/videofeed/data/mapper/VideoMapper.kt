@@ -29,9 +29,6 @@ fun VideoDto.toDomain(): Video {
         favoriteCount = favoriteCount,
         shareCount = shareCount,
         viewCount = viewCount,
-        isLiked = isLiked,
-        isFavorited = isFavorited,
-        isFollowedAuthor = isFollowedAuthor,
         createdAt = createdAt,
         updatedAt = updatedAt,
         contentType = contentType,
@@ -60,9 +57,6 @@ fun VideoEntity.toDomain(): Video {
         favoriteCount = favoriteCount,
         shareCount = shareCount,
         viewCount = viewCount,
-        isLiked = isLiked,
-        isFavorited = isFavorited,
-        isFollowedAuthor = isFollowedAuthor,
         createdAt = null,
         updatedAt = null,
         // 本地缓存当前不存储图文扩展字段，保持默认值
@@ -90,10 +84,7 @@ fun Video.toEntity(): VideoEntity {
         commentCount = commentCount,
         favoriteCount = favoriteCount,
         shareCount = shareCount,
-        viewCount = viewCount,
-        isLiked = isLiked,
-        isFavorited = isFavorited,
-        isFollowedAuthor = isFollowedAuthor
+        viewCount = viewCount
     )
 }
 

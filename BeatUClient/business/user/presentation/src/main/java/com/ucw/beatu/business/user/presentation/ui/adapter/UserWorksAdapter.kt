@@ -31,11 +31,31 @@ class UserWorksAdapter(
 
         fun bind(item: UserWorkUiModel, onVideoClick: (UserWorkUiModel) -> Unit) {
             val placeholderRes = R.drawable.ic_avatar_placeholder
-            thumbnail.load(item.thumbnailUrl ?: placeholderRes) {
-                crossfade(true)
-                placeholder(placeholderRes)
-                error(placeholderRes)
+            val thumbnailUrl = item.thumbnailUrl
+            
+            // 处理本地文件路径和网络URL
+            when {
+                thumbnailUrl.isNullOrBlank() -> {
+                    thumbnail.load(placeholderRes)
+                }
+                thumbnailUrl.startsWith("http://") || thumbnailUrl.startsWith("https://") -> {
+                    // 网络URL
+                    thumbnail.load(thumbnailUrl) {
+                        crossfade(true)
+                        placeholder(placeholderRes)
+                        error(placeholderRes)
+                    }
+                }
+                else -> {
+                    // 本地文件路径
+                    thumbnail.load(java.io.File(thumbnailUrl)) {
+                        crossfade(true)
+                        placeholder(placeholderRes)
+                        error(placeholderRes)
+                    }
+                }
             }
+            
             playCount.text = formatPlayCount(item.playCount)
             itemView.setOnClickListener { onVideoClick(item) }
         }

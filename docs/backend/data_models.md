@@ -62,6 +62,46 @@
 | `bio` | String | 个人简介 |
 | `followStatus` | Enum(`none`,`followed`,`mutual`) | 与当前用户关系 |
 
+### 6. User（后端持久化）
+
+| 字段 | 类型 | 约束 | 说明 |
+| --- | --- | --- | --- |
+| `id` | String | PK | 用户唯一 ID |
+| `nickname` | String | 非空 | 昵称 |
+| `avatar` | String | 可空 | 头像 URL |
+| `bio` | String | 可空 | 个人简介 |
+| `followings` | Long | 默认 0 | 关注数聚合 |
+| `likesReceived` | Long | 默认 0 | 获赞量 |
+| `worksCount` | Long | 默认 0 | 作品总数 |
+| `createdAt` / `updatedAt` | DateTime | 自动 | 记录时间 |
+
+### 7. UserFollow
+
+| 字段 | 类型 | 约束 | 说明 |
+| --- | --- | --- | --- |
+| `id` | Long | PK | 自增主键 |
+| `followerId` | String | FK -> User | 粉丝 ID |
+| `followeeId` | String | FK -> User | 被关注用户 ID |
+| `createdAt` | DateTime | 自动 | 关注时间 |
+
+> 业务上需要维持 `followerId + followeeId` 唯一索引，方便查询“我关注谁 / 谁关注我”。
+
+### 8. WatchHistory（用户观看历史聚合）
+
+| 字段 | 类型 | 约束 | 说明 |
+| --- | --- | --- | --- |
+| `id` | Long | PK | 自增主键 |
+| `userId` | String | FK -> User | 用户 ID |
+| `videoId` | String | FK -> Video | 视频 ID |
+| `lastWatchAt` | DateTime | 自动 | 最近观看时间 |
+| `watchCount` | Int | 默认 1 | 累计观看次数 |
+| `lastSeekMs` | Long | 默认 0 | 最近一次播放进度 |
+| `lastDurationMs` | Long | 默认 0 | 最近一次观看时长 |
+| `totalDurationMs` | Long | 默认 0 | 累计观看时长 |
+| `completionRate` | Double | 默认 0 | 最近一次的完成度，0~1 |
+
+> 该表按 `userId + videoId` 唯一，方便聚合查询“最近看过”、“播放历史”等模块，并提供播放进度同步能力。
+
 ### 6. InteractionState（本地缓存 & 观测）
 
 | 字段 | 类型 | 说明 |

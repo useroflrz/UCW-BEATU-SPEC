@@ -20,9 +20,6 @@ data class Video(
     val favoriteCount: Long,
     val shareCount: Long,
     val viewCount: Long,
-    val isLiked: Boolean,
-    val isFavorited: Boolean,
-    val isFollowedAuthor: Boolean,
     val createdAt: Long? = null,
     val updatedAt: Long? = null,
     // 后端用于混编图文的扩展字段：

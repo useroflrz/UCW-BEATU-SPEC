@@ -31,6 +31,9 @@
 执行完成后，可以运行以下查询验证数据：
 
 ```sql
+-- 查看用户数量
+SELECT COUNT(*) AS user_count FROM beatu_users;
+
 -- 查看视频数量
 SELECT COUNT(*) AS video_count FROM beatu_videos;
 
@@ -39,6 +42,12 @@ SELECT COUNT(*) AS comment_count FROM beatu_comments;
 
 -- 查看互动数据
 SELECT COUNT(*) AS interaction_count FROM beatu_interactions;
+
+-- 查看关注关系
+SELECT COUNT(*) AS follow_count FROM beatu_user_follows;
+
+-- 查看观看历史
+SELECT COUNT(*) AS watch_history_count FROM beatu_watch_history;
 
 -- 查看视频列表
 SELECT id, title, author_name, like_count, view_count FROM beatu_videos ORDER BY created_at DESC;
@@ -66,15 +75,19 @@ ORDER BY c.created_at DESC;
   - video_005: 电影片段
   - video_008: 科技评测
 
-### 用户数据（7个用户）
+### 用户数据
 
-- user_001: 音乐达人小王
-- user_002: 美食博主小美
-- user_003: 旅行摄影师
-- user_004: 游戏解说员
-- user_005: 电影爱好者
-- user_006: 健身教练
-- user_007: 科技评测师
+- `user_001` ~ `user_007`：与示例视频作者一致，包含头像、简介与统计信息
+- `demo-user`：客户端默认登录账号，便于联调
+- `ai_beatu`：AI 助手账号，供评论等场景引用
+
+### 关注关系
+
+- `beatu_user_follows` 提前写入 `demo-user`、`user_002`、`user_003` 等关注行为，用于驱动“关注”频道
+
+### 观看历史
+
+- `beatu_watch_history` 记录 `demo-user`、`user_002` 的历史观看聚合数据，可直接验证“历史记录/继续播放”接口
 
 ### 评论数据
 

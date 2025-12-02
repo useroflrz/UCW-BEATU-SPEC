@@ -7,11 +7,12 @@ import com.ucw.beatu.business.videofeed.domain.model.Video
 import com.ucw.beatu.business.videofeed.domain.repository.VideoRepository
 import com.ucw.beatu.shared.common.mock.MockVideoCatalog
 import com.ucw.beatu.shared.common.result.AppResult
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onStart
 import javax.inject.Inject
 
@@ -24,46 +25,62 @@ class VideoRepositoryImpl @Inject constructor(
     private val localDataSource: VideoLocalDataSource
 ) : VideoRepository {
 
-    override fun getVideoFeed(page: Int, limit: Int, orientation: String?): Flow<AppResult<List<Video>>> = flow {
-        // 优先从远程获取最新数据
-        val remoteResult = remoteDataSource.getVideoFeed(page, limit, orientation)
-        when (remoteResult) {
-            is AppResult.Success -> {
-                // 保存到本地缓存（仅第一页且没有orientation筛选）
+    override fun getVideoFeed(
+        page: Int,
+        limit: Int,
+        orientation: String?
+    ): Flow<AppResult<List<Video>>> = flow {
+        emit(AppResult.Loading) // 先通知 Loading
+
+        coroutineScope {
+            // 并行：本地 & 远端
+            val localDeferred = async {
                 if (page == 1 && orientation == null) {
-                    localDataSource.saveVideos(remoteResult.data)
+                    localDataSource.observeVideos(limit).firstOrNull() ?: emptyList()
+                } else {
+                    emptyList()
                 }
-                emit(remoteResult)
             }
-            is AppResult.Error -> {
-                // 远程失败时，尝试使用本地缓存
-                if (page == 1 && orientation == null) {
-                    val localVideos = localDataSource.observeVideos(limit).firstOrNull() ?: emptyList()
-                    if (localVideos.isNotEmpty()) {
-                        // 有本地缓存，使用缓存数据
-                        emit(AppResult.Success(localVideos))
-                        return@flow
-                    }
+
+            val remoteDeferred = async {
+                try {
+                    remoteDataSource.getVideoFeed(page, limit, orientation)
+                } catch (e: Exception) {
+                    AppResult.Error(e)   // ✅ 这里用 AppResult.Error(e)
                 }
-                
-                // 本地也没有数据，使用 Mock 数据兜底
-                val fallbackVideos = buildMockVideos(page, limit, orientation)
-                if (fallbackVideos.isNotEmpty()) {
-                    // 将 Mock 数据写入本地缓存（仅第一页且无 orientation 筛选），便于后续离线复用
+            }
+
+            val localVideos = localDeferred.await()
+            if (localVideos.isNotEmpty()) {
+                emit(AppResult.Success(localVideos)) // 先显示本地缓存
+            }
+
+            when (val remoteResult = remoteDeferred.await()) {
+                is AppResult.Success -> {
                     if (page == 1 && orientation == null) {
-                        localDataSource.saveVideos(fallbackVideos)
+                        localDataSource.saveVideos(remoteResult.data)
                     }
-                    emit(AppResult.Success(fallbackVideos))
-                    return@flow
+                    emit(remoteResult) // 用远程最新数据刷新
                 }
-                
-                // 所有降级方案都失败，返回错误
-                emit(remoteResult)
+                is AppResult.Error -> {
+                    if (localVideos.isEmpty()) {
+                        val fallbackVideos = buildMockVideos(page, limit, orientation)
+                        if (fallbackVideos.isNotEmpty()) {
+                            if (page == 1 && orientation == null) {
+                                localDataSource.saveVideos(fallbackVideos)
+                            }
+                            emit(AppResult.Success(fallbackVideos))
+                        } else {
+                            emit(remoteResult)
+                        }
+                    }
+                    // 本地已有数据时，静默失败
+                }
+                is AppResult.Loading -> emit(remoteResult)
             }
-            is AppResult.Loading -> emit(remoteResult)
         }
-    }.onStart { emit(AppResult.Loading) }
-        .catch { emit(AppResult.Error(it)) }
+    }.catch { emit(AppResult.Error(it)) }
+
 
     override suspend fun getVideoDetail(videoId: String): AppResult<Video> {
         // 先检查本地缓存
@@ -187,9 +204,6 @@ class VideoRepositoryImpl @Inject constructor(
                 favoriteCount = mock.favoriteCount.toLong(),
                 shareCount = mock.shareCount.toLong(),
                 viewCount = 0L,
-                isLiked = false,
-                isFavorited = false,
-                isFollowedAuthor = false,
                 createdAt = null,
                 updatedAt = null
             )

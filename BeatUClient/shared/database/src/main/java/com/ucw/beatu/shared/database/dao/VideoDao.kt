@@ -11,6 +11,20 @@ import kotlinx.coroutines.flow.Flow
 interface VideoDao {
     @Query("SELECT * FROM videos ORDER BY viewCount DESC LIMIT :limit")
     fun observeTopVideos(limit: Int): Flow<List<VideoEntity>>
+    //todo 后续结合表修改
+    @Query("""
+    SELECT * FROM videos
+    WHERE authorName = :authorName
+    ORDER BY viewCount DESC
+    LIMIT :limit
+    """)
+    fun observeVideosByAuthorName(authorName: String, limit: Int): Flow<List<VideoEntity>>
+    @Query("SELECT * FROM videos ORDER BY viewCount DESC LIMIT :limit")
+    fun observeFavoritedVideos(limit: Int): Flow<List<VideoEntity>>
+    @Query("SELECT * FROM videos ORDER BY viewCount DESC LIMIT :limit")
+    fun observeLikedVideos(limit: Int): Flow<List<VideoEntity>>
+    @Query("SELECT * FROM videos ORDER BY viewCount DESC LIMIT :limit")
+    fun observeHistoryVideos(limit: Int): Flow<List<VideoEntity>>
 
     @Query("SELECT * FROM videos WHERE id = :id LIMIT 1")
     suspend fun getVideoById(id: String): VideoEntity?
@@ -23,6 +37,9 @@ interface VideoDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(item: VideoEntity)
+
+    @Query("UPDATE videos SET coverUrl = :coverUrl WHERE id = :id")
+    suspend fun updateCoverUrl(id: String, coverUrl: String)
 
     @Query("DELETE FROM videos")
     suspend fun clear()

@@ -130,7 +130,8 @@ class UserProfileFragment : Fragment() {
         // 初始化并加载用户数据
         viewModel.initMockData(userId)
         viewModel.loadUser(userId)
-        viewModel.observeUserWorks(userId)
+        // 默认加载"作品"标签的数据
+        viewModel.switchTab(UserProfileViewModel.TabType.WORKS, userId)
     }
 
     /**
@@ -333,16 +334,16 @@ class UserProfileFragment : Fragment() {
         updateTabState(tabWorks, true)
         
         // 设置点击监听
-        tabWorks.setOnClickListener { switchTab(it as TextView, 0) }
-        tabCollections.setOnClickListener { switchTab(it as TextView, 1) }
-        tabLikes.setOnClickListener { switchTab(it as TextView, 2) }
-        tabHistory.setOnClickListener { switchTab(it as TextView, 3) }
+        tabWorks.setOnClickListener { switchTab(it as TextView, UserProfileViewModel.TabType.WORKS) }
+        tabCollections.setOnClickListener { switchTab(it as TextView, UserProfileViewModel.TabType.COLLECTIONS) }
+        tabLikes.setOnClickListener { switchTab(it as TextView, UserProfileViewModel.TabType.LIKES) }
+        tabHistory.setOnClickListener { switchTab(it as TextView, UserProfileViewModel.TabType.HISTORY) }
     }
     
     /**
      * 切换标签
      */
-    private fun switchTab(tab: TextView, index: Int) {
+    private fun switchTab(tab: TextView, tabType: UserProfileViewModel.TabType) {
         if (selectedTab == tab) return
 
         // 更新之前选中的标签
@@ -352,8 +353,8 @@ class UserProfileFragment : Fragment() {
         selectedTab = tab
         updateTabState(tab, true)
 
-        // 当前阶段所有 Tab 都展示同一份作品数据，复用当前列表
-        // 列表由 observeViewModel() 负责驱动，这里无需额外处理
+        // 切换 ViewModel 的数据源
+        viewModel.switchTab(tabType, userId)
     }
     
     /**

@@ -12,6 +12,21 @@ interface UserWorksRepository {
      */
     fun observeUserWorks(userId: String, limit: Int = DEFAULT_LIMIT): Flow<List<UserWork>>
 
+    /**
+     * 订阅收藏的视频列表
+     */
+    fun observeFavoritedWorks(limit: Int = DEFAULT_LIMIT): Flow<List<UserWork>>
+
+    /**
+     * 订阅点赞的视频列表
+     */
+    fun observeLikedWorks(limit: Int = DEFAULT_LIMIT): Flow<List<UserWork>>
+
+    /**
+     * 订阅播放历史的视频列表
+     */
+    fun observeHistoryWorks(limit: Int = DEFAULT_LIMIT): Flow<List<UserWork>>
+
     companion object {
         const val DEFAULT_LIMIT = 30
     }

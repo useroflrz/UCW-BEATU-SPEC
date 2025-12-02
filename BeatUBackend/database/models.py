@@ -23,6 +23,39 @@ from sqlalchemy.orm import declarative_base, relationship
 Base = declarative_base()
 
 
+class User(Base):
+    __tablename__ = "beatu_users"
+
+    id = Column(String(64), primary_key=True)
+    nickname = Column(String(100), nullable=False)
+    avatar = Column(String(500))
+    bio = Column(Text)
+    gender = Column(Enum("UNKNOWN", "MALE", "FEMALE", name="user_gender"), nullable=False, default="UNKNOWN")
+    province = Column(String(64))
+    city = Column(String(64))
+    followers = Column(BigInteger, nullable=False, default=0)
+    followings = Column(BigInteger, nullable=False, default=0)
+    likes_received = Column(BigInteger, nullable=False, default=0)
+    works_count = Column(BigInteger, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    videos = relationship("Video", back_populates="author", cascade="all, delete-orphan")
+    followers = relationship(
+        "UserFollow",
+        foreign_keys="UserFollow.followee_id",
+        cascade="all, delete-orphan",
+        back_populates="followee",
+    )
+    following = relationship(
+        "UserFollow",
+        foreign_keys="UserFollow.follower_id",
+        cascade="all, delete-orphan",
+        back_populates="follower",
+    )
+    watch_histories = relationship("WatchHistory", back_populates="user", cascade="all, delete-orphan")
+
+
 class Video(Base):
     __tablename__ = "beatu_videos"
 
@@ -33,7 +66,7 @@ class Video(Base):
     tags = Column(JSON, default=list)
     duration_ms = Column(BigInteger, nullable=False, default=0)
     orientation = Column(Enum("PORTRAIT", "LANDSCAPE", name="video_orientation"), nullable=False, default="PORTRAIT")
-    author_id = Column(String(64), nullable=False, index=True)
+    author_id = Column(String(64), ForeignKey("beatu_users.id"), nullable=False, index=True)
     author_name = Column(String(100), nullable=False)
     author_avatar = Column(String(500))
     like_count = Column(BigInteger, nullable=False, default=0)
@@ -46,6 +79,8 @@ class Video(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     comments = relationship("Comment", back_populates="video", cascade="all, delete-orphan")
+    author = relationship("User", back_populates="videos")
+    watch_histories = relationship("WatchHistory", back_populates="video", cascade="all, delete-orphan")
 
 
 class Comment(Base):
@@ -73,9 +108,9 @@ class Interaction(Base):
     __tablename__ = "beatu_interactions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(String(64), nullable=False, index=True)
+    user_id = Column(String(64), ForeignKey("beatu_users.id"), nullable=False, index=True)
     video_id = Column(String(64), ForeignKey("beatu_videos.id"))
-    author_id = Column(String(64))
+    author_id = Column(String(64), ForeignKey("beatu_users.id"))
     type = Column(
         Enum("LIKE", "FAVORITE", "FOLLOW_AUTHOR", name="interaction_type"),
         nullable=False,
@@ -83,6 +118,8 @@ class Interaction(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     video = relationship("Video")
+    user = relationship("User", foreign_keys=[user_id])
+    author = relationship("User", foreign_keys=[author_id])
 
     __table_args__ = (
         UniqueConstraint("user_id", "video_id", "type", name="uniq_user_video_type"),
@@ -112,6 +149,39 @@ class InteractionMetric(Base):
     latency_ms = Column(BigInteger)
     success = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class UserFollow(Base):
+    __tablename__ = "beatu_user_follows"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    follower_id = Column(String(64), ForeignKey("beatu_users.id"), nullable=False)
+    followee_id = Column(String(64), ForeignKey("beatu_users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    follower = relationship("User", foreign_keys=[follower_id], back_populates="following")
+    followee = relationship("User", foreign_keys=[followee_id], back_populates="followers")
+
+    __table_args__ = (UniqueConstraint("follower_id", "followee_id", name="uniq_follow_pair"),)
+
+
+class WatchHistory(Base):
+    __tablename__ = "beatu_watch_history"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(64), ForeignKey("beatu_users.id"), nullable=False, index=True)
+    video_id = Column(String(64), ForeignKey("beatu_videos.id"), nullable=False, index=True)
+    last_watch_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    watch_count = Column(Integer, default=1, nullable=False)
+    last_seek_ms = Column(BigInteger, default=0, nullable=False)
+    last_duration_ms = Column(BigInteger, default=0, nullable=False)
+    total_duration_ms = Column(BigInteger, default=0, nullable=False)
+    completion_rate = Column(Float, default=0.0, nullable=False)
+
+    user = relationship("User", back_populates="watch_histories")
+    video = relationship("Video", back_populates="watch_histories")
+
+    __table_args__ = (UniqueConstraint("user_id", "video_id", name="uniq_watch_history"),)
 
 
 def serialize_json_field(value: Optional[list | dict], fallback):
