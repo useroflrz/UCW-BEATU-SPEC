@@ -7,7 +7,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.os.BundleCompat
 import androidx.core.os.bundleOf
-import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -32,7 +31,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-class VideoItemFragment : Fragment() {
+class VideoItemFragment : BaseFeedItemFragment() {
 
     companion object {
         private const val TAG = "VideoItemFragment"
@@ -279,52 +278,6 @@ class VideoItemFragment : Fragment() {
         }
     }
     
-    /**
-     * 检查可见性并在需要时暂停：如果 View 不在屏幕上可见则暂停
-     */
-    private fun checkVisibilityAndPauseIfNeeded() {
-        if (!isViewVisibleOnScreen() && hasPreparedPlayer) {
-            viewModel.pause()
-            Log.d(TAG, "Video not visible on screen in onResume, paused")
-        }
-    }
-    
-    /**
-     * 检测 View 是否真正在屏幕上可见
-     * 使用 getGlobalVisibleRect 来检测 View 是否在屏幕范围内
-     */
-    private fun isViewVisibleOnScreen(): Boolean {
-        val view = view ?: return false
-        if (!isAdded || !isVisible || view.visibility != View.VISIBLE) {
-            return false
-        }
-        
-        // 检查 View 是否在屏幕上可见
-        val rect = android.graphics.Rect()
-        val isVisible = view.getGlobalVisibleRect(rect)
-        
-        if (!isVisible) {
-            return false
-        }
-        
-        // 检查可见区域是否足够大（至少 10% 可见）
-        val viewArea = view.width * view.height
-        val visibleArea = rect.width() * rect.height()
-        val visibilityRatio = if (viewArea > 0) {
-            visibleArea.toFloat() / viewArea.toFloat()
-        } else {
-            0f
-        }
-        
-        val isSignificantlyVisible = visibilityRatio >= 0.1f
-        
-        if (!isSignificantlyVisible) {
-            Log.d(TAG, "View visibility ratio too low: $visibilityRatio")
-        }
-        
-        return isSignificantlyVisible
-    }
-
     private fun startPlaybackIfNeeded(forcePrepare: Boolean = false) {
         if (!isAdded || videoItem == null) {
             Log.w(TAG, "Fragment not ready, skip startPlayback")

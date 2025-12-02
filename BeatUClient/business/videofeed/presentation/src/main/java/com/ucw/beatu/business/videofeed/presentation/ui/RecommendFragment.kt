@@ -151,7 +151,7 @@ class RecommendFragment : Fragment() {
                 viewModel.uiState.collect { state ->
                     if (state.videoList.isNotEmpty()) {
                         val hasInitialData = (adapter?.itemCount ?: 0) == 0
-                        adapter?.updateVideoList(state.videoList)
+                        adapter?.updateVideoList(state.videoList, state.hasLoadedAllFromBackend)
 
                         // ✅ 修复：先处理状态恢复，再处理刷新
                         pendingRestoreIndex?.let { target ->

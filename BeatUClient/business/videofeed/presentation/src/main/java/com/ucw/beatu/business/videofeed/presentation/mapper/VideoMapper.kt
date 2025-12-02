@@ -28,10 +28,13 @@ fun Video.toVideoItem(): VideoItem {
             "landscape", "horizontal" -> VideoOrientation.LANDSCAPE
             else -> VideoOrientation.PORTRAIT
         },
-        // 默认仍按视频处理；后续如果后端提供 contentType/imageUrls/bgmUrl，可在此处映射
-        type = FeedContentType.VIDEO,
-        imageUrls = emptyList(),
-        bgmUrl = null
+        // 根据后端的 contentType 和 imageUrls/bgmUrl 决定是视频还是图文卡片
+        type = when (contentType?.uppercase()) {
+            "IMAGE_POST" -> FeedContentType.IMAGE_POST
+            else -> if (imageUrls.isNotEmpty()) FeedContentType.IMAGE_POST else FeedContentType.VIDEO
+        },
+        imageUrls = imageUrls,
+        bgmUrl = bgmUrl
     )
 }
 

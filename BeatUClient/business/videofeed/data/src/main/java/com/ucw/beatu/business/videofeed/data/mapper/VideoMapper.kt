@@ -33,7 +33,10 @@ fun VideoDto.toDomain(): Video {
         isFavorited = isFavorited,
         isFollowedAuthor = isFollowedAuthor,
         createdAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        contentType = contentType,
+        imageUrls = imageUrls ?: emptyList(),
+        bgmUrl = bgmUrl
     )
 }
 
@@ -61,7 +64,11 @@ fun VideoEntity.toDomain(): Video {
         isFavorited = isFavorited,
         isFollowedAuthor = isFollowedAuthor,
         createdAt = null,
-        updatedAt = null
+        updatedAt = null,
+        // 本地缓存当前不存储图文扩展字段，保持默认值
+        contentType = null,
+        imageUrls = emptyList(),
+        bgmUrl = null
     )
 }
 

@@ -195,9 +195,75 @@ class VideoService:
                     is_favorited=interaction_map.get(f"{video.id}:FAVORITE", False),
                     is_followed_author=follow_map.get(video.author_id, False),
                     qualities=parse_quality_list(video.qualities) or [],
+                    # 现有表中仅存储视频内容，统一标记为 VIDEO；图文卡片在后续注入时单独构造
+                    contentType="VIDEO",
+                    imageUrls=[],
+                    bgmUrl=None,
                 )
             )
         return items
+
+    def build_mixed_feed(self, *, page: int, items: List[VideoItem]) -> List[VideoItem]:
+        """
+        根据页码对视频流做“图文+视频”混编：
+        - 当前实现：在每一页的开头插入一条静态图文+BGM 卡片，便于前端体验图文页。
+        - 后续如接入真实图文数据，可改为从数据库/推荐系统读取。
+        """
+        if not items:
+            return items
+
+        # 当前实现：将数据库中的视频列表视为一个“块”，并为每一页构造一条图文+BGM，
+        # 然后在当前页范围内随机插入这条图文，以达到“随机混编”的效果。
+        #
+        # 后续如果有真实图文数据，可以扩展为针对多条图文做随机插入/洗牌。
+        from random import Random
+
+        rng = Random()
+        rng.seed(page)
+
+        mixed: List[VideoItem] = list(items)
+        image_post = self._create_mock_image_post(page)
+
+        # 在 [0, len(mixed)] 区间内随机选择插入位置（包括尾部）
+        insert_index = rng.randint(0, len(mixed))
+        mixed.insert(insert_index, image_post)
+        return mixed
+
+    def _create_mock_image_post(self, index: int) -> VideoItem:
+        """
+        构造一条示例“图文+音乐”内容，由后端统一注入到推荐流中。
+        说明：
+        - id 以 image_post_mock_{index} 区分不同页的示例卡片
+        - play_url 虽然必填，但在 IMAGE_POST 下前端不会使用，只要是合法 URL 即可
+        """
+        return VideoItem(
+            id=f"image_post_mock_{index}",
+            play_url="https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+            cover_url="https://images.pexels.com/photos/572897/pexels-photo-572897.jpeg",
+            title=f"这是一个图文+BGM 示例（第 {index} 段，由后端注入）",
+            tags=[],
+            duration_ms=0,
+            orientation="portrait",
+            author_id="beatu-official",
+            author_name="BeatU 官方",
+            author_avatar=None,
+            like_count=1314,
+            comment_count=99,
+            favorite_count=520,
+            share_count=66,
+            view_count=0,
+            is_liked=False,
+            is_favorited=False,
+            is_followed_author=False,
+            qualities=[],
+            contentType="IMAGE_POST",
+            imageUrls=[
+                "https://images.pexels.com/photos/572897/pexels-photo-572897.jpeg",
+                "https://images.pexels.com/photos/210186/pexels-photo-210186.jpeg",
+                "https://images.pexels.com/photos/1103970/pexels-photo-1103970.jpeg",
+            ],
+            bgmUrl="https://samplelib.com/lib/preview/mp3/sample-6s.mp3",
+        )
 
 
 

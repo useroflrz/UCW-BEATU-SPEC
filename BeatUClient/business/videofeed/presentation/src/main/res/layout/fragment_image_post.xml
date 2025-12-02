@@ -154,7 +154,7 @@
                     android:textColor="#FFFFFFFF" />
             </LinearLayout>
 
-            <!-- 点赞 -->
+            <!-- 点赞（与视频页保持完全一致的图标与样式） -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -166,7 +166,7 @@
                     android:id="@+id/iv_like"
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:src="@drawable/ic_interaction_like"
+                    android:src="@drawable/selector_like"
                     android:tint="#FFFFFFFF"
                     android:contentDescription="点赞" />
 
@@ -179,7 +179,7 @@
                     android:textColor="#FFFFFFFF" />
             </LinearLayout>
 
-            <!-- 分享 -->
+            <!-- 分享（与视频页保持一致） -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -204,7 +204,7 @@
                     android:textColor="#FFFFFFFF" />
             </LinearLayout>
 
-            <!-- 收藏 -->
+            <!-- 收藏（与视频页保持一致） -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -216,7 +216,7 @@
                     android:id="@+id/iv_favorite"
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:src="@drawable/ic_interaction_favorite"
+                    android:src="@drawable/selector_favorite"
                     android:tint="#FFFFFFFF"
                     android:contentDescription="收藏" />
 
@@ -229,7 +229,7 @@
                     android:textColor="#FFFFFFFF" />
             </LinearLayout>
 
-            <!-- 评论 -->
+            <!-- 评论（与视频页保持一致） -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -240,7 +240,7 @@
                     android:id="@+id/iv_comment"
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:src="@drawable/ic_interaction_comment"
+                    android:src="@drawable/selector_comment"
                     android:tint="#FFFFFFFF"
                     android:contentDescription="评论" />
 

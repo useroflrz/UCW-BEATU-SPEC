@@ -17,13 +17,28 @@ import com.ucw.beatu.business.videofeed.presentation.ui.VideoItemFragment
  */
 class VideoFeedAdapter(
     parentFragment: Fragment,
-    private var videoList: MutableList<VideoItem> = mutableListOf()
+    private var videoList: MutableList<VideoItem> = mutableListOf(),
+    /**
+     * 是否已经把后端所有分页数据加载完：
+     * - true：Adapter 以“无限循环”模式工作，getItemCount 返回一个很大的值
+     * - false：Adapter 只展示当前已加载的真实数量
+     */
+    private var hasLoadedAllFromBackend: Boolean = false
 ) : FragmentStateAdapter(parentFragment) {
 
-    override fun getItemCount(): Int = videoList.size
+    override fun getItemCount(): Int {
+        if (videoList.isEmpty()) return 0
+        // 当后端所有页都加载完后，通过一个非常大的 itemCount + 取模来实现“无限刷”
+        return if (hasLoadedAllFromBackend) {
+            Int.MAX_VALUE
+        } else {
+            videoList.size
+        }
+    }
 
     override fun createFragment(position: Int): Fragment {
-        val videoItem = videoList[position]
+        val safeIndex = if (videoList.isEmpty()) 0 else position % videoList.size
+        val videoItem = videoList[safeIndex]
         return if (videoItem.type == FeedContentType.IMAGE_POST) {
             ImagePostFragment.newInstance(videoItem)
         } else {
@@ -34,25 +49,28 @@ class VideoFeedAdapter(
     /**
      * 更新视频列表
      */
-    fun updateVideoList(newList: List<VideoItem>) {
+    fun updateVideoList(newList: List<VideoItem>, hasLoadedAll: Boolean) {
         videoList.clear()
         videoList.addAll(newList)
+        hasLoadedAllFromBackend = hasLoadedAll
         notifyDataSetChanged()
     }
 
     /**
      * 在列表开头添加视频（用于下拉刷新）
      */
-    fun prependVideos(newVideos: List<VideoItem>) {
+    fun prependVideos(newVideos: List<VideoItem>, hasLoadedAll: Boolean) {
         videoList.addAll(0, newVideos)
+        hasLoadedAllFromBackend = hasLoadedAll
         notifyDataSetChanged()
     }
 
     /**
      * 在列表末尾添加视频（用于上拉加载更多）
      */
-    fun appendVideos(newVideos: List<VideoItem>) {
+    fun appendVideos(newVideos: List<VideoItem>, hasLoadedAll: Boolean) {
         videoList.addAll(newVideos)
+        hasLoadedAllFromBackend = hasLoadedAll
         notifyDataSetChanged()
     }
 

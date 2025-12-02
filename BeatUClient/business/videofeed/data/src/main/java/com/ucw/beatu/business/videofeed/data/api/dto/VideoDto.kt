@@ -31,5 +31,11 @@ data class VideoDto(
     @Json(name = "createdAt") val createdAt: Long? = null,
     @Json(name = "updatedAt") val updatedAt: Long? = null
     // 注意：qualities 字段在后端存在但客户端暂不使用，Moshi 会自动忽略未知字段
+    ,
+    // Feed 内容类型：VIDEO / IMAGE_POST
+    @Json(name = "contentType") val contentType: String? = null,
+    // 图文卡片专用字段
+    @Json(name = "imageUrls") val imageUrls: List<String>? = null,
+    @Json(name = "bgmUrl") val bgmUrl: String? = null
 )
 

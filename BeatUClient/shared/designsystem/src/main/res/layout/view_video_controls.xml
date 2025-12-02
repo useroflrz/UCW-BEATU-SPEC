@@ -106,14 +106,15 @@
         </LinearLayout>
 
         <!-- 红色层：进度条容器（位于绿色层和蓝色层之间） -->
+        <!-- 将进度条宽度统一与底部互动区保持一致：整体左右内边距 16dp，由父布局提供；
+             这里不再额外裁切 paddingEnd，保证与图文页的 page_progress 同宽。 -->
         <LinearLayout
             android:id="@+id/layout_seek_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="center_horizontal"
-            android:layout_marginTop="4dp"
-            android:paddingEnd="96dp">
+            android:layout_marginTop="4dp">
 
             <TextView
                 android:id="@+id/tv_progress_time"

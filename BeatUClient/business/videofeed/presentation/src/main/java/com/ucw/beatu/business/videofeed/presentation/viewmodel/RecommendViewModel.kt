@@ -21,15 +21,17 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * 推荐页 ViewModel
- * 管理视频列表、播放器生命周期和状态
- */
 data class RecommendUiState(
     val videoList: List<VideoItem> = emptyList(),
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    /**
+     * 是否已经把后端的视频页全部加载完：
+     * - true：不再向后端请求更多数据，前端在已有列表中做“无限循环”
+     * - false：滑到尾部仍会继续向后端要下一页
+     */
+    val hasLoadedAllFromBackend: Boolean = false
 )
 
 @HiltViewModel
@@ -74,18 +76,17 @@ class RecommendViewModel @Inject constructor(
                         }
                         is AppResult.Success -> {
                             val videos = result.data.map { it.toVideoItem() }
-                            // 在第一页顶部插入一条静态图文+BGM，用于体验“图文+音乐”效果
-                            val mixed = mutableListOf<VideoItem>()
-                            mixed.add(createMockImagePost(1))
-                            mixed.addAll(videos)
+                            // 如果第一页数量不足 pageSize，可以直接认为后端数据已经加载完
+                            val hasLoadedAll = videos.size < pageSize
                             android.util.Log.d("RecommendViewModel", "loadVideoList: Success, loaded ${videos.size} videos")
                             videos.forEachIndexed { index, video ->
                                 android.util.Log.d("RecommendViewModel", "Video[$index]: id=${video.id}, url=${video.videoUrl}, title=${video.title}")
                             }
                             _uiState.value = _uiState.value.copy(
-                                videoList = mixed,
+                                videoList = videos,
                                 isLoading = false,
-                                error = null
+                                error = null,
+                                hasLoadedAllFromBackend = hasLoadedAll
                             )
                         }
                         is AppResult.Error -> {
@@ -122,13 +123,12 @@ class RecommendViewModel @Inject constructor(
                         }
                         is AppResult.Success -> {
                             val videos = result.data.map { it.toVideoItem() }
-                            val mixed = mutableListOf<VideoItem>()
-                            mixed.add(createMockImagePost(1))
-                            mixed.addAll(videos)
+                            val hasLoadedAll = videos.size < pageSize
                             _uiState.value = _uiState.value.copy(
-                                videoList = mixed,
+                                videoList = videos,
                                 isRefreshing = false,
-                                error = null
+                                error = null,
+                                hasLoadedAllFromBackend = hasLoadedAll
                             )
                         }
                         is AppResult.Error -> {
@@ -147,8 +147,8 @@ class RecommendViewModel @Inject constructor(
      */
     fun loadMoreVideos() {
         viewModelScope.launch {
-            // 避免重复加载
-            if (_uiState.value.isLoading) return@launch
+            // 避免重复加载；如果已经确认后端没有更多数据，则直接走前端“无限循环”逻辑，不再请求
+            if (_uiState.value.isLoading || _uiState.value.hasLoadedAllFromBackend) return@launch
             
             currentPage++
             getFeedUseCase(currentPage, pageSize)
@@ -167,18 +167,23 @@ class RecommendViewModel @Inject constructor(
                             val moreVideos = result.data.map { it.toVideoItem() }
                             val currentList = _uiState.value.videoList.toMutableList()
 
-                            // 从第二页开始，每一页也插入一条图文+BGM 内容，
-                            // 让用户在“无限刷视频”的过程中持续刷到图文卡片，而不是只在第一页看到一次
-                            val mixedMore = mutableListOf<VideoItem>()
-                            mixedMore.add(createMockImagePost(currentPage))
-                            mixedMore.addAll(moreVideos)
-
-                            currentList.addAll(mixedMore)
-
-                            _uiState.value = _uiState.value.copy(
-                                videoList = currentList,
-                                error = null
-                            )
+                            // 如果此次没有再返回新数据，说明后端所有页已经加载完
+                            if (moreVideos.isEmpty()) {
+                                _uiState.value = _uiState.value.copy(
+                                    videoList = currentList,
+                                    error = null,
+                                    hasLoadedAllFromBackend = true
+                                )
+                                return@collect
+                            } else {
+                                currentList.addAll(moreVideos)
+                                val hasLoadedAll = moreVideos.size < pageSize
+                                _uiState.value = _uiState.value.copy(
+                                    videoList = currentList,
+                                    error = null,
+                                    hasLoadedAllFromBackend = hasLoadedAll
+                                )
+                            }
                         }
                         is AppResult.Error -> {
                             currentPage-- // 回退页码

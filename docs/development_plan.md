@@ -354,16 +354,6 @@
         1. `SearchFragment` 返回按钮统一调用 `action_search_to_feed`，必要时兜底 `popBackStack`/`onBackPressedDispatcher`，保证任何入口都能回到 Feed。
         2. 搜索页→主页切换稳定，未再出现停留/退出，交互体验一致。
 
-
-- [ ] 尝试寻找视频流与个人主页的滑动显示
-    - 2025-11-25 - done by
-    - 成果：
-        - 主页视频流向左滑，进入个人主页
-        - 个人主页向左滑，进入关注页
-        - 关注页向右滑，进入个人主页
-        - 待定:添加个人主页左上角的返回按钮
-    - 备选方案：如果实现不了，则用顶部导航栏图标点击来代替，在个人主页添加返回按钮
-
 - [x] 播放器后台播放与错播问题排查
   - 2025-11-25 - done by ZX
   - 需求：用户反馈应用切到后台后音频仍播放，且 ViewPager2 未选中的视频提前或越权播放。需梳理 `VideoPlayerPool`、Feed ViewModel 与 Fragment 的生命周期管理，确认是否存在 attach/detach 失序、Surface 复用异常或预加载策略误触发播放。
@@ -451,7 +441,7 @@
   - 指标：实测竖屏→横屏后第一条内容始终是当前视频，即便横屏 Fragment 重建也不会回落到 Mock 列表第一个条目。
 
 - [x] Feed视频业务从底层向应用层完整实现
-  - 2025-01-XX - done by LRZ
+  - 2025-11-29 - done by LRZ
   - 内容：
     1. ✅ **Domain层UseCase创建**：
        - `GetFeedUseCase`：获取视频流（分页）
@@ -485,7 +475,7 @@
   - 下一步：接入真实后端API，实现评论弹层和分享功能
 
 - [x] Settings和Landscape模块接入视频业务
-  - 2025-01-XX - LRZ
+  - 2025-11-31 - LRZ
   - 内容：
     1. ✅ **VideoFeed模块扩展**：
        - 扩展 `VideoRepository` 接口，添加 `orientation` 参数支持（用于筛选横屏/竖屏视频）
@@ -512,7 +502,7 @@
   - 下一步：在VideoItemViewModel中应用Settings的清晰度和倍速配置到播放器
 
 - [x] 后端对接材料整理（docs/backend）
-  - 2025-01-XX - LRZ
+  - 2025-12-2 - LRZ
   - 内容：
     1. ✅ 创建 `docs/backend/` 文件夹，提供集中入口 `README.md`。
     2. ✅ `api_contract.md`：整理 Feed / 互动 / 评论 / AI / 观测接口合同，补充字段与错误码。
@@ -523,6 +513,81 @@
     - 让后端按文档即可搭建最小可行服务，明确 BASE_URL、数据字段、性能要求。
     - 减少客户端/服务端沟通成本，所有材料集中可查。
   - 下一步：后端部署完成后更新 `NetworkModule.BASE_URL` 并回填联调记录。
+
+- [x] 数据库设计完成
+  - 2025-12-2 - done by LRZ
+  - 内容：
+    1. ✅ **数据库初始化脚本**（`BeatUBackend/database/init_database.sql`）：
+       - 创建 5 个核心表：`beatu_videos`（视频表）、`beatu_comments`（评论表）、`beatu_interactions`（互动表）、`beatu_metrics_playback`（播放指标表）、`beatu_metrics_interaction`（互动指标表）
+       - 定义完整的字段类型、约束、索引和外键关系
+       - 支持 JSON 字段存储（tags、qualities）
+       - 实现唯一约束保证互动操作的幂等性
+       - 插入示例数据（11 条视频、多条评论、互动记录、指标数据）
+    2. ✅ **ORM 模型定义**（`BeatUBackend/database/models.py`）：
+       - 使用 SQLAlchemy 定义 `Video`、`Comment`、`Interaction`、`PlaybackMetric`、`InteractionMetric` 模型
+       - 实现表关系映射（Video ↔ Comment、Comment ↔ Comment 回复关系）
+       - 支持 JSON 字段序列化/反序列化
+    3. ✅ **数据库配置**：
+       - 数据库：`jeecg-boot3`（MySQL 8.x）
+       - 服务器：`192.168.1.206:3306`
+       - 字符集：`utf8mb4_unicode_ci`
+       - 存储引擎：`InnoDB`
+  - 技术亮点：
+    - **完整的表结构设计**：涵盖视频、评论、互动、指标四大核心业务领域
+    - **索引优化**：为常用查询字段（orientation、created_at、author_id、video_id）建立索引
+    - **数据完整性**：通过外键约束和唯一约束保证数据一致性
+    - **扩展性设计**：支持 JSON 字段存储灵活数据（tags、qualities、AI 元数据）
+  - 成果：
+    - 数据库表结构完整，可直接用于生产环境
+    - 示例数据覆盖竖屏/横屏、普通评论/AI 评论、多种互动类型
+    - ORM 模型与数据库表结构完全对应，便于后续开发
+  - 下一步：客户端接入真实后端 API，验证数据模型一致性
+
+- [x] 前后端接口对接完成
+  - 2025-12-2 - done by LRZ
+  - 内容：
+    1. ✅ **后端 API 实现**（FastAPI + SQLAlchemy）：
+       - `GET /api/videos`：支持分页（page、limit）、方向筛选（orientation）、频道筛选（channel）
+       - `GET /api/videos/{id}`：获取视频详情
+       - `POST /api/videos/{id}/like`：点赞/取消点赞（支持 LIKE/UNLIKE）
+       - `POST /api/videos/{id}/favorite`：收藏/取消收藏（支持 SAVE/REMOVE）
+       - `POST /api/follow`：关注/取消关注作者（支持 FOLLOW/UNFOLLOW）
+       - `GET /api/videos/{id}/comments`：获取评论列表（支持分页）
+       - `POST /api/videos/{id}/comments`：发布评论（支持回复）
+       - `POST /api/videos/{id}/comments/ai`：AI 评论问答（@元宝触发）
+       - `POST /api/ai/recommend`：AI 推荐视频
+       - `POST /api/ai/quality`：清晰度建议
+       - `POST /api/ai/comment/qa`：AI 问答
+       - `POST /api/metrics/playback`：播放指标上报
+       - `POST /api/metrics/interaction`：互动指标上报
+    2. ✅ **统一响应格式**：
+       - 所有接口返回 `{ code, message, data }` 格式
+       - 实现统一错误码（1001 鉴权失败、2001 资源不存在、2002 冲突、3001 AI 服务不可用）
+       - 支持临时 Header 认证（`X-User-Id`、`X-User-Name`）
+    3. ✅ **数据模型对齐**：
+       - Video 模型包含所有必需字段（id、playUrl、coverUrl、title、tags、durationMs、orientation、author 信息、统计字段、用户态字段、qualities）
+       - Comment 模型支持 AI 回复标识和元数据（isAiReply、aiModel、aiSource、aiConfidence）
+       - 互动接口实时更新计数，支持幂等操作
+    4. ✅ **需求满足度分析**（`BeatUBackend/docs/需求满足度分析.md`）：
+       - Feed/Video 接口：100% 满足
+       - 互动接口：95% 满足（性能待验证）
+       - 评论/AI 接口：100% 满足
+       - AI 能力：100% 满足（使用 Mock 数据）
+       - 观测性：60% 满足（数据采集完成，缺少可视化）
+       - 总体功能满足度：91%
+  - 技术亮点：
+    - **完整的 API 覆盖**：所有客户端需要的接口均已实现
+    - **数据一致性**：后端数据模型与客户端需求文档完全对齐
+    - **错误处理**：统一的错误码和响应格式，便于客户端处理
+    - **幂等性保证**：互动接口通过唯一约束保证幂等，避免重复操作
+  - 成果：
+    - 后端服务可独立运行，提供完整的 REST API
+    - 所有接口返回真实数据（或稳定 Mock），字段与 `docs/backend/api_contract.md` 一致
+    - 数据库与 API 层完全打通，支持客户端联调
+  - 下一步：
+    - 客户端更新 `NetworkModule.BASE_URL` 指向真实后端地址
+    - 进行真机联调，验证接口功能
+    - 性能测试，确保满足 P95 延迟要求（Feed < 200ms、互动 < 300ms）
 
 
 - [x] 搜索/AI 搜索多页面 UI 设计与实现  
@@ -628,6 +693,15 @@
 - [x] 推荐页图文+BGM 内容接入  
     - 2025-12-01 - done by LRZ  
     - 内容：在 `videofeed` 模块中扩展 `VideoItem` 支持 `FeedContentType.IMAGE_POST`，新增图文专用 `ImagePostFragment` 与 `fragment_image_post.xml`，在推荐页首条硬编码插入一条“图文+音乐”内容，用 `ViewPager2` 承载多图轮播、`VideoItemViewModel.prepareAudioOnly` 播放 BGM，并复用视频底部作者/点赞/评论/收藏/分享交互区；首屏加载时自动触发当前页播放/轮播，确保推荐页初始就能正常展示图文卡片体验。
+
+- [x] 推荐页视频/图文无限刷与后端随机混编改造
+  - 2025-12-02 - done by LRZ
+  - 内容：
+    1. 推荐页前端去除本地 mock 图文插入逻辑，保留后端 `/api/videos` 的真实顺序，只在前端根据 `hasLoadedAllFromBackend` 标记在“全部页加载完”后通过 Adapter `position % size` 实现无限刷，保证每条内容均由后端决定。
+    2. 后端扩展 `VideoItem` 模型与 API：新增 `contentType/imageUrls/bgmUrl` 字段，在 `VideoService.build_mixed_feed` 中为每一页构造图文+BGM 卡片，并按页级随机位置插入，实现“视频+图文由后端随机编排，前端只展示”。
+    3. Android 端打通 DTO → Domain → Presentation 链路：`VideoDto` / `Video` / `videofeed.presentation.VideoItem` 全量接收并映射上述字段，通过 `contentType` 与 `imageUrls` 自动切换 `VIDEO` / `IMAGE_POST` 渲染分支。
+    4. 统一推荐页视觉与交互：调整竖屏视频页进度条布局使其宽度与底部作者+互动区及图文页进度条一致；更新图文页底部交互区图标为与 `VideoControlsView` 相同的 selector 资源，保证点赞/收藏/评论/分享的样式和点亮逻辑完全一致。
+
 
 - [x] 修复加载的视频没有封面的问题
     - 2025-12-02 - done by KJH

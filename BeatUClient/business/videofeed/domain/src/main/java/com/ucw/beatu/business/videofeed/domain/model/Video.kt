@@ -24,6 +24,13 @@ data class Video(
     val isFavorited: Boolean,
     val isFollowedAuthor: Boolean,
     val createdAt: Long? = null,
-    val updatedAt: Long? = null
+    val updatedAt: Long? = null,
+    // 后端用于混编图文的扩展字段：
+    // - contentType: VIDEO / IMAGE_POST
+    // - imageUrls: 图文场景下的多张图片
+    // - bgmUrl: 图文或视频的 BGM
+    val contentType: String? = null,
+    val imageUrls: List<String> = emptyList(),
+    val bgmUrl: String? = null
 )
 

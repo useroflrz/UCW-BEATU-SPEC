@@ -45,6 +45,14 @@ class VideoItem(APIModel):
     is_favorited: bool = False
     is_followed_author: bool = False
     qualities: List[VideoQuality] = Field(default_factory=list)
+    # Feed 内容类型：
+    # - VIDEO：常规短视频（有画面+声音）
+    # - IMAGE_POST：图文+音乐（多张图片轮播 + 背景音乐，仅音频播放）
+    content_type: str = Field(default="VIDEO", alias="contentType")
+    # 图文卡片专用字段：多张图片地址
+    image_urls: List[AnyHttpUrl] = Field(default_factory=list, alias="imageUrls")
+    # 图文+BGM 或视频自定义 BGM 的音频地址
+    bgm_url: AnyHttpUrl | None = Field(default=None, alias="bgmUrl")
 
 
 class Pagination(APIModel):

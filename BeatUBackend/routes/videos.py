@@ -54,12 +54,14 @@ def list_videos(
         channel=channel,
         user_id=user_id,
     )
+    # 后端统一负责对推荐流做“图文+视频”混编
+    mixed_items = service.build_mixed_feed(page=data.page, items=data.items)
     # 使用新的create方法生成包含pageSize等字段的响应
     response_data = VideoList.create(
-        items=data.items,
+        items=mixed_items,
         total=data.total,
         page=data.page,
-        limit=data.limit
+        limit=data.limit,
     )
     return success_response(response_data.dict(by_alias=True))
 
