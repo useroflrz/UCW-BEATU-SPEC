@@ -25,51 +25,40 @@ class VideoRepositoryImpl @Inject constructor(
 ) : VideoRepository {
 
     override fun getVideoFeed(page: Int, limit: Int, orientation: String?): Flow<AppResult<List<Video>>> = flow {
-        // 如果是第一页且没有orientation筛选，先尝试从本地获取并发送
-        if (page == 1 && orientation == null) {
-            val localVideos = localDataSource.observeVideos(limit).firstOrNull() ?: emptyList()
-            if (localVideos.isNotEmpty()) {
-                emit(AppResult.Success(localVideos))
-            }
-        }
-
-        // 从远程获取最新数据
+        // 优先从远程获取最新数据
         val remoteResult = remoteDataSource.getVideoFeed(page, limit, orientation)
         when (remoteResult) {
             is AppResult.Success -> {
-                // 保存到本地缓存（仅第一页且没有orientation筛选），并异步生成缩略图
+                // 保存到本地缓存（仅第一页且没有orientation筛选）
                 if (page == 1 && orientation == null) {
                     localDataSource.saveVideos(remoteResult.data)
-                    localDataSource.enqueueThumbnailGeneration(remoteResult.data)
                 }
                 emit(remoteResult)
             }
             is AppResult.Error -> {
-                // 先判断本地是否已经有数据（用于第一页无 orientation 的场景）
-                val hasLocalData = if (page == 1 && orientation == null) {
-                    localDataSource.observeVideos(limit).firstOrNull()?.isNotEmpty() == true
-                } else {
-                    false
-                }
-
-                if (!hasLocalData) {
-                    // ✅ 服务降级：远程失败且本地没有可用数据时，使用 MockVideoCatalog 兜底
-                    val fallbackVideos = buildMockVideos(page, limit, orientation)
-                    if (fallbackVideos.isNotEmpty()) {
-                        // 将 Mock 数据写入本地缓存（仅第一页且无 orientation 筛选），便于后续离线复用
-                        if (page == 1 && orientation == null) {
-                            localDataSource.saveVideos(fallbackVideos)
-                            localDataSource.enqueueThumbnailGeneration(fallbackVideos)
-                        }
-                        emit(AppResult.Success(fallbackVideos))
+                // 远程失败时，尝试使用本地缓存
+                if (page == 1 && orientation == null) {
+                    val localVideos = localDataSource.observeVideos(limit).firstOrNull() ?: emptyList()
+                    if (localVideos.isNotEmpty()) {
+                        // 有本地缓存，使用缓存数据
+                        emit(AppResult.Success(localVideos))
                         return@flow
                     }
                 }
 
-                // 如果有本地数据或 Mock 也不可用，则保留原有错误降级逻辑
-                if (page != 1 || localDataSource.observeVideos(limit).firstOrNull()?.isEmpty() != false) {
-                    emit(remoteResult)
+                // 本地也没有数据，使用 Mock 数据兜底
+                val fallbackVideos = buildMockVideos(page, limit, orientation)
+                if (fallbackVideos.isNotEmpty()) {
+                    // 将 Mock 数据写入本地缓存（仅第一页且无 orientation 筛选），便于后续离线复用
+                    if (page == 1 && orientation == null) {
+                        localDataSource.saveVideos(fallbackVideos)
+                    }
+                    emit(AppResult.Success(fallbackVideos))
+                    return@flow
                 }
+
+                // 所有降级方案都失败，返回错误
+                emit(remoteResult)
             }
             is AppResult.Loading -> emit(remoteResult)
         }

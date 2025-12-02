@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 后端服务基础URL -->
+    <!-- 开发环境：本地开发服务器地址 -->
+    <!-- 生产环境：生产服务器地址 -->
+    <string name="base_url">http://192.168.1.181:9306/</string>
+    
+    <!-- 网络超时配置（秒） -->
+    <integer name="connect_timeout_seconds">15</integer>
+    <integer name="read_timeout_seconds">15</integer>
+    <integer name="write_timeout_seconds">15</integer>
+    
+    <!-- 是否启用网络日志（开发环境建议开启，生产环境建议关闭） -->
+    <bool name="enable_network_logging">true</bool>
+</resources>
+

@@ -1,0 +1,36 @@
+package com.ucw.beatu.business.user.data.api
+
+import com.ucw.beatu.business.user.data.api.dto.UserDto
+import com.ucw.beatu.shared.common.api.ApiResponse
+import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.Path
+
+/**
+ * 用户API服务接口
+ * 连接后端服务的用户相关API端点定义
+ */
+interface UserApiService {
+
+    /**
+     * 获取用户信息
+     * GET /api/users/{id}
+     */
+    @GET("api/users/{id}")
+    suspend fun getUserById(@Path("id") userId: String): ApiResponse<UserDto>
+
+    /**
+     * 关注用户
+     * POST /api/users/{id}/follow
+     */
+    @POST("api/users/{id}/follow")
+    suspend fun followUser(@Path("id") userId: String): ApiResponse<Unit>
+
+    /**
+     * 取消关注用户
+     * POST /api/users/{id}/unfollow
+     */
+    @POST("api/users/{id}/unfollow")
+    suspend fun unfollowUser(@Path("id") userId: String): ApiResponse<Unit>
+}
+

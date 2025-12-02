@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 生产环境配置 -->
+    <!-- 后端服务基础URL -->
+    <string name="base_url">https://api.beatu.com/</string>
+    
+    <!-- 网络超时配置（秒） -->
+    <integer name="connect_timeout_seconds">15</integer>
+    <integer name="read_timeout_seconds">15</integer>
+    <integer name="write_timeout_seconds">15</integer>
+    
+    <!-- 生产环境关闭网络日志 -->
+    <bool name="enable_network_logging">false</bool>
+</resources>
+
