@@ -436,6 +436,10 @@ class LandscapeVideoItemFragment : Fragment() {
         unlockButton?.setOnClickListener {
             if (isBrightnessAdjusting) return@setOnClickListener
             unlockScreen()
+            // 解锁后，短暂展示控制面板 1 秒，便于用户确认状态
+            hideControlPanelHandler.removeCallbacks(hideControlPanelRunnable)
+            showControlPanel()
+            hideControlPanelHandler.postDelayed(hideControlPanelRunnable, 1000L)
         }
 
         brightnessButton?.setOnTouchListener { v, event ->

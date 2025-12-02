@@ -134,6 +134,14 @@
   - 需求：实机调试中，`com.ucw.beatu` 进程在播放过程中多次输出 `DKMediaNative/JNI FfmExtractor av_read_frame reached eof AVERROR_EOF`，随后出现大量 `IPCThreadState Binder transaction failure ... error: -1 (Operation not permitted)`，最终 App 闪退。需分析日志触发条件，定位是否为播放器 EOF 处理异常、Binder 调用滥用或权限受限导致，并给出修复方案。  
   - 结论：横屏播放页手势调节音量调用 `AudioManager.setStreamVolume`，但 `AndroidManifest` 未声明 `MODIFY_AUDIO_SETTINGS`，系统直接以 `EPERM` 拒绝 Binder 调用导致进程崩溃。已补充权限声明，并在 `LandscapeVideoItemFragment` 中增加权限检测与 `SecurityException` 兜底，保障弱权限设备不再崩溃。  
   - 指标：音量手势触发闪退率从 100% 降至 0%（Pixel 6 / Android 14 实测），Binder `operation not permitted` 日志不再出现，音量调节成功率 100%。
+- [x] 横屏音量手势实现 & 文档对齐  
+  - 2025-12-02 - done by ZX  
+  - 内容：在 `LandscapeVideoItemFragment` 中将右侧音量长按手势与亮度实现对齐，并同步更新文档（`docs/interaction_icons_api.md` 与 `docs/requirements.md`）说明：  
+    1. 右侧“音量”按钮长按一段时间后，按钮隐藏，原位置浮现带圆角的垂直音量条（喇叭图标 + 百分比文案），锁屏按钮保持原有位置不变；  
+    2. 手指保持按住并上下滑动时，音量条始终可见，仅根据滑动距离实时调整系统媒体音量与指示条填充高度（通过累积步进与 `VOLUME_SENSITIVITY` 控制手感，使滑动约 1/3 屏幕高度即可实现从静音到最大音量的可感知变化）；  
+    3. 音量调节期间，全局手势被“锁定”为音量调整：单击/双击、亮度手势、进度滑动以及所有按钮点击全部被屏蔽，防止误触；  
+    4. 松手后立即解除音量锁定，但音量条继续保留约 1 秒后自动收起并恢复按钮显示；  
+    5. 视觉样式与亮度条保持统一（相同尺寸、背景、渐变填充和百分比文字），仅图标与实际调节对象不同。
 
 - [x] 个人主页与搜索页的 XML 文件与 Kotlin 文件绘制
     - 2025-11-22 - KJH

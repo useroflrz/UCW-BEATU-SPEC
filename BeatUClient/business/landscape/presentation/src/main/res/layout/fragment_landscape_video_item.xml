@@ -373,18 +373,19 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- 解锁按钮（锁屏时显示） -->
+    <!-- 解锁按钮（锁屏时显示，位置与右侧锁屏按钮对齐，大小一致） -->
     <ImageButton
         android:id="@+id/btn_unlock"
-        android:layout_width="64dp"
-        android:layout_height="64dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:src="@drawable/selector_screen_unlock"
         android:scaleType="centerInside"
-        android:padding="16dp"
+        android:padding="12dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         app:tint="#FFFFFF"
         android:contentDescription="解锁"
-        android:layout_gravity="center"
+        android:layout_gravity="end|center_vertical"
+        android:layout_marginEnd="16dp"
         android:visibility="gone" />
 
 </FrameLayout>
