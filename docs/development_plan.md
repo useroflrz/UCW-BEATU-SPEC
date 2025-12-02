@@ -121,9 +121,14 @@
 - [x] 竖/横屏交互图标接口文档  
   - 2025-12-01 - done by ZX  
   - 内容：在 `docs/interaction_icons_api.md` 统一描述竖屏 `VideoControlsView` 与横屏 `LandscapeVideoItemFragment` 的点赞/收藏/评论/分享交互事件、UseCase/Repository 契约、API 接口与降级策略，供后续业务层接入真实后端时参考。
-- [x] 横屏亮度手势文档补充 & bug 记录  
+- [x] 横屏亮度手势实现 & 文档对齐  
   - 2025-12-02 - done by ZX  
-  - 内容：在 `docs/interaction_icons_api.md` 新增“亮度长按手势”段落，说明长按亮度按钮调节屏幕亮度、椭圆进度条的可视化效果，以及已知问题“上下拖动偶发触发 ViewPager2 滑动（待修复）”。
+  - 内容：在 `LandscapeVideoItemFragment` 中完整实现右侧亮度长按手势，并同步更新文档（`docs/interaction_icons_api.md` 与 `docs/requirements.md`/交互说明）以对齐最新逻辑：  
+    1. 右侧“亮度”按钮长按一段时间后，按钮隐藏，原位置浮现带圆角的垂直亮度条（包含太阳图标与百分比文案）；  
+    2. 进入亮度模式期间，只要手指仍接触屏幕且上下滑动，亮度条始终保持可见，按滑动距离实时调整 `screenBrightness` 与指示条填充高度；  
+    3. 亮度调节中全局手势被“锁定”为亮度调整：单击/双击、进度滑动、音量手势以及各类按钮点击全部被屏蔽，防止误触；  
+    4. 手指松开后立即解除亮度锁定，但亮度条会继续保留约 1 秒后自动收起并恢复按钮显示；  
+    5. 调整亮度灵敏度系数（`BRIGHTNESS_SENSITIVITY`），避免“滑很大范围才变一点”的粘滞感问题，使在大约 1/3 屏幕高度的滑动范围内即可实现从暗到亮的可感知变化。
 - [x] BeatUClient 闪退 & Binder Transaction Failure 排查  
   - 2025-11-24 - done by GPT-5.1 Codex  
   - 需求：实机调试中，`com.ucw.beatu` 进程在播放过程中多次输出 `DKMediaNative/JNI FfmExtractor av_read_frame reached eof AVERROR_EOF`，随后出现大量 `IPCThreadState Binder transaction failure ... error: -1 (Operation not permitted)`，最终 App 闪退。需分析日志触发条件，定位是否为播放器 EOF 处理异常、Binder 调用滥用或权限受限导致，并给出修复方案。  

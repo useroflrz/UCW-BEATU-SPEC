@@ -52,6 +52,8 @@ class LandscapeVideoItemFragment : Fragment() {
         private const val ARG_VIDEO_ITEM = "video_item"
         private const val CONTROL_PANEL_AUTO_HIDE_DELAY = 3000L // 3秒后自动隐藏
         private const val SEEK_SENSITIVITY = 0.01f // 进度调节灵敏度
+        private const val BRIGHTNESS_SENSITIVITY = 1.2f // 亮度调节灵敏度（值越大越灵敏）
+        private const val VOLUME_SENSITIVITY = 1.2f // 音量调节灵敏度（值越大越灵敏）
         private val LIKE_ACTIVE_COLOR = 0xFFFF4D4F.toInt()
         private val FAVORITE_ACTIVE_COLOR = 0xFFFFD700.toInt()
         private val ICON_INACTIVE_COLOR = 0xFFFFFFFF.toInt()
@@ -96,16 +98,37 @@ class LandscapeVideoItemFragment : Fragment() {
     private var brightnessButton: ImageButton? = null
     private var volumeButton: ImageButton? = null
     private var brightnessIndicator: FrameLayout? = null
-    private var volumeIndicator: LinearLayout? = null
+    private var volumeIndicator: FrameLayout? = null
     private var brightnessProgress: View? = null
     private var volumeProgress: View? = null
     private var brightnessPercentText: TextView? = null
+    private var volumePercentText: TextView? = null
     private var audioManager: AudioManager? = null
     private var windowManager: WindowManager? = null
     private val brightnessLongPressHandler = Handler(Looper.getMainLooper())
     private val brightnessLongPressRunnable = Runnable { startBrightnessAdjustment() }
+    // 亮度条隐藏延迟处理：手指松开后等待一段时间再恢复按钮
+    private val brightnessHideHandler = Handler(Looper.getMainLooper())
+    private val brightnessHideRunnable = Runnable {
+        hideBrightnessIndicator()
+        disallowParentIntercept(false)
+        setParentPagingEnabled(true)
+    }
     private var isBrightnessButtonPressed = false
     private var lastBrightnessDragY = 0f
+
+    // 音量长按与隐藏控制
+    private val volumeLongPressHandler = Handler(Looper.getMainLooper())
+    private val volumeLongPressRunnable = Runnable { startVolumeAdjustment() }
+    private val volumeHideHandler = Handler(Looper.getMainLooper())
+    private val volumeHideRunnable = Runnable {
+        hideVolumeIndicator()
+        disallowParentIntercept(false)
+        setParentPagingEnabled(true)
+    }
+    private var isVolumeButtonPressed = false
+    private var lastVolumeDragY = 0f
+    private var pendingVolumeDelta = 0f
 
     // 进度条相关
     private var seekIndicator: LinearLayout? = null
@@ -186,6 +209,7 @@ class LandscapeVideoItemFragment : Fragment() {
         brightnessProgress = view.findViewById(R.id.brightness_progress)
         brightnessPercentText = view.findViewById(R.id.tv_brightness_percent)
         volumeProgress = view.findViewById(R.id.volume_progress)
+        volumePercentText = view.findViewById(R.id.tv_volume_percent)
 
         seekIndicator = view.findViewById(R.id.seek_indicator)
         seekTimeText = view.findViewById(R.id.tv_seek_time)
@@ -211,33 +235,40 @@ class LandscapeVideoItemFragment : Fragment() {
     private fun initGestureDetector() {
         gestureDetector = GestureDetector(requireContext(), object : GestureDetector.SimpleOnGestureListener() {
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-                if (!latestControlsState.isLocked) {
-                    toggleControlPanel()
+                // 亮度调节进行中时，屏蔽点击切换控制面板
+                if (isBrightnessAdjusting || latestControlsState.isLocked) {
+                    return true
                 }
+                toggleControlPanel()
                 return true
             }
 
             override fun onDoubleTap(e: MotionEvent): Boolean {
-                if (!latestControlsState.isLocked) {
-                    viewModel.togglePlayPause()
+                // 亮度调节进行中时，屏蔽双击播放/暂停
+                if (isBrightnessAdjusting || latestControlsState.isLocked) {
+                    return true
                 }
+                viewModel.togglePlayPause()
                 return true
             }
 
             override fun onLongPress(e: MotionEvent) {
-                if (!latestControlsState.isLocked) {
-                    // 屏幕中央长按进入2倍速
-                    val viewWidth = rootView?.width ?: 0
-                    val viewHeight = rootView?.height ?: 0
-                    val centerX = viewWidth / 2f
-                    val centerY = viewHeight / 2f
-                    val tolerance = 100f
+                // 亮度调节进行中或锁屏时，不触发中心长按倍速
+                if (isBrightnessAdjusting || latestControlsState.isLocked) {
+                    return
+                }
 
-                    if (abs(e.x - centerX) < tolerance && abs(e.y - centerY) < tolerance) {
-                        speedBeforeBoost = latestControlsState.currentSpeed
-                        viewModel.setSpeed(2.0f)
-                        speedButton?.text = formatSpeedLabel(2.0f)
-                    }
+                // 屏幕中央长按进入2倍速
+                val viewWidth = rootView?.width ?: 0
+                val viewHeight = rootView?.height ?: 0
+                val centerX = viewWidth / 2f
+                val centerY = viewHeight / 2f
+                val tolerance = 100f
+
+                if (abs(e.x - centerX) < tolerance && abs(e.y - centerY) < tolerance) {
+                    speedBeforeBoost = latestControlsState.currentSpeed
+                    viewModel.setSpeed(2.0f)
+                    speedButton?.text = formatSpeedLabel(2.0f)
                 }
             }
         })
@@ -253,6 +284,33 @@ class LandscapeVideoItemFragment : Fragment() {
                 return@setOnTouchListener false
             }
 
+            // 亮度 / 音量调节中：全局只处理对应手势，其它交互全部屏蔽
+            if (isBrightnessAdjusting || isVolumeAdjusting) {
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_MOVE -> {
+                        if (isBrightnessAdjusting) {
+                            val delta = event.rawY - lastBrightnessDragY
+                            lastBrightnessDragY = event.rawY
+                            adjustBrightness(delta)
+                        } else if (isVolumeAdjusting) {
+                            val delta = event.rawY - lastVolumeDragY
+                            lastVolumeDragY = event.rawY
+                            adjustVolume(delta)
+                        }
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        // 手指离开屏幕后，结束当前调节，1秒后恢复按钮
+                        if (isBrightnessAdjusting) {
+                            cancelBrightnessTouch()
+                        }
+                        if (isVolumeAdjusting) {
+                            cancelVolumeTouch()
+                        }
+                    }
+                }
+                return@setOnTouchListener true
+            }
+
             gestureDetector?.onTouchEvent(event)
 
             when (event.action) {
@@ -262,31 +320,12 @@ class LandscapeVideoItemFragment : Fragment() {
                     isHorizontalSwipe = false
                     isVerticalSwipe = false
                     isSeeking = false
-
-                    volumeButton?.let { btn ->
-                        val location = IntArray(2)
-                        btn.getLocationOnScreen(location)
-                        val btnX = event.rawX
-                        val btnY = event.rawY
-                        if (btnX >= location[0] && btnX <= location[0] + btn.width &&
-                            btnY >= location[1] && btnY <= location[1] + btn.height) {
-                            isVolumeAdjusting = true
-                            showVolumeIndicator()
-                            return@setOnTouchListener true
-                        }
-                    }
                 }
 
                 MotionEvent.ACTION_MOVE -> {
                     val deltaX = abs(event.x - touchStartX)
                     val deltaY = abs(event.y - touchStartY)
                     val touchSlop = ViewConfiguration.get(requireContext()).scaledTouchSlop
-
-                    // 音量调节
-                    if (isVolumeAdjusting) {
-                        adjustVolume(event.y - touchStartY)
-                        return@setOnTouchListener true
-                    }
 
                     // 判断滑动方向
                     if (!isHorizontalSwipe && !isVerticalSwipe) {
@@ -345,48 +384,57 @@ class LandscapeVideoItemFragment : Fragment() {
     private fun setupButtonClickListeners(view: View) {
         // 旋转/退出全屏
         rotateButton?.setOnClickListener {
+            if (isBrightnessAdjusting) return@setOnClickListener
             exitLandscape()
         }
 
         // 点赞
         likeButton?.setOnClickListener {
+            if (isBrightnessAdjusting) return@setOnClickListener
             toggleLike()
         }
 
         // 收藏
         favoriteButton?.setOnClickListener {
+            if (isBrightnessAdjusting) return@setOnClickListener
             toggleFavorite()
         }
 
         // 评论
         commentButton?.setOnClickListener {
+            if (isBrightnessAdjusting) return@setOnClickListener
             // TODO: 打开评论浮层
             Log.d(TAG, "评论按钮点击")
         }
 
         // 分享
         shareButton?.setOnClickListener {
+            if (isBrightnessAdjusting) return@setOnClickListener
             // TODO: 打开分享浮层
             Log.d(TAG, "分享按钮点击")
         }
 
         // 倍速
         speedButton?.setOnClickListener {
+            if (isBrightnessAdjusting) return@setOnClickListener
             showSpeedMenu()
         }
 
         // 清晰度
         qualityButton?.setOnClickListener {
+            if (isBrightnessAdjusting) return@setOnClickListener
             showQualityMenu()
         }
 
         // 锁屏
         lockButton?.setOnClickListener {
+            if (isBrightnessAdjusting) return@setOnClickListener
             lockScreen()
         }
 
         // 解锁
         unlockButton?.setOnClickListener {
+            if (isBrightnessAdjusting) return@setOnClickListener
             unlockScreen()
         }
 
@@ -401,7 +449,9 @@ class LandscapeVideoItemFragment : Fragment() {
                 }
                 MotionEvent.ACTION_MOVE -> {
                     if (!isBrightnessButtonPressed) return@setOnTouchListener false
-                    if (!isTouchInsideView(v, event.rawX, event.rawY)) {
+                    // 亮度调节开始后，允许手指离开按钮区域在附近滑动
+                    if (!isBrightnessAdjusting && !isTouchInsideView(v, event.rawX, event.rawY)) {
+                        // 在长按触发前移出按钮区域则取消本次亮度调节
                         cancelBrightnessTouch()
                         return@setOnTouchListener true
                     }
@@ -413,8 +463,54 @@ class LandscapeVideoItemFragment : Fragment() {
                     }
                     true
                 }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                MotionEvent.ACTION_UP -> {
+                    // 手指从亮度按钮抬起（仍在按钮区域内）
                     cancelBrightnessTouch()
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    // 事件被系统取消：停止长按检测，但不立即隐藏亮度条
+                    brightnessLongPressHandler.removeCallbacks(brightnessLongPressRunnable)
+                    isBrightnessButtonPressed = false
+                    true
+                }
+                else -> false
+            }
+        }
+
+        volumeButton?.setOnTouchListener { v, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    touchStartY = event.rawY
+                    lastVolumeDragY = event.rawY
+                    isVolumeButtonPressed = true
+                    scheduleVolumeLongPress()
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (!isVolumeButtonPressed) return@setOnTouchListener false
+                    // 音量调节开始前，如果手指移出按钮区域则取消本次调节
+                    if (!isVolumeAdjusting && !isTouchInsideView(v, event.rawX, event.rawY)) {
+                        cancelVolumeTouch()
+                        return@setOnTouchListener true
+                    }
+                    if (isVolumeAdjusting) {
+                        val delta = event.rawY - lastVolumeDragY
+                        lastVolumeDragY = event.rawY
+                        adjustVolume(delta)
+                        return@setOnTouchListener true
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    // 手指从音量按钮抬起（仍在按钮区域内）
+                    cancelVolumeTouch()
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    // 事件被系统取消：停止长按检测，但不立即隐藏音量条
+                    volumeLongPressHandler.removeCallbacks(volumeLongPressRunnable)
+                    isVolumeButtonPressed = false
                     true
                 }
                 else -> false
@@ -454,26 +550,41 @@ class LandscapeVideoItemFragment : Fragment() {
 
     private fun scheduleHideControlPanel() {
         hideControlPanelHandler.removeCallbacks(hideControlPanelRunnable)
+        // 亮度调节中不自动隐藏控制面板，否则会把亮度条一起隐藏掉
+        if (isBrightnessAdjusting) return
         hideControlPanelHandler.postDelayed(hideControlPanelRunnable, CONTROL_PANEL_AUTO_HIDE_DELAY)
     }
 
     // ========== 亮度调节 ==========
 
     private fun showBrightnessIndicator() {
+        // 隐藏按钮，显示亮度条
+        brightnessButton?.visibility = View.GONE
         brightnessIndicator?.visibility = View.VISIBLE
         brightnessIndicator?.post { updateBrightnessIndicator() }
+        // 进入亮度调节时，确保控制面板保持可见，取消自动隐藏
+        hideControlPanelHandler.removeCallbacks(hideControlPanelRunnable)
+        controlPanel?.visibility = View.VISIBLE
+        controlPanelVisible = true
     }
 
     private fun hideBrightnessIndicator() {
+        // 显示按钮，隐藏亮度条
+        brightnessButton?.visibility = View.VISIBLE
         brightnessIndicator?.visibility = View.GONE
         brightnessPercentText?.text = ""
+        brightnessPercentText?.visibility = View.GONE
     }
 
     private fun adjustBrightness(deltaY: Float) {
         val window = requireActivity().window
         val layoutParams = window.attributes
 
-        val brightnessChange = -deltaY / (rootView?.height ?: 1) * 0.5f
+        // 根据手指在屏幕上的相对滑动距离调节亮度
+        // 公式：滑动距离 / 屏幕高度 * 灵敏度
+        // BRIGHTNESS_SENSITIVITY 越大，调节越灵敏
+        val viewHeight = (rootView?.height ?: 1).toFloat()
+        val brightnessChange = (-deltaY / viewHeight) * BRIGHTNESS_SENSITIVITY
         val currentBrightness = getCurrentBrightness()
         val newBrightness = (currentBrightness + brightnessChange).coerceIn(MIN_SCREEN_BRIGHTNESS, MAX_SCREEN_BRIGHTNESS)
         layoutParams.screenBrightness = newBrightness
@@ -494,7 +605,11 @@ class LandscapeVideoItemFragment : Fragment() {
             params?.gravity = Gravity.BOTTOM
             brightnessProgress?.layoutParams = params
         }
+        
+        // 更新百分比文字（仅在调节时显示）
         brightnessPercentText?.text = "$progress%"
+        brightnessPercentText?.visibility = View.VISIBLE
+        
         brightnessProgress?.requestLayout()
     }
 
@@ -514,6 +629,14 @@ class LandscapeVideoItemFragment : Fragment() {
         )
     }
 
+    private fun scheduleVolumeLongPress() {
+        volumeLongPressHandler.removeCallbacks(volumeLongPressRunnable)
+        volumeLongPressHandler.postDelayed(
+            volumeLongPressRunnable,
+            ViewConfiguration.getLongPressTimeout().toLong()
+        )
+    }
+
     private fun startBrightnessAdjustment() {
         if (!isBrightnessButtonPressed || isBrightnessAdjusting) return
         isBrightnessAdjusting = true
@@ -527,10 +650,34 @@ class LandscapeVideoItemFragment : Fragment() {
         brightnessLongPressHandler.removeCallbacks(brightnessLongPressRunnable)
         isBrightnessButtonPressed = false
         if (isBrightnessAdjusting) {
+            // 已经在亮度调节模式：手指松开后不立即隐藏亮度条，
+            // 先结束“调节中”状态，恢复其它交互，再延迟一秒关闭亮度条并恢复按钮
             isBrightnessAdjusting = false
-            hideBrightnessIndicator()
-            disallowParentIntercept(false)
-            setParentPagingEnabled(true)
+            brightnessHideHandler.removeCallbacks(brightnessHideRunnable)
+            brightnessHideHandler.postDelayed(brightnessHideRunnable, 1000L)
+        }
+    }
+
+    private fun startVolumeAdjustment() {
+        if (!isVolumeButtonPressed || isVolumeAdjusting) return
+        isVolumeAdjusting = true
+        lastVolumeDragY = touchStartY
+        pendingVolumeDelta = 0f
+        disallowParentIntercept(true)
+        setParentPagingEnabled(false)
+        showVolumeIndicator()
+    }
+
+    private fun cancelVolumeTouch() {
+        volumeLongPressHandler.removeCallbacks(volumeLongPressRunnable)
+        isVolumeButtonPressed = false
+        if (isVolumeAdjusting) {
+            // 已经在音量调节模式：手指松开后不立即隐藏音量条，
+            // 先结束“调节中”状态，恢复其它交互，再延迟一秒关闭音量条并恢复按钮
+            isVolumeAdjusting = false
+            pendingVolumeDelta = 0f
+            volumeHideHandler.removeCallbacks(volumeHideRunnable)
+            volumeHideHandler.postDelayed(volumeHideRunnable, 1000L)
         }
     }
 
@@ -555,12 +702,22 @@ class LandscapeVideoItemFragment : Fragment() {
     // ========== 音量调节 ==========
 
     private fun showVolumeIndicator() {
+        // 隐藏按钮，显示音量条
+        volumeButton?.visibility = View.GONE
         volumeIndicator?.visibility = View.VISIBLE
         updateVolumeIndicator()
+        // 进入音量调节时，确保控制面板保持可见，取消自动隐藏
+        hideControlPanelHandler.removeCallbacks(hideControlPanelRunnable)
+        controlPanel?.visibility = View.VISIBLE
+        controlPanelVisible = true
     }
 
     private fun hideVolumeIndicator() {
+        // 显示按钮，隐藏音量条
+        volumeButton?.visibility = View.VISIBLE
         volumeIndicator?.visibility = View.GONE
+        volumePercentText?.text = ""
+        volumePercentText?.visibility = View.GONE
     }
 
     private fun adjustVolume(deltaY: Float) {
@@ -571,11 +728,20 @@ class LandscapeVideoItemFragment : Fragment() {
 
         audioManager?.let { am ->
             val maxVolume = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-            val currentVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC)
 
-            // 计算音量变化（上滑增加，下滑减少）
-            val volumeChange = (-deltaY / (rootView?.height ?: 1) * maxVolume).toInt()
-            val newVolume = (currentVolume + volumeChange).coerceIn(0, maxVolume)
+            // 将手指滑动距离转换为“音量步进”的累计值，避免因为取整导致的小步长失效
+            val viewHeight = (rootView?.height ?: 1).toFloat()
+            val volumeDeltaSteps = (-deltaY / viewHeight) * VOLUME_SENSITIVITY * maxVolume
+            pendingVolumeDelta += volumeDeltaSteps
+
+            val steps = pendingVolumeDelta.toInt()
+            if (steps == 0) {
+                return
+            }
+            pendingVolumeDelta -= steps
+
+            val currentVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val newVolume = (currentVolume + steps).coerceIn(0, maxVolume)
 
             try {
                 am.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
@@ -597,7 +763,19 @@ class LandscapeVideoItemFragment : Fragment() {
             val currentVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC)
             val progress = (currentVolume.toFloat() / maxVolume * 100).toInt()
 
-            volumeProgress?.layoutParams?.height = (volumeIndicator?.height ?: 0) * progress / 100
+            val indicatorHeight = (volumeIndicator?.height ?: 0) - (volumeIndicator?.paddingTop ?: 0) - (volumeIndicator?.paddingBottom ?: 0)
+            if (indicatorHeight > 0) {
+                val fillHeight = indicatorHeight * progress / 100
+                val params = (volumeProgress?.layoutParams as? FrameLayout.LayoutParams)
+                params?.height = fillHeight
+                params?.gravity = Gravity.BOTTOM
+                volumeProgress?.layoutParams = params
+            }
+
+            // 更新百分比文字（仅在调节时显示）
+            volumePercentText?.text = "$progress%"
+            volumePercentText?.visibility = View.VISIBLE
+
             volumeProgress?.requestLayout()
         }
     }

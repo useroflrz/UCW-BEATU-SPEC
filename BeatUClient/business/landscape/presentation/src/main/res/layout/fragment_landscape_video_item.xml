@@ -68,18 +68,66 @@
             android:layout_gravity="end|center_vertical"
             android:gravity="center">
 
-            <!-- 亮度按钮 -->
-            <ImageButton
-                android:id="@+id/btn_brightness"
+            <!-- 亮度控制区域（按钮+滑块） -->
+            <FrameLayout
                 android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:src="@drawable/selector_brightness"
-                android:scaleType="centerInside"
-                android:padding="12dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#FFFFFF"
-                android:contentDescription="亮度"
-                android:layout_marginBottom="16dp" />
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:gravity="center">
+
+                <!-- 亮度条（背景滑块，位于按钮位置） -->
+                <FrameLayout
+                    android:id="@+id/brightness_indicator"
+                    android:layout_width="48dp"
+                    android:layout_height="180dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_indicator_track"
+                    android:padding="8dp"
+                    android:visibility="gone">
+
+                    <View
+                        android:id="@+id/brightness_progress"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_gravity="bottom"
+                        android:background="@drawable/bg_indicator_fill" />
+
+                    <!-- 太阳图标（居中显示） -->
+                    <ImageView
+                        android:id="@+id/iv_brightness_icon"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_brightness"
+                        android:scaleType="centerInside"
+                        app:tint="#FFFFFF" />
+
+                    <!-- 百分比文字（显示在滑块上方） -->
+                    <TextView
+                        android:id="@+id/tv_brightness_percent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal|top"
+                        android:layout_marginTop="8dp"
+                        android:text="50%"
+                        android:textColor="#FFFFFF"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:visibility="gone" />
+                </FrameLayout>
+
+                <!-- 亮度按钮（默认显示，调节时隐藏） -->
+                <ImageButton
+                    android:id="@+id/btn_brightness"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/selector_brightness"
+                    android:scaleType="centerInside"
+                    android:padding="12dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    app:tint="#FFFFFF"
+                    android:contentDescription="亮度" />
+            </FrameLayout>
 
             <!-- 锁定/解锁按钮 -->
             <ImageButton
@@ -94,17 +142,65 @@
                 android:contentDescription="锁定屏幕"
                 android:layout_marginBottom="16dp" />
 
-            <!-- 音量按钮 -->
-            <ImageButton
-                android:id="@+id/btn_volume"
+            <!-- 音量控制区域（按钮+滑块） -->
+            <FrameLayout
                 android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:src="@drawable/selector_volume"
-                android:scaleType="centerInside"
-                android:padding="12dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="#FFFFFF"
-                android:contentDescription="音量" />
+                android:layout_height="wrap_content"
+                android:gravity="center">
+
+                <!-- 音量条（背景滑块，位于按钮位置） -->
+                <FrameLayout
+                    android:id="@+id/volume_indicator"
+                    android:layout_width="48dp"
+                    android:layout_height="180dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_indicator_track"
+                    android:padding="8dp"
+                    android:visibility="gone">
+
+                    <View
+                        android:id="@+id/volume_progress"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_gravity="bottom"
+                        android:background="@drawable/bg_indicator_fill" />
+
+                    <!-- 音量图标（居中显示） -->
+                    <ImageView
+                        android:id="@+id/iv_volume_icon"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_volume"
+                        android:scaleType="centerInside"
+                        app:tint="#FFFFFF" />
+
+                    <!-- 百分比文字（显示在滑块上方） -->
+                    <TextView
+                        android:id="@+id/tv_volume_percent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal|top"
+                        android:layout_marginTop="8dp"
+                        android:text="50%"
+                        android:textColor="#FFFFFF"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:visibility="gone" />
+                </FrameLayout>
+
+                <!-- 音量按钮（默认显示，调节时隐藏） -->
+                <ImageButton
+                    android:id="@+id/btn_volume"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/selector_volume"
+                    android:scaleType="centerInside"
+                    android:padding="12dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    app:tint="#FFFFFF"
+                    android:contentDescription="音量" />
+            </FrameLayout>
         </LinearLayout>
 
         <!-- 底部控制区域：进度条 + 左侧喜欢/收藏 + 右侧倍速/清晰度 -->
@@ -242,54 +338,6 @@
                         android:focusable="true" />
                 </LinearLayout>
             </LinearLayout>
-        </LinearLayout>
-
-        <!-- 亮度条（左侧） -->
-        <FrameLayout
-            android:id="@+id/brightness_indicator"
-            android:layout_width="48dp"
-            android:layout_height="180dp"
-            android:layout_gravity="start|center_vertical"
-            android:layout_marginStart="16dp"
-            android:background="@drawable/bg_indicator_track"
-            android:padding="8dp"
-            android:visibility="gone">
-
-            <View
-                android:id="@+id/brightness_progress"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_gravity="bottom"
-                android:background="@drawable/bg_indicator_fill" />
-
-            <TextView
-                android:id="@+id/tv_brightness_percent"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="50%"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold"
-                android:textSize="12sp" />
-        </FrameLayout>
-
-        <!-- 音量条（右侧） -->
-        <LinearLayout
-            android:id="@+id/volume_indicator"
-            android:layout_width="4dp"
-            android:layout_height="200dp"
-            android:orientation="vertical"
-            android:layout_gravity="end|center_vertical"
-            android:layout_marginEnd="16dp"
-            android:background="#40FFFFFF"
-            android:visibility="gone">
-
-            <View
-                android:id="@+id/volume_progress"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:background="#FFFFFF" />
         </LinearLayout>
 
         <!-- 进度条（中央，水平滑动时显示） -->
