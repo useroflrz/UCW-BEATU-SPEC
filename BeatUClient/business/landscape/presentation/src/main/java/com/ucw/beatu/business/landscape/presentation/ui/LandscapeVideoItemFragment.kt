@@ -35,6 +35,7 @@ import com.ucw.beatu.business.landscape.presentation.R
 import com.ucw.beatu.business.landscape.presentation.model.VideoItem
 import com.ucw.beatu.business.landscape.presentation.viewmodel.LandscapeControlsState
 import com.ucw.beatu.business.landscape.presentation.viewmodel.LandscapeVideoItemViewModel
+import com.ucw.beatu.business.videofeed.presentation.ui.VideoCommentsDialogFragment
 import dagger.hilt.android.AndroidEntryPoint
 import com.ucw.beatu.shared.designsystem.R as DesignSystemR
 import kotlinx.coroutines.launch
@@ -403,8 +404,13 @@ class LandscapeVideoItemFragment : Fragment() {
         // 评论
         commentButton?.setOnClickListener {
             if (isBrightnessAdjusting) return@setOnClickListener
-            // TODO: 打开评论浮层
             Log.d(TAG, "评论按钮点击")
+            val item = videoItem ?: return@setOnClickListener
+            // 直接复用通用的 VideoCommentsDialogFragment：
+            // 它在 onStart 中会自动根据横竖屏调整为右侧半屏/底部半屏
+            VideoCommentsDialogFragment
+                .newInstance(item.id, item.commentCount)
+                .show(parentFragmentManager, "video_comments_dialog_landscape")
         }
 
         // 分享

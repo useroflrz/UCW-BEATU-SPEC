@@ -150,7 +150,10 @@ class VideoItemFragment : BaseFeedItemFragment() {
             }
 
             override fun onCommentClicked() {
-                // TODO: 打开评论弹层
+                val item = videoItem ?: return
+                VideoCommentsDialogFragment
+                    .newInstance(item.id, item.commentCount)
+                    .show(parentFragmentManager, "video_comments_dialog")
             }
 
             override fun onShareClicked() {

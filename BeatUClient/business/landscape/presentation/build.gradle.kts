@@ -44,6 +44,9 @@ dependencies {
     // Business Data
     implementation(project(":business:landscape:data"))
     
+    // 复用竖屏视频页的评论弹层 UI 与逻辑
+    implementation(project(":business:videofeed:presentation"))
+    
     // Video domain model复用
     implementation(project(":business:videofeed:domain"))
     
