@@ -23,7 +23,7 @@ object OkHttpProvider {
         }
 
         cacheDir?.let {
-            builder.cache(Cache(File(it, "okhttp"), 10L * 1024 * 1024))
+            builder.cache(Cache(File(it, "okhttp"), config.cacheSizeBytes))
         }
 
         return builder.build()

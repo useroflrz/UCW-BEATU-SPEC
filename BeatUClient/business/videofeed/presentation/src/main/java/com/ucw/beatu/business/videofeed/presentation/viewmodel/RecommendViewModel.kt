@@ -49,7 +49,8 @@ class RecommendViewModel @Inject constructor(
     private var currentPlayer: VideoPlayer? = null
     private var currentVideoId: String? = null
     private var currentPage = 1
-    private val pageSize = 20
+    // 从config.xml读取页面大小配置
+    private val pageSize = application.resources.getInteger(com.ucw.beatu.R.integer.video_page_size)
     private var isLoadingMore = false // 防止重复加载更多
     private var loadMoreJob: Job? = null // 加载更多的Job，用于取消
     
