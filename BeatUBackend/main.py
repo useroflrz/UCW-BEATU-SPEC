@@ -11,7 +11,8 @@ def create_app() -> FastAPI:
     """Application factory to keep tests lightweight."""
     app = FastAPI(title=settings.project_name, version=settings.version)
 
-    api_prefix = "/api"
+    # 从配置文件读取API前缀
+    api_prefix = settings.api_prefix
     app.include_router(video_router, prefix=api_prefix)
     app.include_router(user_router, prefix=api_prefix)
     app.include_router(ai_router, prefix=api_prefix)

@@ -27,11 +27,12 @@ class ExoVideoPlayer(
     }
 
     // 配置 HttpDataSource 以支持 OSS 链接
+    // 使用配置的超时时间，从config.xml读取
     private val httpDataSourceFactory: HttpDataSource.Factory = DefaultHttpDataSource.Factory()
         .setUserAgent("BeatU-Android-Player/1.0")
         .setAllowCrossProtocolRedirects(true)
-        .setConnectTimeoutMs(15000)
-        .setReadTimeoutMs(15000)
+        .setConnectTimeoutMs(config.connectTimeoutMs.toLong())
+        .setReadTimeoutMs(config.readTimeoutMs.toLong())
 
     private val mediaSourceFactory = DefaultMediaSourceFactory(context)
         .setDataSourceFactory(httpDataSourceFactory)

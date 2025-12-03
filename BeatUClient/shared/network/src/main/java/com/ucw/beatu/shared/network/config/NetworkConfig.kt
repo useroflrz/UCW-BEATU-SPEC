@@ -6,6 +6,7 @@ data class NetworkConfig(
     val readTimeoutSeconds: Long = 15,
     val writeTimeoutSeconds: Long = 15,
     val enableLogging: Boolean = true,
-    val defaultHeaders: Map<String, String> = emptyMap()
+    val defaultHeaders: Map<String, String> = emptyMap(),
+    val cacheSizeBytes: Long = 10L * 1024 * 1024 // 默认 10MB
 )
 

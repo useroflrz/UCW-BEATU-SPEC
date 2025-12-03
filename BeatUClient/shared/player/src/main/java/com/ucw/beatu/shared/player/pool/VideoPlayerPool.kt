@@ -44,13 +44,9 @@ class VideoPlayerPool(
     }
 
     private fun trimPool() {
-        while (availablePlayers.size > MAX_REUSABLE_PLAYERS) {
+        while (availablePlayers.size > config.maxReusablePlayers) {
             availablePlayers.removeLast().release()
         }
-    }
-
-    companion object {
-        private const val MAX_REUSABLE_PLAYERS = 3
     }
 }
 

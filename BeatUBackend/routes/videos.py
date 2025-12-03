@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Header, Path, Query
 from sqlalchemy.orm import Session
 
+from core.config import settings
 from database.connection import get_db
 from schemas.api import (
     CommentAIRequest,
@@ -31,17 +32,17 @@ def get_comment_service(db: Session = Depends(get_db)) -> CommentService:
 
 
 def resolve_user(x_user_id: str | None = Header(default=None)) -> str:
-    return x_user_id or "demo-user"
+    return x_user_id or settings.default_user_id
 
 
 def resolve_user_name(x_user_name: str | None = Header(default=None)) -> str:
-    return x_user_name or "BeatU 用户"
+    return x_user_name or settings.default_user_name
 
 
 @router.get("/videos")
 def list_videos(
     page: int = Query(1, ge=1),
-    limit: int = Query(10, ge=1, le=50),
+    limit: int = Query(settings.default_page_size, ge=1, le=settings.max_page_size),
     orientation: str | None = Query(default=None, regex="^(portrait|landscape)$"),
     channel: str | None = Query(default=None),
     service: VideoService = Depends(get_video_service),
@@ -139,7 +140,7 @@ def follow_author(
 def list_comments(
     video_id: str = Path(...),
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(settings.default_comment_page_size, ge=1, le=settings.max_comment_page_size),
     service: CommentService = Depends(get_comment_service),
 ):
     data = service.list_comments(video_id=video_id, page=page, limit=limit)

@@ -36,6 +36,17 @@ class Settings(BaseSettings):
         description="Redis连接URL，格式：redis://主机:端口/数据库编号"
     )
     api_key: str = Field(default="dev-key", description="API密钥，用于内部服务调用")
+    api_prefix: str = Field(default="/api", description="API路由前缀")
+    
+    # 分页配置
+    default_page_size: int = Field(default=10, ge=1, le=100, description="默认每页数量")
+    max_page_size: int = Field(default=50, ge=1, le=200, description="最大每页数量")
+    default_comment_page_size: int = Field(default=20, ge=1, le=100, description="评论默认每页数量")
+    max_comment_page_size: int = Field(default=100, ge=1, le=200, description="评论最大每页数量")
+    
+    # 默认用户配置
+    default_user_id: str = Field(default="demo-user", description="默认用户ID")
+    default_user_name: str = Field(default="BeatU 用户", description="默认用户名")
 
     class Config:
         env_file_encoding = "utf-8"
