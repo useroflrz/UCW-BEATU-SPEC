@@ -9,18 +9,24 @@
 ## ✅ 一、基础配置（必须完成）
 
 ### 1.1 后端服务地址配置
-**位置**: `app/src/main/java/com/ucw/beatu/di/NetworkModule.kt`
+**位置**: 
+- Hilt 网络模块：`app/src/main/java/com/ucw/beatu/di/NetworkModule.kt`
+- 配置资源：`app/src/main/res/values/config.xml`
 
-**当前状态**: ⚠️ 使用占位符地址
-```kotlin
-private const val BASE_URL = "http://your-mysql-backend-server.com/"
+**当前状态**: ✅ 已通过资源文件配置
+
+```xml
+<!-- config.xml -->
+<string name="base_url">http://127.0.0.1:9306/</string>
 ```
 
-**需要修改**:
-- [ ] 将 `BASE_URL` 替换为实际的后端网关地址（BeatUGateway）
-- [ ] 建议使用环境变量或 BuildConfig 区分开发/生产环境
+`NetworkModule.provideNetworkConfig` 会从 `R.string.base_url` 读取地址，并注入到 `NetworkConfig.baseUrl`，所有 Retrofit 接口统一使用该地址。
 
-**参考**: 根据 `docs/api_reference.md`，所有接口应通过 `BeatUGateway` 访问
+**后续建议**:
+- 在联调或生产环境中，将 `base_url` 替换为实际的后端网关地址（BeatUGateway 的 HTTP 入口，例如 `http://192.168.x.x:9306/` 或正式域名）。
+- 如需按环境区分，可新增 `values-release/config.xml` 或 `config_release.xml`，并在 `build.gradle.kts` 中配置对应的 `buildTypes`。
+
+**参考**: 根据 `docs/api_reference.md` 与 `docs/backend/api_contract.md`，所有接口应通过统一网关 `/api/*` 访问。
 
 ---
 

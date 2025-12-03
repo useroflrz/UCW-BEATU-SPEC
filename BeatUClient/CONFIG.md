@@ -18,13 +18,14 @@ BeatUClient Android 客户端使用 XML 资源文件来管理网络配置，包�
 
 ### config.xml / config_release.xml
 
-| 配置项 | 类型 | 说明 | 默认值 |
-|--------|------|------|--------|
-| `base_url` | string | 后端服务基础URL | http://192.168.1.181:9306/ |
-| `connect_timeout_seconds` | integer | 连接超时时间（秒） | 15 |
-| `read_timeout_seconds` | integer | 读取超时时间（秒） | 15 |
-| `write_timeout_seconds` | integer | 写入超时时间（秒） | 15 |
-| `enable_network_logging` | bool | 是否启用网络日志 | true（开发）/ false（生产） |
+| 配置项 | 类型 | 说明 | 当前默认值（开发） |
+|--------|------|------|--------------------|
+| `base_url` | string | 后端服务基础URL | `http://127.0.0.1:9306/` |
+| `connect_timeout_seconds` | integer | 连接超时时间（秒） | `1` |
+| `read_timeout_seconds` | integer | 读取超时时间（秒） | `1` |
+| `write_timeout_seconds` | integer | 写入超时时间（秒） | `1` |
+| `remote_request_timeout_ms` | integer | 数据层远程请求业务超时（毫秒），用于快速失败并回退到本地缓存 | `3000` |
+| `enable_network_logging` | bool | 是否启用网络日志 | `true`（开发）/ `false`（生产） |
 
 ## 修改配置
 
@@ -34,11 +35,13 @@ BeatUClient Android 客户端使用 XML 资源文件来管理网络配置，包�
 
 ```xml
 <resources>
-    <!-- 修改后端服务地址 -->
-    <string name="base_url">http://192.168.1.181:9306/</string>
+    <!-- 修改后端服务地址（指向 BeatUBackend / 网关） -->
+    <string name="base_url">http://192.168.1.206:9306/</string>
     
-    <!-- 修改超时时间 -->
-    <integer name="connect_timeout_seconds">20</integer>
+    <!-- 修改超时时间（单位：秒） -->
+    <integer name="connect_timeout_seconds">3</integer>
+    <integer name="read_timeout_seconds">3</integer>
+    <integer name="write_timeout_seconds">3</integer>
     
     <!-- 启用/禁用日志 -->
     <bool name="enable_network_logging">true</bool>

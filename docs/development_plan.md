@@ -448,7 +448,7 @@
   - 量化指标：弱网/断网场景下推荐页可播放率从 0% → 100%；首次降级加载耗时 < 150 ms（Mock 列表内存生成）
 
 - [x] 视频流网络请求优化：弱网环境下流畅滑动保障
-  - 2025-12-XX - done by AI
+  - 2025-12-XX - done by LRZ
   - 需求：视频数据拉取后端数据失败时会卡顿十多秒，导致界面无法操作，即使在弱网环境下也需要保证用户可以流畅上下滑动视频流页面。
   - 方案：
     1. **ViewModel层优化**：
@@ -486,7 +486,7 @@
   - 方案：移除 `init { loadVideoList() }`，在 `LandscapeFragment` 的 `onViewCreated()` 中先处理 `handleExternalVideoArgs()`（触发 `showExternalVideo()`）再手动调用 `loadVideoList()`，并在 `loadVideoList()` 完成后再次检测 `pendingExternalVideo` 进行插入。  
   - 指标：实测竖屏→横屏后第一条内容始终是当前视频，即便横屏 Fragment 重建也不会回落到 Mock 列表第一个条目。
 
-- [x] Feed视频业务从底层向应用层完整实现
+ - [x] Feed视频业务从底层向应用层完整实现
   - 2025-11-29 - done by LRZ
   - 内容：
     1. ✅ **Domain层UseCase创建**：
@@ -519,23 +519,22 @@
     - Presentation层通过UseCase访问数据，不直接依赖Repository
     - 数据流清晰：Repository → UseCase → ViewModel → UI
   - 下一步：接入真实后端API，实现评论弹层和分享功能
-
-- [x] 评论区后端对接（竖屏/横屏通用弹层）  
+ 
+ - [x] 评论区后端对接（竖屏/横屏通用弹层）  
   - 2025-12-03 - done by ZX  
   - 内容：  
     1. ✅ `VideoFeedApiService` 新增并落地 `getComments`、`postComment` 接口，对接后端 `GET /api/videos/{id}/comments` 与 `POST /api/videos/{id}/comments`，使用 MySQL + FastAPI 实际数据源。  
     2. ✅ 创建通用 `VideoCommentsDialogFragment`，作为竖屏推荐页与横屏播放页共用的评论弹层：竖屏时以底部半屏 Dialog 展示，横屏时贴右侧全高半屏展示，并通过 Hilt 注入 `GetCommentsUseCase` / `PostCommentUseCase` 完成数据加载与发布。  
     3. ✅ 评论列表采用分页接口首页（当前默认 `page=1, limit=30`）驱动 UI，失败时以 Toast 提示但不阻塞页面；发布评论成功后将新评论插入列表顶部并本地递增标题中的评论数。  
   - 文档：已在 `docs/api_reference.md` 的“2.2 评论相关接口”补充客户端对接细节，并在 `docs/backend/api_contract.md` 标注 Android 端当前仅接入评论列表/发布接口，AI 评论接口待后续对接。
-
-- [x] 点赞/收藏后端对接（竖屏/横屏统一行为）  
+ 
+ - [x] 点赞/收藏后端对接（竖屏/横屏统一行为）  
   - 2025-12-03 - done by ZX  
   - 内容：  
     1. ✅ 通过 `VideoFeedApiService` / `VideoRemoteDataSource` / `VideoRepositoryImpl` 打通 `POST /api/videos/{id}/like`、`/unlike`、`/favorite`、`/unfavorite`，所有请求统一返回 `ApiResponse<Unit>`，错误转为 `AppResult.Error`。  
     2. ✅ 竖屏推荐页：在 `VideoItemViewModel` 中注入 `LikeVideoUseCase` / `UnlikeVideoUseCase` / `FavoriteVideoUseCase` / `UnfavoriteVideoUseCase`，`toggleLike`/`toggleFavorite` 先本地乐观更新 `isLiked/isFavorited` 与计数，再异步调用后端，失败时回滚到旧状态并写入错误文案供 UI 以 Toast 提示。  
     3. ✅ 横屏播放页：在 `LandscapeVideoItemViewModel` 中复用同一组 UseCase，对 `LandscapeControlsState` 做乐观更新，失败时回滚，保证竖屏与横屏点赞/收藏状态与计数完全一致。  
   - 文档：已在 `docs/api_reference.md` 的“2.1 视频相关接口”下新增“2.1.1 点赞/收藏前端对接现状”小节，说明调用链路与乐观更新/失败回滚策略。
-
 - [x] Settings和Landscape模块接入视频业务
   - 2025-11-31 - LRZ
   - 内容：
@@ -808,6 +807,14 @@
     - 方案：
     - 内容：
         - 
+
+- [x] 文档整体对齐当前实现（客户端 + 后端）
+    - 2025-12-03 - done by GPT-5.1 Codex
+    - 内容：
+        1. 更新根目录 `README.md` 的顶层仓库结构说明，将原先的逻辑服务目录（BeatUAIService / BeatUContentService / BeatUGateway / BeatUObservability）调整为实际存在的 `BeatUClient` 与 `BeatUBackend`，并明确说明后端采用 FastAPI 单体承载上述服务职责。
+        2. 在 `docs/architecture.md` 中补充说明：当前物理实现为 `BeatUBackend` 工程，内部按 Gateway / ContentService / AIService / Observability 职责划分路由与 Service 层，保持与 `docs/backend/*` 的契约一致。
+        3. 对齐客户端网络配置文档：更新 `BeatUClient/CONFIG.md`、`BeatUClient/docs/data-layer-architecture.md` 与 `BeatUClient/docs/backend_integration_checklist.md`，改为通过 `config.xml` 的 `base_url` 统一配置网关地址（默认 `http://127.0.0.1:9306/`），取消对已删除 `BASE_URL` 常量的引用，并补充 `remote_request_timeout_ms` 等新配置项说明。
+        4. 保持后端文档 `docs/backend/*` 与 `BeatUBackend/docs/*` 的 API/模型描述一致，仅做引用关系梳理，不修改已与实现完全对齐的细节。
 
 > 后续迭代中，请将具体任务拆分为更细粒度条目，并在完成后标记 `[x]`，附上日期与负责人。
 

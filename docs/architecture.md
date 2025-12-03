@@ -5,10 +5,9 @@
 ### 1. 仓库层级
 
 - `BeatUClient/`：Android 客户端（多 Module + MVVM + Clean Architecture）。
-- `BeatUAIService/`：AI 能力服务。
-- `BeatUContentService/`：内容与媒体服务。
-- `BeatUGateway/`：API 网关与聚合层。
-- `BeatUObservability/`：日志、埋点、监控与可观测性。
+- `BeatUBackend/`：后端服务代码仓库，内部以模块化单体的方式承载网关（Gateway）、内容服务（ContentService）、AI 服务（AIService）、观测性（Observability）等职责，具体接口与模型见 `docs/backend/*` 与 `BeatUBackend/docs/*`。
+
+> 说明：文档中提到的 `BeatUAIService` / `BeatUContentService` / `BeatUGateway` / `BeatUObservability` 是**逻辑服务边界**，当前实现统一收敛在 `BeatUBackend` 工程中，通过不同的路由与 Service 层划分职责。
 
 ### 2. Android 客户端模块规划（BeatUClient）
 

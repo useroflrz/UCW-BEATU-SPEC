@@ -1,16 +1,13 @@
 ## BeatU 项目总览
 
-- **目标**：沉浸式短视频流 App 及配套服务（AIService、ContentService、Gateway、Observability），重点展示架构设计、性能优化、交互体验和 AI 融合能力。
-- **当前阶段**：同步最新需求文档，完善架构/规范，后续迭代将按照需求逐步实现客户端与服务端能力。
+- **目标**：沉浸式短视频流 App 及配套服务（客户端 + 后端一体化），重点展示架构设计、性能优化、交互体验和 AI 融合能力。
+- **当前阶段**：Android 客户端与 FastAPI 后端均已具备完整可运行能力，前后端接口按照 `docs/api_reference.md` 与 `docs/backend/*` 对齐，后续迭代以性能与体验优化为主。
 
 ### 仓库结构（顶层）
 
 - `BeatUClient/`：Android 客户端 App（Kotlin + Jetpack View + 原生 View 系统 + ExoPlayer，**不使用 Jetpack Compose**）。
-- `BeatUAIService/`：AI 能力相关服务（推荐、清晰度调节、语音识别等）。
-- `BeatUContentService/`：内容管理与视频资源服务。
-- `BeatUGateway/`：网关/聚合层服务。
-- `BeatUObservability/`：观测性与监控相关组件。
-- `docs/`：跨项目文档（架构、API、开发计划、上手指南等）。
+- `BeatUBackend/`：基于 FastAPI + SQLAlchemy 的后端服务，实现 Feed / 互动 / 评论 / AI / 观测等接口，逻辑上承载 Gateway、ContentService、AIService、Observability 四类职责，详细说明见 `BeatUBackend/docs` 与 `docs/backend/*`。
+- `docs/`：跨项目文档（架构、API、开发计划、上手指南、后端协作规范等）。
 
 详细架构和模块划分请参考 `docs/architecture.md` 与 `docs/development_plan.md`。
 
