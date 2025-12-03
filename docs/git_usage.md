@@ -1,6 +1,8 @@
-# Git 使用规范（无子模块版本）
+# Git 使用规范
 
 > 目标：统一 UCW-BEATU-SPEC 仓库的 Git 协作方式。自 2025-11-20 起，`BeatUClient/` 作为父仓库中的常规目录维护，不再使用 Git 子模块；所有成员直接在同一仓库提交代码。
+> 
+> **注意**：`AgentMCP/` 是一个 Git 子模块（用于 MCP 智能体系统），需要单独初始化，详见下方说明。
 
 ---
 
@@ -9,14 +11,14 @@
 ```
 UCW-BEATU-SPEC/
 ├── BeatUClient/         # Android 客户端（多 Gradle Module）
-├── BeatUAIService/      # AI 能力服务（待实现）
-├── BeatUContentService/ # 内容服务（待实现）
-├── BeatUGateway/        # 网关
-├── BeatUObservability/  # 观测性/埋点
-└── docs/                # 所有跨项目文档
+├── BeatUBackend/        # 后端服务（FastAPI）
+├── AgentMCP/            # MCP 智能体系统（Git 子模块）
+├── docs/                # 所有跨项目文档
+└── ...
 ```
 
-- **统一仓库**：所有代码直接托管在 `UCW-BEATU-SPEC`，无需额外克隆子仓库。
+- **统一仓库**：大部分代码直接托管在 `UCW-BEATU-SPEC`，无需额外克隆子仓库。
+- **AgentMCP 子模块**：`AgentMCP/` 是一个 Git 子模块，需要单独初始化（见下方说明）。
 - **Gradle Module ≠ Git 子模块**：`BeatUClient` 内部的 `shared/*`、`business/*` 均通过 Gradle 子模块实现，与 Git 无关。
 - **协作约束**：持续遵循 `.cursorrules` 的文档驱动流程，开发前后务必同步 `docs/*`。
 
@@ -24,19 +26,30 @@ UCW-BEATU-SPEC/
 
 ## 2. 初次克隆与更新
 
+### 2.1 克隆仓库
+
 ```bash
-# 克隆仓库
+# 克隆仓库（包含子模块）
+git clone --recurse-submodules https://github.com/useroflrz/UCW-BEATU-SPEC.git
+
+# 或者先克隆，再初始化子模块
 git clone https://github.com/useroflrz/UCW-BEATU-SPEC.git
-
-# 进入仓库
 cd UCW-BEATU-SPEC
-
-# 拉取最新代码
-git pull origin main
+git submodule update --init --recursive AgentMCP
 ```
 
-- 不再需要 `--recurse-submodules`、`git submodule update` 等命令。
-- 更新时只需 `git pull`，即可获取 `BeatUClient` 与其它目录的最新修改。
+### 2.2 更新代码
+
+```bash
+# 拉取最新代码
+git pull origin main
+
+# 更新子模块（如果需要）
+git submodule update --remote AgentMCP
+```
+
+- **AgentMCP 子模块**：首次克隆后需要初始化，后续更新时如需获取子模块最新代码，使用 `git submodule update --remote AgentMCP`。
+- **其他目录**：更新时只需 `git pull`，即可获取 `BeatUClient`、`BeatUBackend` 与其它目录的最新修改。
 
 ---
 
@@ -103,7 +116,14 @@ git pull origin main
 - 在仓库根目录执行 `git pull` 即可，不再需要“更新子模块引用”。
 
 ### Q4：还能使用 `git submodule` 命令吗？
-- 当前仓库不包含任何子模块，`git submodule status` 应该没有输出。若仍有记录，请手动清理后重新拉取。
+- `AgentMCP/` 是一个 Git 子模块，可以使用 `git submodule` 命令管理。执行 `git submodule status` 应该显示 `AgentMCP` 子模块的状态。
+
+### Q5：如何初始化 AgentMCP 子模块？
+- 如果克隆时未使用 `--recurse-submodules`，可以执行：
+  ```bash
+  git submodule update --init --recursive AgentMCP
+  ```
+- 初始化后，进入 `AgentMCP/` 目录，按照其 `README.md` 中的说明创建虚拟环境并安装依赖。
 
 ---
 

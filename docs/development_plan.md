@@ -830,6 +830,25 @@
       - 前后端配置文件完整，所有关键参数均可配置
       - 代码与配置完全解耦，支持不同环境使用不同配置
 
+- [x] AgentMCP 子模块初始化与文档更新
+    - 2025-12-03 - done by AI
+    - 内容：
+        1. ✅ **子模块初始化**：
+           - 执行 `git submodule update --init --recursive AgentMCP` 初始化 Git 子模块
+           - 确认子模块已成功克隆到本地
+        2. ✅ **文档更新**：
+           - 在根目录 `README.md` 中添加 AgentMCP 到仓库结构说明
+           - 在 `README.md` 中添加 AgentMCP 子模块初始化步骤说明
+           - 在 `docs/development_plan.md` 中记录子模块初始化任务
+    - 技术说明：
+      - AgentMCP 是一个基于 LangChain 的智能体系统，用于动态发现和调用 MCP（Model Context Protocol）服务
+      - 子模块仓库地址：`https://github.com/Tom6255/AgentMCP.git`
+      - 初始化后需要创建 Python 虚拟环境并安装依赖（参考 `AgentMCP/README.md`）
+    - 成果：
+      - 子模块已成功初始化，代码已克隆到本地
+      - 项目文档已更新，包含子模块初始化说明
+      - 开发者可通过 README 快速了解如何初始化 AgentMCP 子模块
+
 > 后续迭代中，请将具体任务拆分为更细粒度条目，并在完成后标记 `[x]`，附上日期与负责人。
 
 

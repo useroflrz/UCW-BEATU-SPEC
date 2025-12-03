@@ -7,6 +7,7 @@
 
 - `BeatUClient/`：Android 客户端 App（Kotlin + Jetpack View + 原生 View 系统 + ExoPlayer，**不使用 Jetpack Compose**）。
 - `BeatUBackend/`：基于 FastAPI + SQLAlchemy 的后端服务，实现 Feed / 互动 / 评论 / AI / 观测等接口，逻辑上承载 Gateway、ContentService、AIService、Observability 四类职责，详细说明见 `BeatUBackend/docs` 与 `docs/backend/*`。
+- `AgentMCP/`：基于 LangChain 的智能体系统，用于动态发现和调用 MCP（Model Context Protocol）服务（Git 子模块）。初始化方法见下方说明。
 - `docs/`：跨项目文档（架构、API、开发计划、上手指南、后端协作规范等）。
 
 详细架构和模块划分请参考 `docs/architecture.md` 与 `docs/development_plan.md`。
@@ -19,6 +20,30 @@
   - 手势体系：双击点赞、长按倍速/Seek、横向频道切换、评论半屏弹层、横屏亮度/音量/锁屏手势等。
   - NFR：首帧 < 500 ms、FPS 55~60、播放成功率 ≥ 99%、卡顿率 < 2%、冷启动 < 2.5 s。
 - **AI 能力方向**：优先验证“AI 内容理解/推荐 + 评论区 @元宝 问答”，并在后续迭代扩展到自适应清晰度或实时字幕。数据流/接口约束见 `docs/architecture.md` 与 `docs/api_reference.md`。
+
+### AgentMCP 子模块初始化
+
+`AgentMCP/` 是一个 Git 子模块，首次使用需要初始化：
+
+```bash
+# 初始化并克隆子模块
+git submodule update --init --recursive AgentMCP
+
+# 进入 AgentMCP 目录
+cd AgentMCP
+
+# 创建 Python 虚拟环境（推荐）
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 安装依赖
+pip install -r requirements.txt
+
+# 配置环境变量（创建 .env 文件）
+# 参考 AgentMCP/README.md 中的配置说明
+```
+
+详细使用说明请参考 `AgentMCP/README.md` 和 `AgentMCP/docs/getting_started.md`。
 
 ### 文档驱动工作流
 
