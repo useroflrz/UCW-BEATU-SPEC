@@ -1,7 +1,6 @@
 package com.ucw.beatu.business.videofeed.data.repository
 
 import android.content.Context
-import com.ucw.beatu.R
 import com.ucw.beatu.business.videofeed.data.local.VideoLocalDataSource
 import com.ucw.beatu.business.videofeed.data.remote.VideoRemoteDataSource
 import com.ucw.beatu.business.videofeed.domain.model.Comment
@@ -30,10 +29,21 @@ class VideoRepositoryImpl @Inject constructor(
     private val localDataSource: VideoLocalDataSource,
     @ApplicationContext private val context: Context
 ) : VideoRepository {
-    
-    // 从config.xml读取远程请求超时配置
+
     private val remoteRequestTimeoutMs: Long by lazy {
-        context.resources.getInteger(R.integer.remote_request_timeout_ms).toLong()
+        getIntegerResource(
+            context,
+            "remote_request_timeout_ms",
+            DEFAULT_REMOTE_REQUEST_TIMEOUT_MS.toInt()
+        ).toLong()
+    }
+
+    private val cachePageCount: Int by lazy {
+        getIntegerResource(
+            context,
+            "video_cache_page_count",
+            DEFAULT_VIDEO_CACHE_PAGE_COUNT
+        )
     }
 
     override fun getVideoFeed(
@@ -49,8 +59,6 @@ class VideoRepositoryImpl @Inject constructor(
             val localDeferred = async {
                 if (orientation == null) {
                     // 读取足够多的缓存数据，支持多页滑动
-                    // 从config.xml读取缓存页面数配置
-                    val cachePageCount = context.resources.getInteger(R.integer.video_cache_page_count)
                     val cacheLimit = limit * maxOf(page, cachePageCount) // 至少缓存指定页数的数据
                     localDataSource.observeVideos(cacheLimit).firstOrNull()?.let { cachedVideos ->
                         // 从缓存中提取对应页的数据
@@ -264,6 +272,19 @@ class VideoRepositoryImpl @Inject constructor(
                 createdAt = null,
                 updatedAt = null
             )
+        }
+    }
+    companion object {
+        private const val DEFAULT_REMOTE_REQUEST_TIMEOUT_MS = 3000L
+        private const val DEFAULT_VIDEO_CACHE_PAGE_COUNT = 3
+
+        private fun getIntegerResource(
+            context: Context,
+            name: String,
+            defaultValue: Int
+        ): Int {
+            val resId = context.resources.getIdentifier(name, "integer", context.packageName)
+            return if (resId != 0) context.resources.getInteger(resId) else defaultValue
         }
     }
 }

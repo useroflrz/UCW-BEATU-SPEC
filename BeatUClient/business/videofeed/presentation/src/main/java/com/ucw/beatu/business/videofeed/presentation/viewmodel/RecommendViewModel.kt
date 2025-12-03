@@ -1,6 +1,7 @@
 package com.ucw.beatu.business.videofeed.presentation.viewmodel
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ucw.beatu.business.videofeed.domain.usecase.GetFeedUseCase
@@ -49,8 +50,12 @@ class RecommendViewModel @Inject constructor(
     private var currentPlayer: VideoPlayer? = null
     private var currentVideoId: String? = null
     private var currentPage = 1
-    // 从config.xml读取页面大小配置
-    private val pageSize = application.resources.getInteger(com.ucw.beatu.R.integer.video_page_size)
+    // 从资源或默认值读取页面大小配置（避免直接依赖 app 的 R）
+    private val pageSize = getIntegerResource(
+        application,
+        "video_page_size",
+        DEFAULT_PAGE_SIZE
+    )
     private var isLoadingMore = false // 防止重复加载更多
     private var loadMoreJob: Job? = null // 加载更多的Job，用于取消
     
@@ -268,6 +273,19 @@ class RecommendViewModel @Inject constructor(
             ),
             bgmUrl = "https://samplelib.com/lib/preview/mp3/sample-6s.mp3"
         )
+    }
+
+    companion object {
+        private const val DEFAULT_PAGE_SIZE = 10
+
+        private fun getIntegerResource(
+            context: Context,
+            name: String,
+            defaultValue: Int
+        ): Int {
+            val resId = context.resources.getIdentifier(name, "integer", context.packageName)
+            return if (resId != 0) context.resources.getInteger(resId) else defaultValue
+        }
     }
 }
 

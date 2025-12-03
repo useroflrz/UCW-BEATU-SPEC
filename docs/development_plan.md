@@ -528,6 +528,14 @@
     3. ✅ 评论列表采用分页接口首页（当前默认 `page=1, limit=30`）驱动 UI，失败时以 Toast 提示但不阻塞页面；发布评论成功后将新评论插入列表顶部并本地递增标题中的评论数。  
   - 文档：已在 `docs/api_reference.md` 的“2.2 评论相关接口”补充客户端对接细节，并在 `docs/backend/api_contract.md` 标注 Android 端当前仅接入评论列表/发布接口，AI 评论接口待后续对接。
 
+- [x] 点赞/收藏后端对接（竖屏/横屏统一行为）  
+  - 2025-12-03 - done by ZX  
+  - 内容：  
+    1. ✅ 通过 `VideoFeedApiService` / `VideoRemoteDataSource` / `VideoRepositoryImpl` 打通 `POST /api/videos/{id}/like`、`/unlike`、`/favorite`、`/unfavorite`，所有请求统一返回 `ApiResponse<Unit>`，错误转为 `AppResult.Error`。  
+    2. ✅ 竖屏推荐页：在 `VideoItemViewModel` 中注入 `LikeVideoUseCase` / `UnlikeVideoUseCase` / `FavoriteVideoUseCase` / `UnfavoriteVideoUseCase`，`toggleLike`/`toggleFavorite` 先本地乐观更新 `isLiked/isFavorited` 与计数，再异步调用后端，失败时回滚到旧状态并写入错误文案供 UI 以 Toast 提示。  
+    3. ✅ 横屏播放页：在 `LandscapeVideoItemViewModel` 中复用同一组 UseCase，对 `LandscapeControlsState` 做乐观更新，失败时回滚，保证竖屏与横屏点赞/收藏状态与计数完全一致。  
+  - 文档：已在 `docs/api_reference.md` 的“2.1 视频相关接口”下新增“2.1.1 点赞/收藏前端对接现状”小节，说明调用链路与乐观更新/失败回滚策略。
+
 - [x] Settings和Landscape模块接入视频业务
   - 2025-11-31 - LRZ
   - 内容：

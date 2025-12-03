@@ -1,7 +1,6 @@
 package com.ucw.beatu.business.videofeed.presentation.di
 
 import android.content.Context
-import com.ucw.beatu.R
 import com.ucw.beatu.business.settings.domain.repository.SettingsRepository
 import com.ucw.beatu.shared.player.model.VideoPlayerConfig
 import com.ucw.beatu.shared.player.pool.VideoPlayerPool
@@ -37,12 +36,28 @@ object VideoFeedPresentationModule {
         val settings = runBlocking {
             settingsRepository.observeSettings().first()
         }
-        
-        // 从config.xml读取配置
-        val connectTimeoutMs = context.resources.getInteger(R.integer.video_connect_timeout_ms)
-        val readTimeoutMs = context.resources.getInteger(R.integer.video_read_timeout_ms)
-        val offscreenPreloadCount = context.resources.getInteger(R.integer.video_offscreen_preload_count)
-        val maxReusablePlayers = context.resources.getInteger(R.integer.video_player_pool_max_reusable)
+
+        // 从资源或默认值读取播放器配置（业务模块不直接依赖 app 的 R）
+        val connectTimeoutMs = getIntegerResource(
+            context,
+            "video_connect_timeout_ms",
+            DEFAULT_CONNECT_TIMEOUT_MS.toInt()
+        )
+        val readTimeoutMs = getIntegerResource(
+            context,
+            "video_read_timeout_ms",
+            DEFAULT_READ_TIMEOUT_MS.toInt()
+        )
+        val offscreenPreloadCount = getIntegerResource(
+            context,
+            "video_offscreen_preload_count",
+            DEFAULT_OFFSCREEN_PRELOAD_COUNT
+        )
+        val maxReusablePlayers = getIntegerResource(
+            context,
+            "video_player_pool_max_reusable",
+            DEFAULT_MAX_REUSABLE_PLAYERS
+        )
         
         return VideoPlayerConfig(
             useCache = true,
@@ -53,5 +68,19 @@ object VideoFeedPresentationModule {
             maxReusablePlayers = maxReusablePlayers
         )
     }
+
+    private fun getIntegerResource(
+        context: Context,
+        name: String,
+        defaultValue: Int
+    ): Int {
+        val resId = context.resources.getIdentifier(name, "integer", context.packageName)
+        return if (resId != 0) context.resources.getInteger(resId) else defaultValue
+    }
+
+    private const val DEFAULT_CONNECT_TIMEOUT_MS = 1_000L
+    private const val DEFAULT_READ_TIMEOUT_MS = 1_000L
+    private const val DEFAULT_OFFSCREEN_PRELOAD_COUNT = 1
+    private const val DEFAULT_MAX_REUSABLE_PLAYERS = 3
 }
 

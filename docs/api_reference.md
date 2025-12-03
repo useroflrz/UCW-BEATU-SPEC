@@ -24,10 +24,20 @@
 |---|---|---|---|---|---|
 | GET | `/api/videos` | `page`, `limit`, `orientation?` | `ApiResponse<PageResponse<Video>>` | 获取视频列表（分页），支持横屏过滤 | ContentService |
 | GET | `/api/videos/{id}` | - | `ApiResponse<Video>` | 获取视频详情 | ContentService |
-| POST | `/api/videos/{id}/like` | - | `ApiResponse<Unit>` | 点赞视频 | ContentService |
-| POST | `/api/videos/{id}/unlike` | - | `ApiResponse<Unit>` | 取消点赞 | ContentService |
-| POST | `/api/videos/{id}/favorite` | - | `ApiResponse<Unit>` | 收藏视频 | ContentService |
-| POST | `/api/videos/{id}/unfavorite` | - | `ApiResponse<Unit>` | 取消收藏 | ContentService |
+| POST | `/api/videos/{id}/like` | - | `ApiResponse<Unit>` | 点赞视频（竖/横屏均使用，客户端采用乐观更新，失败回滚） | ContentService |
+| POST | `/api/videos/{id}/unlike` | - | `ApiResponse<Unit>` | 取消点赞（竖/横屏均使用，失败时还原本地状态） | ContentService |
+| POST | `/api/videos/{id}/favorite` | - | `ApiResponse<Unit>` | 收藏视频（竖/横屏均使用，客户端乐观更新计数与状态） | ContentService |
+| POST | `/api/videos/{id}/unfavorite` | - | `ApiResponse<Unit>` | 取消收藏（竖/横屏均使用，失败时回滚 UI） | ContentService |
+
+##### 2.1.1 点赞/收藏前端对接现状
+
+- **调用链路**：`VideoFeedApiService` → `VideoRemoteDataSource` → `VideoRepositoryImpl` → UseCase（`LikeVideoUseCase` / `UnlikeVideoUseCase` / `FavoriteVideoUseCase` / `UnfavoriteVideoUseCase`）→  
+  - 竖屏：`VideoItemViewModel.toggleLike/toggleFavorite` → `VideoControlsView`  
+  - 横屏：`LandscapeVideoItemViewModel.toggleLike/toggleFavorite` → 右侧交互按钮区。
+- **交互策略（竖/横屏一致）**：
+  - 点击按钮立即在本地翻转 `isLiked/isFavorited` 并对 `likeCount/favoriteCount` 做 **乐观 +1/-1**，保证手感流畅；
+  - 后台异步调用对应后端接口；
+  - 若调用失败（网络异常或后端错误），回滚到点击前的状态，并通过错误文案交由 UI 层以 Toast 形式提示用户。
 
 **分页参数说明**:
 - `page`: 页码，从 1 开始

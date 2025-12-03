@@ -6,6 +6,10 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.ucw.beatu.business.landscape.presentation.model.VideoItem
+import com.ucw.beatu.business.videofeed.domain.usecase.FavoriteVideoUseCase
+import com.ucw.beatu.business.videofeed.domain.usecase.LikeVideoUseCase
+import com.ucw.beatu.business.videofeed.domain.usecase.UnfavoriteVideoUseCase
+import com.ucw.beatu.business.videofeed.domain.usecase.UnlikeVideoUseCase
 import com.ucw.beatu.shared.common.logger.AppLogger
 import com.ucw.beatu.shared.common.time.Stopwatch
 import com.ucw.beatu.shared.player.VideoPlayer
@@ -31,7 +35,11 @@ import javax.inject.Inject
 class LandscapeVideoItemViewModel @Inject constructor(
     application: Application,
     private val playerPool: VideoPlayerPool,
-    private val playbackSessionStore: PlaybackSessionStore
+    private val playbackSessionStore: PlaybackSessionStore,
+    private val likeVideoUseCase: LikeVideoUseCase,
+    private val unlikeVideoUseCase: UnlikeVideoUseCase,
+    private val favoriteVideoUseCase: FavoriteVideoUseCase,
+    private val unfavoriteVideoUseCase: UnfavoriteVideoUseCase
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(LandscapeVideoItemUiState())
@@ -169,18 +177,41 @@ class LandscapeVideoItemViewModel @Inject constructor(
     }
 
     fun toggleLike() {
-        _controlsState.update { state ->
-            val newLiked = !state.isLiked
-            val newCount = (state.likeCount + if (newLiked) 1 else -1).coerceAtLeast(0)
-            state.copy(isLiked = newLiked, likeCount = newCount)
+        val videoId = _uiState.value.currentVideoId ?: return
+        val prev = _controlsState.value
+        val targetLiked = !prev.isLiked
+        val optimisticCount = (prev.likeCount + if (targetLiked) 1 else -1).coerceAtLeast(0)
+        _controlsState.value = prev.copy(isLiked = targetLiked, likeCount = optimisticCount)
+
+        viewModelScope.launch {
+            val result = if (targetLiked) {
+                likeVideoUseCase(videoId)
+            } else {
+                unlikeVideoUseCase(videoId)
+            }
+            if (result is com.ucw.beatu.shared.common.result.AppResult.Error) {
+                // 失败回滚
+                _controlsState.value = prev
+            }
         }
     }
 
     fun toggleFavorite() {
-        _controlsState.update { state ->
-            val newFavorited = !state.isFavorited
-            val newCount = (state.favoriteCount + if (newFavorited) 1 else -1).coerceAtLeast(0)
-            state.copy(isFavorited = newFavorited, favoriteCount = newCount)
+        val videoId = _uiState.value.currentVideoId ?: return
+        val prev = _controlsState.value
+        val targetFavorited = !prev.isFavorited
+        val optimisticCount = (prev.favoriteCount + if (targetFavorited) 1 else -1).coerceAtLeast(0)
+        _controlsState.value = prev.copy(isFavorited = targetFavorited, favoriteCount = optimisticCount)
+
+        viewModelScope.launch {
+            val result = if (targetFavorited) {
+                favoriteVideoUseCase(videoId)
+            } else {
+                unfavoriteVideoUseCase(videoId)
+            }
+            if (result is com.ucw.beatu.shared.common.result.AppResult.Error) {
+                _controlsState.value = prev
+            }
         }
     }
 

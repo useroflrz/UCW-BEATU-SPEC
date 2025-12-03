@@ -122,6 +122,7 @@ class ImagePostFragment : BaseFeedItemFragment() {
 
         // 初始化互动状态到 ViewModel
         viewModel.initInteractionState(
+            videoId = item.id,
             isLiked = false,
             isFavorited = false,
             likeCount = item.likeCount.toLong(),

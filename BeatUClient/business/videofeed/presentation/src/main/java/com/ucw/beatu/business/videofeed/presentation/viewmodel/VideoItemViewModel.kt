@@ -5,6 +5,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
+import com.ucw.beatu.business.videofeed.domain.usecase.FavoriteVideoUseCase
+import com.ucw.beatu.business.videofeed.domain.usecase.LikeVideoUseCase
+import com.ucw.beatu.business.videofeed.domain.usecase.UnfavoriteVideoUseCase
+import com.ucw.beatu.business.videofeed.domain.usecase.UnlikeVideoUseCase
+import com.ucw.beatu.shared.common.result.AppResult
 import com.ucw.beatu.shared.player.VideoPlayer
 import com.ucw.beatu.shared.player.model.VideoSource
 import com.ucw.beatu.shared.player.pool.VideoPlayerPool
@@ -44,7 +49,11 @@ data class VideoItemUiState(
 class VideoItemViewModel @Inject constructor(
     application: Application,
     private val playerPool: VideoPlayerPool,
-    private val playbackSessionStore: PlaybackSessionStore
+    private val playbackSessionStore: PlaybackSessionStore,
+    private val likeVideoUseCase: LikeVideoUseCase,
+    private val unlikeVideoUseCase: UnlikeVideoUseCase,
+    private val favoriteVideoUseCase: FavoriteVideoUseCase,
+    private val unfavoriteVideoUseCase: UnfavoriteVideoUseCase
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(VideoItemUiState())
@@ -490,15 +499,18 @@ class VideoItemViewModel @Inject constructor(
     }
 
     /**
-     * 初始化互动状态（从VideoItem传入）
+     * 初始化互动状态（从 VideoItem 传入）
+     * 同时记录当前 videoId，保证在播放器尚未准备时也能执行点赞/收藏操作。
      */
     fun initInteractionState(
+        videoId: String,
         isLiked: Boolean,
         isFavorited: Boolean,
         likeCount: Long,
         favoriteCount: Long
     ) {
         _uiState.value = _uiState.value.copy(
+            currentVideoId = videoId,
             isLiked = isLiked,
             isFavorited = isFavorited,
             likeCount = likeCount,
@@ -510,38 +522,88 @@ class VideoItemViewModel @Inject constructor(
      * 切换点赞状态
      */
     fun toggleLike() {
-        val currentState = _uiState.value
-        val newIsLiked = !currentState.isLiked
-        val newLikeCount = if (newIsLiked) {
-            currentState.likeCount + 1
+        val videoId = _uiState.value.currentVideoId ?: return
+        val prevState = _uiState.value
+        val targetLiked = !prevState.isLiked
+        val optimisticCount = if (targetLiked) {
+            prevState.likeCount + 1
         } else {
-            (currentState.likeCount - 1).coerceAtLeast(0)
+            (prevState.likeCount - 1).coerceAtLeast(0)
         }
-        _uiState.value = currentState.copy(
-            isLiked = newIsLiked,
-            likeCount = newLikeCount,
-            isInteracting = false,
+
+        // 本地乐观更新
+        _uiState.value = prevState.copy(
+            isLiked = targetLiked,
+            likeCount = optimisticCount,
+            isInteracting = true,
             error = null
         )
+
+        viewModelScope.launch {
+            val result = if (targetLiked) {
+                likeVideoUseCase(videoId)
+            } else {
+                unlikeVideoUseCase(videoId)
+            }
+
+            _uiState.value = when (result) {
+                is AppResult.Success -> {
+                    // 后端成功：只结束交互状态，保留乐观状态
+                    _uiState.value.copy(isInteracting = false)
+                }
+                is AppResult.Error -> {
+                    // 失败：保留当前乐观状态，只记录错误，交由 UI 以 Toast 提示
+                    _uiState.value.copy(
+                        isInteracting = false,
+                        error = result.throwable.message ?: "点赞失败，请稍后重试"
+                    )
+                }
+                is AppResult.Loading -> _uiState.value
+            }
+        }
     }
 
     /**
      * 切换收藏状态
      */
     fun toggleFavorite() {
-        val currentState = _uiState.value
-        val newIsFavorited = !currentState.isFavorited
-        val newFavoriteCount = if (newIsFavorited) {
-            currentState.favoriteCount + 1
+        val videoId = _uiState.value.currentVideoId ?: return
+        val prevState = _uiState.value
+        val targetFavorited = !prevState.isFavorited
+        val optimisticCount = if (targetFavorited) {
+            prevState.favoriteCount + 1
         } else {
-            (currentState.favoriteCount - 1).coerceAtLeast(0)
+            (prevState.favoriteCount - 1).coerceAtLeast(0)
         }
-        _uiState.value = currentState.copy(
-            isFavorited = newIsFavorited,
-            favoriteCount = newFavoriteCount,
-            isInteracting = false,
+
+        // 本地乐观更新
+        _uiState.value = prevState.copy(
+            isFavorited = targetFavorited,
+            favoriteCount = optimisticCount,
+            isInteracting = true,
             error = null
         )
+
+        viewModelScope.launch {
+            val result = if (targetFavorited) {
+                favoriteVideoUseCase(videoId)
+            } else {
+                unfavoriteVideoUseCase(videoId)
+            }
+
+            _uiState.value = when (result) {
+                is AppResult.Success -> {
+                    _uiState.value.copy(isInteracting = false)
+                }
+                is AppResult.Error -> {
+                    _uiState.value.copy(
+                        isInteracting = false,
+                        error = result.throwable.message ?: "收藏失败，请稍后重试"
+                    )
+                }
+                is AppResult.Loading -> _uiState.value
+            }
+        }
     }
 }
 

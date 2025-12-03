@@ -31,8 +31,8 @@ class ExoVideoPlayer(
     private val httpDataSourceFactory: HttpDataSource.Factory = DefaultHttpDataSource.Factory()
         .setUserAgent("BeatU-Android-Player/1.0")
         .setAllowCrossProtocolRedirects(true)
-        .setConnectTimeoutMs(config.connectTimeoutMs.toLong())
-        .setReadTimeoutMs(config.readTimeoutMs.toLong())
+        .setConnectTimeoutMs(config.connectTimeoutMs)
+        .setReadTimeoutMs(config.readTimeoutMs)
 
     private val mediaSourceFactory = DefaultMediaSourceFactory(context)
         .setDataSourceFactory(httpDataSourceFactory)
