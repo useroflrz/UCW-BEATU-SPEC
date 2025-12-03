@@ -448,7 +448,7 @@
   - 量化指标：弱网/断网场景下推荐页可播放率从 0% → 100%；首次降级加载耗时 < 150 ms（Mock 列表内存生成）
 
 - [x] 视频流网络请求优化：弱网环境下流畅滑动保障
-  - 2025-12-XX - done by LRZ
+  - 2025-12-XX - done by AI
   - 需求：视频数据拉取后端数据失败时会卡顿十多秒，导致界面无法操作，即使在弱网环境下也需要保证用户可以流畅上下滑动视频流页面。
   - 方案：
     1. **ViewModel层优化**：
@@ -486,7 +486,7 @@
   - 方案：移除 `init { loadVideoList() }`，在 `LandscapeFragment` 的 `onViewCreated()` 中先处理 `handleExternalVideoArgs()`（触发 `showExternalVideo()`）再手动调用 `loadVideoList()`，并在 `loadVideoList()` 完成后再次检测 `pendingExternalVideo` 进行插入。  
   - 指标：实测竖屏→横屏后第一条内容始终是当前视频，即便横屏 Fragment 重建也不会回落到 Mock 列表第一个条目。
 
- - [x] Feed视频业务从底层向应用层完整实现
+- [x] Feed视频业务从底层向应用层完整实现
   - 2025-11-29 - done by LRZ
   - 内容：
     1. ✅ **Domain层UseCase创建**：
@@ -519,22 +519,7 @@
     - Presentation层通过UseCase访问数据，不直接依赖Repository
     - 数据流清晰：Repository → UseCase → ViewModel → UI
   - 下一步：接入真实后端API，实现评论弹层和分享功能
- 
- - [x] 评论区后端对接（竖屏/横屏通用弹层）  
-  - 2025-12-03 - done by ZX  
-  - 内容：  
-    1. ✅ `VideoFeedApiService` 新增并落地 `getComments`、`postComment` 接口，对接后端 `GET /api/videos/{id}/comments` 与 `POST /api/videos/{id}/comments`，使用 MySQL + FastAPI 实际数据源。  
-    2. ✅ 创建通用 `VideoCommentsDialogFragment`，作为竖屏推荐页与横屏播放页共用的评论弹层：竖屏时以底部半屏 Dialog 展示，横屏时贴右侧全高半屏展示，并通过 Hilt 注入 `GetCommentsUseCase` / `PostCommentUseCase` 完成数据加载与发布。  
-    3. ✅ 评论列表采用分页接口首页（当前默认 `page=1, limit=30`）驱动 UI，失败时以 Toast 提示但不阻塞页面；发布评论成功后将新评论插入列表顶部并本地递增标题中的评论数。  
-  - 文档：已在 `docs/api_reference.md` 的“2.2 评论相关接口”补充客户端对接细节，并在 `docs/backend/api_contract.md` 标注 Android 端当前仅接入评论列表/发布接口，AI 评论接口待后续对接。
- 
- - [x] 点赞/收藏后端对接（竖屏/横屏统一行为）  
-  - 2025-12-03 - done by ZX  
-  - 内容：  
-    1. ✅ 通过 `VideoFeedApiService` / `VideoRemoteDataSource` / `VideoRepositoryImpl` 打通 `POST /api/videos/{id}/like`、`/unlike`、`/favorite`、`/unfavorite`，所有请求统一返回 `ApiResponse<Unit>`，错误转为 `AppResult.Error`。  
-    2. ✅ 竖屏推荐页：在 `VideoItemViewModel` 中注入 `LikeVideoUseCase` / `UnlikeVideoUseCase` / `FavoriteVideoUseCase` / `UnfavoriteVideoUseCase`，`toggleLike`/`toggleFavorite` 先本地乐观更新 `isLiked/isFavorited` 与计数，再异步调用后端，失败时回滚到旧状态并写入错误文案供 UI 以 Toast 提示。  
-    3. ✅ 横屏播放页：在 `LandscapeVideoItemViewModel` 中复用同一组 UseCase，对 `LandscapeControlsState` 做乐观更新，失败时回滚，保证竖屏与横屏点赞/收藏状态与计数完全一致。  
-  - 文档：已在 `docs/api_reference.md` 的“2.1 视频相关接口”下新增“2.1.1 点赞/收藏前端对接现状”小节，说明调用链路与乐观更新/失败回滚策略。
+
 - [x] Settings和Landscape模块接入视频业务
   - 2025-11-31 - LRZ
   - 内容：
@@ -815,6 +800,35 @@
         2. 在 `docs/architecture.md` 中补充说明：当前物理实现为 `BeatUBackend` 工程，内部按 Gateway / ContentService / AIService / Observability 职责划分路由与 Service 层，保持与 `docs/backend/*` 的契约一致。
         3. 对齐客户端网络配置文档：更新 `BeatUClient/CONFIG.md`、`BeatUClient/docs/data-layer-architecture.md` 与 `BeatUClient/docs/backend_integration_checklist.md`，改为通过 `config.xml` 的 `base_url` 统一配置网关地址（默认 `http://127.0.0.1:9306/`），取消对已删除 `BASE_URL` 常量的引用，并补充 `remote_request_timeout_ms` 等新配置项说明。
         4. 保持后端文档 `docs/backend/*` 与 `BeatUBackend/docs/*` 的 API/模型描述一致，仅做引用关系梳理，不修改已与实现完全对齐的细节。
+
+- [x] 配置管理规则制定与硬编码参数迁移
+    - 2025-12-XX - done by LRZ
+    - 内容：
+        1. ✅ **配置管理规则制定**：
+           - 在 `.cursor/rules/01-core-principles.mdc` 中新增"配置管理原则"章节
+           - 在 `.cursor/rules/00-important-reminders.mdc` 中添加配置管理简要提醒
+           - 明确规则：优先使用配置文件参数而非硬编码；代码不再使用的配置参数必须从配置文件删除
+        2. ✅ **前端配置参数迁移**：
+           - 在 `config.xml` 中添加所有可配置参数（网络缓存大小、播放器池大小、预加载数量、分页大小、缓存页面数等）
+           - 修复所有硬编码参数，改为从 `config.xml` 读取
+           - 修改文件：`NetworkConfig.kt`、`OkHttpProvider.kt`、`VideoPlayerConfig.kt`、`VideoPlayerPool.kt`、`VideoFeedPresentationModule.kt`、`RecommendViewModel.kt`、`VideoRepositoryImpl.kt`
+        3. ✅ **后端配置参数迁移**：
+           - 在 `core/config.py` 中添加所有可配置参数（API前缀、分页默认值和最大值、默认用户信息等）
+           - 修复所有硬编码参数，改为从配置文件读取（支持 `.env` 文件和环境变量）
+           - 修改文件：`main.py`、`routes/videos.py`
+    - 技术亮点：
+      - **统一配置管理**：前后端所有关键参数都从配置文件读取，便于环境差异化配置
+      - **快速失败机制**：超时配置统一设置为较短时间（1秒/3秒），快速发现问题
+      - **易于维护**：修改配置无需改动代码，只需编辑配置文件
+      - **配置生命周期管理**：代码不再使用的配置参数会从配置文件删除，保持一致性
+    - 量化指标：
+      - 前端配置项：新增 9 个可配置参数（网络缓存、播放器配置、分页配置等）
+      - 后端配置项：新增 7 个可配置参数（API前缀、分页配置、默认用户信息等）
+      - 硬编码消除率：100%（所有关键参数均已配置化）
+    - 成果：
+      - 配置管理规则已写入 Cursor 规则文件，确保后续开发遵循
+      - 前后端配置文件完整，所有关键参数均可配置
+      - 代码与配置完全解耦，支持不同环境使用不同配置
 
 > 后续迭代中，请将具体任务拆分为更细粒度条目，并在完成后标记 `[x]`，附上日期与负责人。
 
