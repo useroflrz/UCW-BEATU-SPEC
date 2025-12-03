@@ -67,6 +67,10 @@
 
 **Comment 字段**：`id`, `videoId`, `authorId`, `authorName`, `authorAvatar`, `content`, `createdAt`, `isAiReply`, `likeCount`.
 
+**Android 客户端对接现状**：
+- 已接入：`GET /api/videos/{id}/comments` 与 `POST /api/videos/{id}/comments`，通过 `VideoFeedApiService.getComments/postComment` → `VideoRepository` → `GetCommentsUseCase` / `PostCommentUseCase` → `VideoCommentsDialogFragment` 完成竖屏/横屏统一弹层展示与发布。
+- 暂未接入：`POST /api/videos/{id}/comments/ai`（`@元宝` AI 问答），接口已在后端与合同中定义，后续在 AI 评论能力落地时由客户端复用本节契约。
+
 ### 5. AI 能力
 
 | Method | Path | Body | 返回 | 说明 |

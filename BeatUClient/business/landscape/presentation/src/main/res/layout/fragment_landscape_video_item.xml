@@ -117,15 +117,15 @@
                 </FrameLayout>
 
                 <!-- 亮度按钮（默认显示，调节时隐藏） -->
-                <ImageButton
-                    android:id="@+id/btn_brightness"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:src="@drawable/selector_brightness"
-                    android:scaleType="centerInside"
-                    android:padding="12dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    app:tint="#FFFFFF"
+            <ImageButton
+                android:id="@+id/btn_brightness"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/selector_brightness"
+                android:scaleType="centerInside"
+                android:padding="12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                app:tint="#FFFFFF"
                     android:contentDescription="亮度" />
             </FrameLayout>
 
@@ -190,16 +190,16 @@
                 </FrameLayout>
 
                 <!-- 音量按钮（默认显示，调节时隐藏） -->
-                <ImageButton
-                    android:id="@+id/btn_volume"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:src="@drawable/selector_volume"
-                    android:scaleType="centerInside"
-                    android:padding="12dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    app:tint="#FFFFFF"
-                    android:contentDescription="音量" />
+            <ImageButton
+                android:id="@+id/btn_volume"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/selector_volume"
+                android:scaleType="centerInside"
+                android:padding="12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                app:tint="#FFFFFF"
+                android:contentDescription="音量" />
             </FrameLayout>
         </LinearLayout>
 

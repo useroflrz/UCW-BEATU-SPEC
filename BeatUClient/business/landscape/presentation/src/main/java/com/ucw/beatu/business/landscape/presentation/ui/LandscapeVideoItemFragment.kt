@@ -259,17 +259,17 @@ class LandscapeVideoItemFragment : Fragment() {
                     return
                 }
 
-                // 屏幕中央长按进入2倍速
-                val viewWidth = rootView?.width ?: 0
-                val viewHeight = rootView?.height ?: 0
-                val centerX = viewWidth / 2f
-                val centerY = viewHeight / 2f
-                val tolerance = 100f
+                    // 屏幕中央长按进入2倍速
+                    val viewWidth = rootView?.width ?: 0
+                    val viewHeight = rootView?.height ?: 0
+                    val centerX = viewWidth / 2f
+                    val centerY = viewHeight / 2f
+                    val tolerance = 100f
 
-                if (abs(e.x - centerX) < tolerance && abs(e.y - centerY) < tolerance) {
-                    speedBeforeBoost = latestControlsState.currentSpeed
-                    viewModel.setSpeed(2.0f)
-                    speedButton?.text = formatSpeedLabel(2.0f)
+                    if (abs(e.x - centerX) < tolerance && abs(e.y - centerY) < tolerance) {
+                        speedBeforeBoost = latestControlsState.currentSpeed
+                        viewModel.setSpeed(2.0f)
+                        speedButton?.text = formatSpeedLabel(2.0f)
                 }
             }
         })

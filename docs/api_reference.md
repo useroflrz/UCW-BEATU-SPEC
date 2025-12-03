@@ -51,9 +51,19 @@
 
 | Method | Path | Query/Body | 响应 | 说明 | 后端 |
 |---|---|---|---|---|---|
-| GET | `/api/videos/{id}/comments` | `page`, `limit` | `ApiResponse<PageResponse<Comment>>` | 获取评论列表（分页，含 AI 回复） | ContentService |
-| POST | `/api/videos/{id}/comments` | `{ content: String }` | `ApiResponse<Comment>` | 发布评论 | ContentService |
-| POST | `/api/videos/{id}/comments/ai` | `{ question: String }` | `ApiResponse<Comment>` | `@元宝` AI 问答，返回机器人评论 | AIService |
+| GET | `/api/videos/{id}/comments` | `page`, `limit`（客户端当前默认 `page=1, limit=30`，按时间倒序） | `ApiResponse<PageResponse<Comment>>` | 获取评论列表（分页，含 AI 回复；目前客户端仅展示平铺列表，不做楼中楼） | ContentService |
+| POST | `/api/videos/{id}/comments` | `{ content: String }` | `ApiResponse<Comment>` | 发布评论；成功后客户端将新评论插入列表顶部并本地递增评论数 | ContentService |
+| POST | `/api/videos/{id}/comments/ai` | `{ question: String }` | `ApiResponse<Comment>` | `@元宝` AI 问答，返回机器人评论（接口已在后端实现，Android 端暂未接入） | AIService |
+
+##### 2.2.1 评论区前端对接现状
+
+- **通用弹层实现**：`VideoCommentsDialogFragment` 作为竖屏/横屏共用的评论弹层，在竖屏以底部半屏形式展示，在横屏以右侧半屏贴边展示，均通过 `GetCommentsUseCase` / `PostCommentUseCase` 间接调用上表接口。
+- **数据加载策略**：
+  - 首次打开弹层时调用 `GET /api/videos/{id}/comments?page=1&limit=30`，使用 `Flow<AppResult<List<Comment>>` 驱动 UI，失败时弹出 Toast 提示但保留已有内容。
+  - 目前未实现上拉分页/加载更多，后续如需扩展，可在 UseCase 与 Repository 层增加分页参数并复用同一接口。
+- **发布评论交互**：
+  - 点击发送按钮后，通过 `POST /api/videos/{id}/comments` 发布评论，成功返回后将新评论插入列表首行并清空输入框。
+  - 评论标题区的总数文案基于进入弹层时的 `commentCount` 做本地自增，后续如需严格与后端对齐，可在发布成功后重新拉取第一页或由后端返回最新计数。
 
 #### 2.3 用户相关接口
 

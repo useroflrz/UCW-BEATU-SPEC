@@ -2,26 +2,42 @@ package com.ucw.beatu.business.videofeed.presentation.ui
 
 import android.os.Bundle
 import android.util.DisplayMetrics
+import android.util.Log
 import android.view.*
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.ucw.beatu.business.videofeed.domain.model.Comment
+import com.ucw.beatu.business.videofeed.domain.usecase.GetCommentsUseCase
+import com.ucw.beatu.business.videofeed.domain.usecase.PostCommentUseCase
 import com.ucw.beatu.business.videofeed.presentation.R
-import com.ucw.beatu.shared.common.mock.MockComment
-import com.ucw.beatu.shared.common.mock.MockComments
+import com.ucw.beatu.shared.common.result.AppResult
+import com.ucw.beatu.shared.common.util.TimeFormatter
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * 通用评论弹层：
  * - 竖屏：底部半屏
  * - 横屏：右侧半屏（用于 Landscape）
  *
- * 当前版本先实现 UI 结构与基本交互，数据源后续接入 GetCommentsUseCase/PostCommentUseCase。
+ * 使用真实的后端 API 获取和发布评论
  */
+@AndroidEntryPoint
 class VideoCommentsDialogFragment : DialogFragment() {
+
+    @Inject
+    lateinit var getCommentsUseCase: GetCommentsUseCase
+
+    @Inject
+    lateinit var postCommentUseCase: PostCommentUseCase
 
     private val videoId: String? get() = arguments?.getString(ARG_VIDEO_ID)
     private val initialCommentCount: Int get() = arguments?.getInt(ARG_COMMENT_COUNT) ?: 0
@@ -30,6 +46,10 @@ class VideoCommentsDialogFragment : DialogFragment() {
     private var inputEditText: EditText? = null
     private var sendButton: TextView? = null
     private var closeButton: ImageView? = null
+    private var commentTitleView: TextView? = null
+
+    private var adapter: CommentsAdapter? = null
+    private var isPosting = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -46,38 +66,24 @@ class VideoCommentsDialogFragment : DialogFragment() {
         inputEditText = view.findViewById(R.id.et_comment)
         sendButton = view.findViewById(R.id.btn_send)
         closeButton = view.findViewById(R.id.btn_close)
+        commentTitleView = view.findViewById(R.id.tv_comment_title)
 
         commentsRecyclerView?.layoutManager = LinearLayoutManager(requireContext())
-        val commentList = loadMockComments()
-        commentsRecyclerView?.adapter = CommentsAdapter(commentList.toMutableList())
+        adapter = CommentsAdapter(mutableListOf())
+        commentsRecyclerView?.adapter = adapter
 
-        view.findViewById<TextView>(R.id.tv_comment_title)?.apply {
-            text = "评论区 $initialCommentCount"
-        }
+        commentTitleView?.text = "${initialCommentCount}条评论"
 
         closeButton?.setOnClickListener { dismissAllowingStateLoss() }
 
         sendButton?.setOnClickListener {
             val content = inputEditText?.text?.toString()?.trim().orEmpty()
-            if (content.isNotEmpty()) {
-                // 先用本地 Mock：把自己的评论插入到列表顶部
-                (commentsRecyclerView?.adapter as? CommentsAdapter)?.let { adapter ->
-                    val newComment = MockComment(
-                        id = "local_${System.currentTimeMillis()}",
-                        videoId = videoId.orEmpty(),
-                        userName = "我",
-                        isAuthor = false,
-                        timeDesc = "刚刚",
-                        location = null,
-                        content = content,
-                        likeCount = 0
-                    )
-                    adapter.prependComment(newComment)
-                    commentsRecyclerView?.scrollToPosition(0)
-                }
-                inputEditText?.setText("")
+            if (content.isNotEmpty() && !isPosting) {
+                postComment(content)
             }
         }
+
+        loadComments()
     }
 
     override fun onStart() {
@@ -117,12 +123,68 @@ class VideoCommentsDialogFragment : DialogFragment() {
         }
     }
 
-    private fun loadMockComments(): List<MockComment> {
-        val id = videoId ?: "unknown_video"
-        return MockComments.getCommentsForVideo(id, count = 30)
+    private fun loadComments() {
+        val id = videoId ?: return
+        lifecycleScope.launch {
+            getCommentsUseCase(id, page = 1, limit = 30).collect { result ->
+                when (result) {
+                    is AppResult.Loading -> {
+                        // 加载中状态可以显示加载指示器，这里先不处理
+                    }
+                    is AppResult.Success -> {
+                        adapter?.updateComments(result.data)
+                    }
+                    is AppResult.Error -> {
+                        Log.e(TAG, "Failed to load comments", result.throwable)
+                        Toast.makeText(
+                            requireContext(),
+                            "加载评论失败: ${result.throwable.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun postComment(content: String) {
+        val id = videoId ?: return
+        if (isPosting) return
+
+        isPosting = true
+        sendButton?.isEnabled = false
+
+        lifecycleScope.launch {
+            when (val result = postCommentUseCase(id, content)) {
+                is AppResult.Success -> {
+                    // 将新评论插入到列表顶部
+                    adapter?.prependComment(result.data)
+                    commentsRecyclerView?.scrollToPosition(0)
+                    inputEditText?.setText("")
+                    
+                    // 更新评论数量
+                    val newCount = initialCommentCount + 1
+                    commentTitleView?.text = "${newCount}条评论"
+                }
+                is AppResult.Error -> {
+                    Log.e(TAG, "Failed to post comment", result.throwable)
+                    Toast.makeText(
+                        requireContext(),
+                        "发布评论失败: ${result.throwable.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                is AppResult.Loading -> {
+                    // 不会进入这里
+                }
+            }
+            isPosting = false
+            sendButton?.isEnabled = true
+        }
     }
 
     companion object {
+        private const val TAG = "VideoCommentsDialog"
         private const val ARG_VIDEO_ID = "arg_video_id"
         private const val ARG_COMMENT_COUNT = "arg_comment_count"
 
@@ -138,10 +200,10 @@ class VideoCommentsDialogFragment : DialogFragment() {
 }
 
 /**
- * 评论列表 Adapter：目前使用 MockComments 提供的数据。
+ * 评论列表 Adapter：使用 Domain Model 的 Comment
  */
 private class CommentsAdapter(
-    private val items: MutableList<MockComment>
+    private val items: MutableList<Comment>
 ) : RecyclerView.Adapter<CommentViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CommentViewHolder {
@@ -156,7 +218,13 @@ private class CommentsAdapter(
         holder.bind(items[position])
     }
 
-    fun prependComment(comment: MockComment) {
+    fun updateComments(newComments: List<Comment>) {
+        items.clear()
+        items.addAll(newComments)
+        notifyDataSetChanged()
+    }
+
+    fun prependComment(comment: Comment) {
         items.add(0, comment)
         notifyItemInserted(0)
     }
@@ -172,16 +240,21 @@ private class CommentViewHolder(itemView: View) : RecyclerView.ViewHolder(itemVi
     private val replyView: TextView = itemView.findViewById(R.id.tv_reply)
     private val likeCountView: TextView = itemView.findViewById(R.id.tv_like_count)
 
-    fun bind(comment: MockComment) {
+    fun bind(comment: Comment) {
         // 头像目前用统一占位图 + 圆形背景
         avatarView.setImageResource(R.drawable.ic_avatar_placeholder)
 
-        userNameView.text = comment.userName
-        authorTagView.visibility = if (comment.isAuthor) View.VISIBLE else View.GONE
+        userNameView.text = comment.authorName
+        
+        // 判断是否为作者（这里暂时简化，可以通过 videoId 查找视频作者来比较）
+        // TODO: 需要从视频信息中获取作者 ID 来判断
+        authorTagView.visibility = View.GONE
 
         contentView.text = comment.content
 
-        timeLocationView.text = comment.timeDesc
+        // 使用时间格式化工具格式化时间显示
+        // 注意：后端没有返回 location 信息，所以暂时不显示位置
+        timeLocationView.text = TimeFormatter.formatSimpleRelativeTime(comment.createdAt)
 
         // 回复按钮暂时不做交互，只展示文字
         replyView.text = "回复"
@@ -189,5 +262,3 @@ private class CommentViewHolder(itemView: View) : RecyclerView.ViewHolder(itemVi
         likeCountView.text = comment.likeCount.toString()
     }
 }
-
-

@@ -520,6 +520,14 @@
     - 数据流清晰：Repository → UseCase → ViewModel → UI
   - 下一步：接入真实后端API，实现评论弹层和分享功能
 
+- [x] 评论区后端对接（竖屏/横屏通用弹层）  
+  - 2025-12-03 - done by ZX  
+  - 内容：  
+    1. ✅ `VideoFeedApiService` 新增并落地 `getComments`、`postComment` 接口，对接后端 `GET /api/videos/{id}/comments` 与 `POST /api/videos/{id}/comments`，使用 MySQL + FastAPI 实际数据源。  
+    2. ✅ 创建通用 `VideoCommentsDialogFragment`，作为竖屏推荐页与横屏播放页共用的评论弹层：竖屏时以底部半屏 Dialog 展示，横屏时贴右侧全高半屏展示，并通过 Hilt 注入 `GetCommentsUseCase` / `PostCommentUseCase` 完成数据加载与发布。  
+    3. ✅ 评论列表采用分页接口首页（当前默认 `page=1, limit=30`）驱动 UI，失败时以 Toast 提示但不阻塞页面；发布评论成功后将新评论插入列表顶部并本地递增标题中的评论数。  
+  - 文档：已在 `docs/api_reference.md` 的“2.2 评论相关接口”补充客户端对接细节，并在 `docs/backend/api_contract.md` 标注 Android 端当前仅接入评论列表/发布接口，AI 评论接口待后续对接。
+
 - [x] Settings和Landscape模块接入视频业务
   - 2025-11-31 - LRZ
   - 内容：
