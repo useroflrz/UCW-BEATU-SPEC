@@ -1,4 +1,4 @@
-package com.ucw.beatu.business.videofeed.presentation.model
+package com.ucw.beatu.shared.common.model
 
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize

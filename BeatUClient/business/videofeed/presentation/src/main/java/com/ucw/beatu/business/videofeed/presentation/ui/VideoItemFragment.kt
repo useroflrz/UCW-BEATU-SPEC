@@ -129,8 +129,6 @@ class VideoItemFragment : BaseFeedItemFragment() {
                     error(placeholderRes)
                 }
             }
-            )
-            channelNameView?.text = item.authorName
 
             // 主页：点击作者头像/昵称显示用户信息（半屏展示）
             val avatarView = sharedControlsRoot?.findViewById<android.widget.ImageView>(

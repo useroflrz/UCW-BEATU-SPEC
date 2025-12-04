@@ -1,9 +1,9 @@
 package com.ucw.beatu.business.videofeed.presentation.mapper
 
 import com.ucw.beatu.business.videofeed.domain.model.Video
-import com.ucw.beatu.business.videofeed.presentation.model.FeedContentType
-import com.ucw.beatu.business.videofeed.presentation.model.VideoItem
-import com.ucw.beatu.business.videofeed.presentation.model.VideoOrientation
+import com.ucw.beatu.shared.common.model.FeedContentType
+import com.ucw.beatu.shared.common.model.VideoItem
+import com.ucw.beatu.shared.common.model.VideoOrientation
 
 /**
  * 视频模型映射器
