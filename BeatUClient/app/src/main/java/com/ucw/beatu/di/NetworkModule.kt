@@ -39,8 +39,6 @@ object NetworkModule {
         val readTimeout = context.resources.getInteger(R.integer.read_timeout_seconds).toLong()
         val writeTimeout = context.resources.getInteger(R.integer.write_timeout_seconds).toLong()
         val enableLogging = context.resources.getBoolean(R.bool.enable_network_logging)
-        val cacheSizeMb = context.resources.getInteger(R.integer.okhttp_cache_size_mb)
-        val cacheSizeBytes = cacheSizeMb.toLong() * 1024 * 1024
         
         return NetworkConfig(
             baseUrl = baseUrl,
@@ -48,7 +46,6 @@ object NetworkModule {
             readTimeoutSeconds = readTimeout,
             writeTimeoutSeconds = writeTimeout,
             enableLogging = enableLogging,
-            cacheSizeBytes = cacheSizeBytes,
             defaultHeaders = mapOf(
                 "Content-Type" to "application/json",
                 "Accept" to "application/json"

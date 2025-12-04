@@ -72,22 +72,17 @@ val tokenSync = withContext(Dispatchers.IO) {
 }
 ```
 
-### 3. 网络 / 后端配置
+### 3. 网络/MySQL配置
 
-**位置**: 
-- Hilt 模块：`app/src/main/java/com/ucw/beatu/di/NetworkModule.kt`
-- 配置资源：`app/src/main/res/values/config.xml`
+**位置**: `app/src/main/java/com/ucw/beatu/di/NetworkModule.kt`
 
-**配置项（`config.xml`）**:
-- `base_url`: 后端网关基础 URL，当前默认值为 `http://127.0.0.1:9306/`，与 `BeatUBackend` 开发环境端口对齐。
-- `connect_timeout_seconds` / `read_timeout_seconds` / `write_timeout_seconds`: 基础网络超时时间（秒）。
-- `remote_request_timeout_ms`: 远程请求业务级超时时间（毫秒，用于快速失败并回退到本地缓存）。
+**配置项**:
+- `BASE_URL`: MySQL后端服务地址（需在`NetworkModule.kt`中配置）
+- `NetworkConfig`: 网络配置（超时时间、日志等）
+- `Retrofit`: HTTP客户端
+- `OkHttpClient`: OkHttp客户端
 
-**运行时装配**：
-- `NetworkModule.provideNetworkConfig` 从 `R.string.base_url` 等资源读取配置，构造 `NetworkConfig`；
-- `OkHttpProvider` 与 `RetrofitProvider` 基于 `NetworkConfig` 创建全局 `OkHttpClient` 与 `Retrofit` 实例。
-
-> 说明：后续如需切换到正式网关，只需修改 `config.xml`（或为 release 构建单独提供 `values-release/config.xml`），无需改动 Kotlin 代码。
+**TODO**: 在`NetworkModule.kt`中修改`BASE_URL`为实际的MySQL后端地址
 
 ### 4. 公共数据层基建
 

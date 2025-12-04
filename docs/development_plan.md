@@ -121,6 +121,15 @@
 - [x] 竖/横屏交互图标接口文档  
   - 2025-12-01 - done by ZX  
   - 内容：在 `docs/interaction_icons_api.md` 统一描述竖屏 `VideoControlsView` 与横屏 `LandscapeVideoItemFragment` 的点赞/收藏/评论/分享交互事件、UseCase/Repository 契约、API 接口与降级策略，供后续业务层接入真实后端时参考。
+- [x] 视频分享功能后端 + 客户端落地（含封面 + 二维码分享图）  
+  - 2025-12-04 - done by ZX  
+  - 内容：  
+    1. **后端接口与计数**：在 `BeatUBackend` 中为视频分享新增 `POST /api/videos/{video_id}/share` 接口，`VideoService.share_video` 负责将对应视频的 `share_count` 字段自增；Android 客户端通过 `ShareVideoUseCase` / `VideoRepository.shareVideo` 上报分享行为。  
+    2. **竖屏分享 UI 与交互**：在 `VideoItemFragment` 中实现底部分享弹窗 `VideoShareDialogFragment`，采用白色圆角面板，包含“生成分享图”和“链接分享”两个入口；点击任意入口时，先调用 `viewModel.reportShare()` 触发后端计数，再对当前卡片的分享数做一次乐观 `+1` 更新。  
+    3. **横屏分享 UI 复用**：在 `LandscapeVideoItemFragment` 中复用同一 Dialog 布局，横屏下通过 `layout-land/dialog_video_share_options.xml` 改为右侧竖向贴边浮窗（“复制链接/保存图片”上下排列），点击两项同样调用 `LandscapeVideoItemViewModel.reportShare()` 上报分享。  
+    4. **分享图生成（封面 + 二维码）**：新增 `QrCodeGenerator`（基于 ZXing）和 `SharePosterGenerator` 两个工具类；前者将视频分享链接编码为二维码 Bitmap，后者用 Canvas 合成竖版海报（上半部分为当前 `PlayerView` 截图，下半部分为白色信息卡片：标题、作者、二维码与“扫码查看视频”提示文案）。  
+    5. **图片分享与 FileProvider 配置**：新增 `ShareImageUtils` 将生成的海报 Bitmap 写入 `cacheDir/share_images/` 后，通过 `androidx.core.content.FileProvider` 暴露 Uri 并调起系统图片分享；在 `app/src/main/AndroidManifest.xml` 中注册 `com.ucw.beatu.fileprovider`，并在 `res/xml/file_paths.xml` 中声明 `cache-path`，解决生成分享图后崩溃的问题。  
+    6. **链接分享**：保留“链接分享/复制链接”入口，通过 `Intent.ACTION_SEND` 启动系统分享面板，分享内容为“视频标题 + 播放 URL 或 Deeplink”，不阻塞分享计数上报流程。
 - [x] 横屏亮度手势实现 & 文档对齐  
   - 2025-12-02 - done by ZX  
   - 内容：在 `LandscapeVideoItemFragment` 中完整实现右侧亮度长按手势，并同步更新文档（`docs/interaction_icons_api.md` 与 `docs/requirements.md`/交互说明）以对齐最新逻辑：  

@@ -24,6 +24,8 @@ fun Video.toVideoItem(): VideoItem {
         commentCount = commentCount.toInt(),
         favoriteCount = favoriteCount.toInt(),
         shareCount = shareCount.toInt(),
+        isLiked = isLiked,
+        isFavorited = isFavorited,
         orientation = when (orientation.lowercase()) {
             "portrait", "vertical" -> VideoOrientation.PORTRAIT
             "landscape", "horizontal" -> VideoOrientation.LANDSCAPE

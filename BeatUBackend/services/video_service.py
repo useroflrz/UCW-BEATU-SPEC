@@ -64,6 +64,21 @@ class VideoService:
         action = "LIKE" if payload.action == "SAVE" else "UNLIKE"
         return self._handle_interaction(video_id, user_id, action, "FAVORITE")
 
+    def share_video(self, video_id: str) -> OperationResult:
+        """
+        记录一次分享行为：将对应视频的 share_count 自增 1。
+        客户端负责实际的系统分享逻辑，这里只做统计。
+        """
+        video = self.db.get(Video, video_id)
+        if not video:
+            raise ValueError("视频不存在")
+
+        # 自增分享次数（保证不为负数）
+        video.share_count = max(0, video.share_count + 1)
+        self.db.commit()
+
+        return OperationResult(success=True, message="OK")
+
     def follow_author(self, payload: FollowRequest, user_id: str) -> OperationResult:
         author_id = payload.author_id
         interaction = (

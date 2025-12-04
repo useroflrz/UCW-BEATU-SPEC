@@ -51,28 +51,35 @@ interface VideoFeedApiService {
      * POST /api/videos/{id}/like
      */
     @POST("api/videos/{id}/like")
-    suspend fun likeVideo(@Path("id") videoId: String): ApiResponse<Unit>
+    suspend fun likeVideo(@Path("id") videoId: String): ApiResponse<Any?>
 
     /**
      * 取消点赞
      * POST /api/videos/{id}/unlike
      */
     @POST("api/videos/{id}/unlike")
-    suspend fun unlikeVideo(@Path("id") videoId: String): ApiResponse<Unit>
+    suspend fun unlikeVideo(@Path("id") videoId: String): ApiResponse<Any?>
 
     /**
      * 收藏视频
      * POST /api/videos/{id}/favorite
      */
     @POST("api/videos/{id}/favorite")
-    suspend fun favoriteVideo(@Path("id") videoId: String): ApiResponse<Unit>
+    suspend fun favoriteVideo(@Path("id") videoId: String): ApiResponse<Any?>
 
     /**
      * 取消收藏
      * POST /api/videos/{id}/unfavorite
      */
     @POST("api/videos/{id}/unfavorite")
-    suspend fun unfavoriteVideo(@Path("id") videoId: String): ApiResponse<Unit>
+    suspend fun unfavoriteVideo(@Path("id") videoId: String): ApiResponse<Any?>
+
+    /**
+     * 分享视频（统计用）
+     * POST /api/videos/{id}/share
+     */
+    @POST("api/videos/{id}/share")
+    suspend fun shareVideo(@Path("id") videoId: String): ApiResponse<Any?>
 
     /**
      * 发布评论

@@ -6,36 +6,11 @@
     <string name="base_url">http://192.168.31.72:9306/</string>
     
     <!-- 网络超时配置（秒） -->
-    <integer name="connect_timeout_seconds">1</integer>
-    <integer name="read_timeout_seconds">1</integer>
-    <integer name="write_timeout_seconds">1</integer>
-
-    <!-- 视频流超时配置（毫秒） -->
-    <!-- 视频播放器连接和读取超时时间，建议与网络超时配置保持一致 -->
-    <integer name="video_connect_timeout_ms">1000</integer>
-    <integer name="video_read_timeout_ms">1000</integer>
-
-    <!-- 远程请求超时配置（毫秒） -->
-    <!-- 数据仓库远程请求超时时间，用于快速失败并回退到本地缓存 -->
-    <integer name="remote_request_timeout_ms">3000</integer>
+    <integer name="connect_timeout_seconds">15</integer>
+    <integer name="read_timeout_seconds">15</integer>
+    <integer name="write_timeout_seconds">15</integer>
     
     <!-- 是否启用网络日志（开发环境建议开启，生产环境建议关闭） -->
     <bool name="enable_network_logging">true</bool>
-
-    <!-- 网络缓存配置 -->
-    <!-- OkHttp 缓存大小（MB） -->
-    <integer name="okhttp_cache_size_mb">10</integer>
-
-    <!-- 视频播放器配置 -->
-    <!-- 播放器池最大可复用播放器数量 -->
-    <integer name="video_player_pool_max_reusable">3</integer>
-    <!-- 屏幕外预加载视频数量 -->
-    <integer name="video_offscreen_preload_count">1</integer>
-
-    <!-- 分页配置 -->
-    <!-- 视频列表每页默认数量 -->
-    <integer name="video_page_size">20</integer>
-    <!-- 视频列表缓存页面数（至少缓存多少页数据） -->
-    <integer name="video_cache_page_count">3</integer>
 </resources>
 

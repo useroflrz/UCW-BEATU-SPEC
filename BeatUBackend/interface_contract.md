@@ -66,6 +66,30 @@ GET /api/videos?page=1&limit=10&orientation=portrait
 | POST | `/ai/recommend` | `{ videoId, dwellMs, consumedDurationMs, tags? }` | `{ nextVideos: [Video], reason }` |
 | POST | `/ai/quality` | `{ videoId, networkStats, deviceStats }` | `{ quality, reason }` |
 | POST | `/ai/comment/qa` | `{ videoId, question }` | `{ comment: Comment }`（即时生成 AI 回复并入库） |
+| POST | `/ai/search/stream` | `{ userQuery: string }` | `StreamingResponse`（SSE 格式，流式返回 AI 回答、关键词、视频 ID） |
+
+**AI 搜索流式接口说明**：
+- 请求体：`{ "userQuery": "我想看一些搞笑视频" }`
+- 响应格式：Server-Sent Events (SSE)
+- 数据块类型：
+  - `answer`：AI 生成的文本回答（流式输出，多个数据块）
+  - `keywords`：提取的关键词列表（JSON 字符串）
+  - `videoIds`：远程数据库的视频 ID 列表（JSON 字符串）
+  - `localVideoIds`：本地数据库的视频 ID 列表（JSON 字符串）
+  - `error`：错误信息（如果处理失败）
+
+**SSE 数据格式示例**：
+```
+data: {"chunkType": "answer", "content": "我", "isFinal": false}
+
+data: {"chunkType": "answer", "content": "为", "isFinal": false}
+
+data: {"chunkType": "answer", "content": "", "isFinal": true}
+
+data: {"chunkType": "keywords", "content": "[\"搞笑\", \"视频\"]", "isFinal": true}
+
+data: {"chunkType": "videoIds", "content": "[\"video_001\", \"video_002\"]", "isFinal": true}
+```
 
 当前实现内部通过启发式逻辑返回 Mock 结果，方便后续替换为真实模型。
 

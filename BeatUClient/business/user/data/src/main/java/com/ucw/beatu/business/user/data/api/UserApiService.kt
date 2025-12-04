@@ -2,7 +2,6 @@ package com.ucw.beatu.business.user.data.api
 
 import com.ucw.beatu.business.user.data.api.dto.UserDto
 import com.ucw.beatu.shared.common.api.ApiResponse
-import com.ucw.beatu.shared.common.api.EmptyResponse
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -32,13 +31,13 @@ interface UserApiService {
      * POST /api/users/{id}/follow
      */
     @POST("api/users/{id}/follow")
-    suspend fun followUser(@Path("id") userId: String): ApiResponse<EmptyResponse>
+    suspend fun followUser(@Path("id") userId: String): ApiResponse<Any?>
 
     /**
      * 取消关注用户
      * POST /api/users/{id}/unfollow
      */
     @POST("api/users/{id}/unfollow")
-    suspend fun unfollowUser(@Path("id") userId: String): ApiResponse<EmptyResponse>
+    suspend fun unfollowUser(@Path("id") userId: String): ApiResponse<Any?>
 }
 

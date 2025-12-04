@@ -125,6 +125,20 @@ def unfavorite_video(
     return success_response(None)
 
 
+@router.post("/videos/{video_id}/share")
+def share_video(
+    video_id: str,
+    service: VideoService = Depends(get_video_service),
+):
+    """
+    分享视频：
+    - 客户端点击分享并成功调起系统分享后调用
+    - 后端只做 share_count 统计，返回统一的成功响应
+    """
+    result = service.share_video(video_id)
+    return success_response(None)
+
+
 # 旧的 /follow 接口保留以兼容，新的用户接口在 users.py 中实现
 @router.post("/follow")
 def follow_author(

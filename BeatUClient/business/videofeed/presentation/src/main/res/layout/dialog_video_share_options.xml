@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_video_share_panel"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tv_share_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="分享至"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#222222"
+        android:paddingBottom="12dp" />
+
+    <!-- 两个分享方式，横向排布，图标 + 文案，接近原型图 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <LinearLayout
+            android:id="@+id/btn_share_poster"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_share_icon_circle"
+                android:scaleType="centerInside" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="生成分享图"
+                android:textSize="13sp"
+                android:textColor="#333333" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btn_share_link"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_share_icon_circle"
+                android:scaleType="centerInside" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="链接分享"
+                android:textSize="13sp"
+                android:textColor="#333333" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>
+

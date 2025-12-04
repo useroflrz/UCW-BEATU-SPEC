@@ -8,6 +8,7 @@ import androidx.media3.ui.PlayerView
 import com.ucw.beatu.business.videofeed.domain.usecase.FavoriteVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.LikeVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.UnfavoriteVideoUseCase
+import com.ucw.beatu.business.videofeed.domain.usecase.ShareVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.UnlikeVideoUseCase
 import com.ucw.beatu.shared.common.result.AppResult
 import com.ucw.beatu.shared.player.VideoPlayer
@@ -53,7 +54,8 @@ class VideoItemViewModel @Inject constructor(
     private val likeVideoUseCase: LikeVideoUseCase,
     private val unlikeVideoUseCase: UnlikeVideoUseCase,
     private val favoriteVideoUseCase: FavoriteVideoUseCase,
-    private val unfavoriteVideoUseCase: UnfavoriteVideoUseCase
+    private val unfavoriteVideoUseCase: UnfavoriteVideoUseCase,
+    private val shareVideoUseCase: ShareVideoUseCase
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(VideoItemUiState())
@@ -519,6 +521,24 @@ class VideoItemViewModel @Inject constructor(
     }
 
     /**
+     * 上报一次分享行为（不负责拉起系统分享）
+     */
+    fun reportShare() {
+        val videoId = _uiState.value.currentVideoId ?: return
+        viewModelScope.launch {
+            when (val result = shareVideoUseCase(videoId)) {
+                is AppResult.Success -> {
+                    // 暂时不处理 UI 计数，由后端返回的列表刷新 shareCount
+                }
+                is AppResult.Error -> {
+                    android.util.Log.e("VideoItemViewModel", "shareVideo failed, videoId=$videoId", result.throwable)
+                }
+                else -> Unit
+            }
+        }
+    }
+
+    /**
      * 切换点赞状态
      */
     fun toggleLike() {
@@ -541,17 +561,21 @@ class VideoItemViewModel @Inject constructor(
 
         viewModelScope.launch {
             val result = if (targetLiked) {
+                android.util.Log.d("VideoItemViewModel", "toggleLike: 调用 likeVideoUseCase, videoId=$videoId")
                 likeVideoUseCase(videoId)
             } else {
+                android.util.Log.d("VideoItemViewModel", "toggleLike: 调用 unlikeVideoUseCase, videoId=$videoId")
                 unlikeVideoUseCase(videoId)
             }
 
             _uiState.value = when (result) {
                 is AppResult.Success -> {
+                    android.util.Log.d("VideoItemViewModel", "toggleLike: 成功, videoId=$videoId")
                     // 后端成功：只结束交互状态，保留乐观状态
                     _uiState.value.copy(isInteracting = false)
                 }
                 is AppResult.Error -> {
+                    android.util.Log.e("VideoItemViewModel", "toggleLike: 失败, videoId=$videoId", result.throwable)
                     // 失败：保留当前乐观状态，只记录错误，交由 UI 以 Toast 提示
                     _uiState.value.copy(
                         isInteracting = false,
@@ -586,16 +610,20 @@ class VideoItemViewModel @Inject constructor(
 
         viewModelScope.launch {
             val result = if (targetFavorited) {
+                android.util.Log.d("VideoItemViewModel", "toggleFavorite: 调用 favoriteVideoUseCase, videoId=$videoId")
                 favoriteVideoUseCase(videoId)
             } else {
+                android.util.Log.d("VideoItemViewModel", "toggleFavorite: 调用 unfavoriteVideoUseCase, videoId=$videoId")
                 unfavoriteVideoUseCase(videoId)
             }
 
             _uiState.value = when (result) {
                 is AppResult.Success -> {
+                    android.util.Log.d("VideoItemViewModel", "toggleFavorite: 成功, videoId=$videoId")
                     _uiState.value.copy(isInteracting = false)
                 }
                 is AppResult.Error -> {
+                    android.util.Log.e("VideoItemViewModel", "toggleFavorite: 失败, videoId=$videoId", result.throwable)
                     _uiState.value.copy(
                         isInteracting = false,
                         error = result.throwable.message ?: "收藏失败，请稍后重试"

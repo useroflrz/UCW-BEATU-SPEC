@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/bg_video_share_panel_land"
+    android:paddingTop="0dp"
+    android:paddingBottom="0dp"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp">
+
+    <!-- 顶部留空，用来和中间视频错开一点儿 -->
+    <Space
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- 复制链接 -->
+    <LinearLayout
+        android:id="@+id/btn_share_link"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="8dp">
+
+        <ImageView
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_share_icon_circle"
+            android:scaleType="centerInside" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="复制链接"
+            android:textSize="13sp"
+            android:textColor="#333333" />
+    </LinearLayout>
+
+    <!-- 间隔 -->
+    <Space
+        android:layout_width="0dp"
+        android:layout_height="16dp" />
+
+    <!-- 保存图片（生成分享图） -->
+    <LinearLayout
+        android:id="@+id/btn_share_poster"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="8dp">
+
+        <ImageView
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_share_icon_circle"
+            android:scaleType="centerInside" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="保存图片"
+            android:textSize="13sp"
+            android:textColor="#333333" />
+    </LinearLayout>
+
+    <!-- 底部权重撑满，整体垂直居中 -->
+    <Space
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+</LinearLayout>
+
+

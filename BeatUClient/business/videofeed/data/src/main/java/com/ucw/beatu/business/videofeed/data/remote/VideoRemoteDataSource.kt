@@ -22,6 +22,7 @@ interface VideoRemoteDataSource {
     suspend fun unlikeVideo(videoId: String): AppResult<Unit>
     suspend fun favoriteVideo(videoId: String): AppResult<Unit>
     suspend fun unfavoriteVideo(videoId: String): AppResult<Unit>
+    suspend fun shareVideo(videoId: String): AppResult<Unit>
     suspend fun postComment(videoId: String, content: String): AppResult<Comment>
 }
 
@@ -210,6 +211,31 @@ class VideoRemoteDataSourceImpl @Inject constructor(
             }
 
             val response = apiService.unfavoriteVideo(videoId)
+            when {
+                response.isSuccess -> Unit
+                response.isUnauthorized -> {
+                    throw DataException.AuthException(
+                        response.message,
+                        response.code
+                    )
+                }
+                else -> {
+                    throw DataException.ServerException(
+                        response.message,
+                        response.code
+                    )
+                }
+            }
+        }
+    }
+
+    override suspend fun shareVideo(videoId: String): AppResult<Unit> {
+        return runAppResult {
+            if (!connectivityObserver.isConnected()) {
+                throw DataException.NetworkException("No internet connection")
+            }
+
+            val response = apiService.shareVideo(videoId)
             when {
                 response.isSuccess -> Unit
                 response.isUnauthorized -> {

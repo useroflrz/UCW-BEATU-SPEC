@@ -1,6 +1,5 @@
 package com.ucw.beatu.business.videofeed.data.repository
 
-import android.content.Context
 import com.ucw.beatu.business.videofeed.data.local.VideoLocalDataSource
 import com.ucw.beatu.business.videofeed.data.remote.VideoRemoteDataSource
 import com.ucw.beatu.business.videofeed.domain.model.Comment
@@ -8,7 +7,6 @@ import com.ucw.beatu.business.videofeed.domain.model.Video
 import com.ucw.beatu.business.videofeed.domain.repository.VideoRepository
 import com.ucw.beatu.shared.common.mock.MockVideoCatalog
 import com.ucw.beatu.shared.common.result.AppResult
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -26,25 +24,8 @@ import javax.inject.Inject
  */
 class VideoRepositoryImpl @Inject constructor(
     private val remoteDataSource: VideoRemoteDataSource,
-    private val localDataSource: VideoLocalDataSource,
-    @ApplicationContext private val context: Context
+    private val localDataSource: VideoLocalDataSource
 ) : VideoRepository {
-
-    private val remoteRequestTimeoutMs: Long by lazy {
-        getIntegerResource(
-            context,
-            "remote_request_timeout_ms",
-            DEFAULT_REMOTE_REQUEST_TIMEOUT_MS.toInt()
-        ).toLong()
-    }
-
-    private val cachePageCount: Int by lazy {
-        getIntegerResource(
-            context,
-            "video_cache_page_count",
-            DEFAULT_VIDEO_CACHE_PAGE_COUNT
-        )
-    }
 
     override fun getVideoFeed(
         page: Int,
@@ -59,7 +40,7 @@ class VideoRepositoryImpl @Inject constructor(
             val localDeferred = async {
                 if (orientation == null) {
                     // 读取足够多的缓存数据，支持多页滑动
-                    val cacheLimit = limit * maxOf(page, cachePageCount) // 至少缓存指定页数的数据
+                    val cacheLimit = limit * maxOf(page, 3) // 至少缓存3页数据
                     localDataSource.observeVideos(cacheLimit).firstOrNull()?.let { cachedVideos ->
                         // 从缓存中提取对应页的数据
                         val startIndex = (page - 1) * limit
@@ -76,16 +57,16 @@ class VideoRepositoryImpl @Inject constructor(
                 }
             }
 
-            // 远程请求添加超时控制，快速失败，避免长时间卡顿
-            // 从config.xml读取超时配置，快速fallback到本地缓存或mock数据
+            // 远程请求添加超时控制（3秒），快速失败，避免长时间卡顿
+            // 弱网环境下，3秒足够判断网络是否可用，快速fallback到本地缓存或mock数据
             val remoteDeferred = async {
                 try {
-                    // 使用配置的超时时间，快速失败并fallback到本地缓存或mock数据
-                    withTimeout(remoteRequestTimeoutMs) {
+                    // 使用较短的超时时间（3秒），快速失败并fallback到本地缓存或mock数据
+                    withTimeout(3000L) {
                         remoteDataSource.getVideoFeed(page, limit, orientation)
                     }
                 } catch (e: TimeoutCancellationException) {
-                    // 超时立即返回错误，不等待默认超时时间，确保UI流畅
+                    // 超时立即返回错误，不等待15秒，确保UI流畅
                     AppResult.Error(e)
                 } catch (e: Exception) {
                     AppResult.Error(e)
@@ -223,6 +204,10 @@ class VideoRepositoryImpl @Inject constructor(
         return remoteDataSource.unfavoriteVideo(videoId)
     }
 
+    override suspend fun shareVideo(videoId: String): AppResult<Unit> {
+        return remoteDataSource.shareVideo(videoId)
+    }
+
     override suspend fun postComment(videoId: String, content: String): AppResult<Comment> {
         return when (val result = remoteDataSource.postComment(videoId, content)) {
             is AppResult.Success -> {
@@ -280,19 +265,6 @@ class VideoRepositoryImpl @Inject constructor(
                 createdAt = null,
                 updatedAt = null
             )
-        }
-    }
-    companion object {
-        private const val DEFAULT_REMOTE_REQUEST_TIMEOUT_MS = 3000L
-        private const val DEFAULT_VIDEO_CACHE_PAGE_COUNT = 3
-
-        private fun getIntegerResource(
-            context: Context,
-            name: String,
-            defaultValue: Int
-        ): Int {
-            val resId = context.resources.getIdentifier(name, "integer", context.packageName)
-            return if (resId != 0) context.resources.getInteger(resId) else defaultValue
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.ucw.beatu.business.videofeed.presentation.ui
 
+import android.content.Intent
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -20,6 +22,8 @@ import com.ucw.beatu.shared.common.model.FeedContentType
 import com.ucw.beatu.shared.common.model.VideoItem
 import com.ucw.beatu.shared.common.model.VideoOrientation
 import com.ucw.beatu.business.videofeed.presentation.viewmodel.VideoItemViewModel
+import com.ucw.beatu.business.videofeed.presentation.share.SharePosterGenerator
+import com.ucw.beatu.business.videofeed.presentation.share.ShareImageUtils
 import com.ucw.beatu.shared.common.navigation.LandscapeLaunchContract
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
@@ -60,7 +64,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
     private var navigatingToLandscape = false
     private var hasPreparedPlayer = false
     private var imageAutoScrollJob: Job? = null
-    
+
     // 用户信息展示相关
     private var userInfoOverlay: View? = null
     private var rootLayout: ConstraintLayout? = null
@@ -92,11 +96,9 @@ class VideoItemFragment : BaseFeedItemFragment() {
         rootLayout = view as? ConstraintLayout
         playerView = view.findViewById(R.id.player_view)
         imagePager = view.findViewById(R.id.image_pager)
-        controlsView = view.findViewById(R.id.video_controls)
-        userInfoOverlay = view.findViewById(R.id.user_info_overlay)
-        
-        // 注意：全屏按钮及标题/频道名称等现在定义在 shared:designsystem 的 VideoControlsView 布局中
-        val sharedControlsRoot = controlsView
+         controlsView = view.findViewById(R.id.video_controls)
+         // 注意：全屏按钮及标题/频道名称等现在定义在 shared:designsystem 的 VideoControlsView 布局中
+         val sharedControlsRoot = controlsView
         val fullScreenButton = sharedControlsRoot?.findViewById<View>(
             com.ucw.beatu.shared.designsystem.R.id.iv_fullscreen
         )
@@ -110,7 +112,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
                 com.ucw.beatu.shared.designsystem.R.id.tv_channel_name
             )
             channelNameView?.text = item.authorName
-            
+
             // 主页：点击作者头像/昵称显示用户信息（半屏展示）
             val avatarView = sharedControlsRoot?.findViewById<android.widget.ImageView>(
                 com.ucw.beatu.shared.designsystem.R.id.iv_channel_avatar
@@ -120,14 +122,15 @@ class VideoItemFragment : BaseFeedItemFragment() {
             }
             avatarView?.setOnClickListener(authorClickListener)
             channelNameView?.setOnClickListener(authorClickListener)
-            
+
             // 四个互动按钮下方的计数文案（与截图风格一致）
             sharedControlsRoot?.findViewById<android.widget.TextView>(
                 com.ucw.beatu.shared.designsystem.R.id.tv_like_count
             )?.text = item.likeCount.toString()
-            sharedControlsRoot?.findViewById<android.widget.TextView>(
-                com.ucw.beatu.shared.designsystem.R.id.tv_share_count
-            )?.text = item.shareCount.toString()
+             val shareCountTextView = sharedControlsRoot?.findViewById<android.widget.TextView>(
+                 com.ucw.beatu.shared.designsystem.R.id.tv_share_count
+             )
+             shareCountTextView?.text = item.shareCount.toString()
             sharedControlsRoot?.findViewById<android.widget.TextView>(
                 com.ucw.beatu.shared.designsystem.R.id.tv_favorite_count
             )?.text = item.favoriteCount.toString()
@@ -138,8 +141,8 @@ class VideoItemFragment : BaseFeedItemFragment() {
             // 初始化互动状态
             viewModel.initInteractionState(
                 videoId = item.id,
-                isLiked = false, // TODO: 从VideoItem中获取实际状态
-                isFavorited = false, // TODO: 从VideoItem中获取实际状态
+                isLiked = item.isLiked,
+                isFavorited = item.isFavorited,
                 likeCount = item.likeCount.toLong(),
                 favoriteCount = item.favoriteCount.toLong()
             )
@@ -184,8 +187,70 @@ class VideoItemFragment : BaseFeedItemFragment() {
                     .show(parentFragmentManager, "video_comments_dialog")
             }
 
-            override fun onShareClicked() {
-                // TODO: 打开分享弹层
+             override fun onShareClicked() {
+                 val item = videoItem ?: return
+                 // 当前展示的分享计数，本地乐观累加
+                 val shareCountTextView = sharedControlsRoot?.findViewById<android.widget.TextView>(
+                     com.ucw.beatu.shared.designsystem.R.id.tv_share_count
+                 )
+                 var currentShareCount: Long =
+                     shareCountTextView?.text?.toString()?.toLongOrNull() ?: item.shareCount.toLong()
+                val dialog = VideoShareDialogFragment.newInstance(
+                    videoId = item.id,
+                    title = item.title,
+                    playUrl = item.videoUrl
+                )
+                dialog.shareActionListener = object : VideoShareDialogFragment.ShareActionListener {
+                     override fun onSharePoster() {
+                         // 上报分享 + 本地乐观更新计数
+                         viewModel.reportShare()
+                         currentShareCount += 1
+                         shareCountTextView?.text = currentShareCount.toString()
+
+                         // 生成“封面 + 二维码”分享图，并调用系统分享图片
+                         val pv = playerView
+                         if (pv == null) {
+                             Log.e(TAG, "PlayerView is null, cannot capture cover for share poster")
+                             return
+                         }
+                         val context = requireContext()
+                         val shareUrl = item.videoUrl // 若有专门的 H5 / DeepLink，可替换为专用链接
+                         val posterBitmap: Bitmap = SharePosterGenerator.generate(
+                             context = context,
+                             coverView = pv,
+                             title = item.title,
+                             author = item.authorName,
+                             shareUrl = shareUrl
+                         )
+
+                         // 把 Bitmap 保存到 Cache 并通过 FileProvider 分享
+                         ShareImageUtils.shareBitmap(
+                             context = context,
+                             bitmap = posterBitmap,
+                             fileName = "beatu_share_${item.id}.jpg",
+                             chooserTitle = "分享图片"
+                         )
+                     }
+
+                    override fun onShareLink() {
+                         viewModel.reportShare()
+                         currentShareCount += 1
+                         shareCountTextView?.text = currentShareCount.toString()
+                        // 使用系统分享，分享视频标题 + 播放链接
+                        val context = requireContext()
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                "${item.title}\n${item.videoUrl}"
+                            )
+                        }
+                        context.startActivity(
+                            Intent.createChooser(intent, "分享视频")
+                        )
+                    }
+                }
+                dialog.show(parentFragmentManager, "video_share_options")
             }
 
             override fun onSeekRequested(positionMs: Long) {
@@ -525,39 +590,39 @@ class VideoItemFragment : BaseFeedItemFragment() {
             hideUserInfoOverlay()
             return
         }
-        
+
         val layout = rootLayout ?: return
         val player = playerView ?: return
-        
+
         isUserInfoVisible = true
-        
+
         // 不暂停视频播放，继续播放
-        
+
         // 使用 ConstraintSet 实现布局动画：视频缩小到上半部分
         val constraintSet = ConstraintSet()
         constraintSet.clone(layout)
-        
+
         // 视频播放器缩小到上半部分（50%高度）
         constraintSet.clear(R.id.player_view, ConstraintSet.BOTTOM)
         constraintSet.connect(R.id.player_view, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP)
         constraintSet.connect(R.id.player_view, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 0)
         constraintSet.constrainPercentHeight(R.id.player_view, 0.5f)
-        
+
         // 同时调整 image_pager 和 video_controls 的高度，确保它们也缩小到上半部分
         constraintSet.clear(R.id.image_pager, ConstraintSet.BOTTOM)
         constraintSet.connect(R.id.image_pager, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP)
         constraintSet.connect(R.id.image_pager, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 0)
         constraintSet.constrainPercentHeight(R.id.image_pager, 0.5f)
-        
+
         constraintSet.clear(R.id.video_controls, ConstraintSet.BOTTOM)
         constraintSet.connect(R.id.video_controls, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP)
         constraintSet.connect(R.id.video_controls, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 0)
         constraintSet.constrainPercentHeight(R.id.video_controls, 0.5f)
-        
+
         // 应用动画
         TransitionManager.beginDelayedTransition(layout)
         constraintSet.applyTo(layout)
-        
+
         // 显示用户信息 DialogFragment（从底部弹出）
         val userId = if (authorId.isNotEmpty()) authorId else authorName
         userProfileDialogFragment = UserProfileDialogFragment.newInstance(userId, authorName)
@@ -579,43 +644,43 @@ class VideoItemFragment : BaseFeedItemFragment() {
      */
     private fun hideUserInfoOverlay() {
         if (!isUserInfoVisible) return
-        
+
         // 关闭 DialogFragment
         userProfileDialogFragment?.dismissAllowingStateLoss()
         userProfileDialogFragment = null
-        
+
         val layout = rootLayout ?: return
-        
+
         isUserInfoVisible = false
-        
+
         // 使用 ConstraintSet 恢复全屏布局
         val constraintSet = ConstraintSet()
         constraintSet.clone(layout)
-        
+
         // 视频播放器恢复全屏
         constraintSet.clear(R.id.player_view, ConstraintSet.BOTTOM)
         constraintSet.connect(R.id.player_view, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP)
         constraintSet.connect(R.id.player_view, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM)
         constraintSet.constrainPercentHeight(R.id.player_view, 1.0f)
-        
+
         // 同时恢复 image_pager 和 video_controls 的全屏高度
         constraintSet.clear(R.id.image_pager, ConstraintSet.BOTTOM)
         constraintSet.connect(R.id.image_pager, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP)
         constraintSet.connect(R.id.image_pager, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM)
         constraintSet.constrainPercentHeight(R.id.image_pager, 1.0f)
-        
+
         constraintSet.clear(R.id.video_controls, ConstraintSet.BOTTOM)
         constraintSet.connect(R.id.video_controls, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP)
         constraintSet.connect(R.id.video_controls, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM)
         constraintSet.constrainPercentHeight(R.id.video_controls, 1.0f)
-        
+
         // 应用动画
         TransitionManager.beginDelayedTransition(layout)
         constraintSet.applyTo(layout)
-        
+
         // 不恢复播放（因为从未暂停），继续播放
     }
-    
+
     /**
      * 导航到用户作品播放器
      */
@@ -625,7 +690,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
             Log.e(TAG, "NavController not found, cannot open user works viewer")
             return
         }
-        
+
         // 检查当前是否已经在 userWorksViewer 页面
         val currentDestination = navController.currentDestination
         val userWorksViewerDestinationId = NavigationHelper.getResourceId(
@@ -633,12 +698,12 @@ class VideoItemFragment : BaseFeedItemFragment() {
             NavigationIds.USER_WORKS_VIEWER
         )
         val isInUserWorksViewer = currentDestination?.id == userWorksViewerDestinationId
-        
+
         if (isInUserWorksViewer) {
             // 已经在 userWorksViewer 页面，检查是否是同一个用户
             val router = RouterRegistry.getUserWorksViewerRouter()
             val currentUserId = router?.getCurrentUserId()
-            
+
             if (currentUserId == userId && router != null) {
                 // 同一个用户，通过 Router 切换到对应的视频
                 Log.d(TAG, "Already in user works viewer for user $userId, switching to video at index $initialIndex")
@@ -655,7 +720,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
                 Log.d(TAG, "Already in user works viewer but different user (current: $currentUserId, target: $userId), allowing navigation")
             }
         }
-        
+
         // 从 feed fragment 导航，使用 feed 到 userWorksViewer 的动作
         val actionId = NavigationHelper.getResourceId(
             requireContext(),
@@ -665,7 +730,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
             Log.e(TAG, "Navigation action not found for user works viewer")
             return
         }
-        
+
         // 使用字符串常量避免循环依赖
         val bundle = bundleOf(
             "user_id" to userId,
@@ -674,5 +739,5 @@ class VideoItemFragment : BaseFeedItemFragment() {
         )
         navController.navigate(actionId, bundle)
     }
-    
+
 }

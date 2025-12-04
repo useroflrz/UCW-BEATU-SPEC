@@ -179,6 +179,11 @@ class AICommentQARequest(APIModel):
     question: str
 
 
+class AISearchRequest(APIModel):
+    """AI 搜索请求"""
+    user_query: str = Field(..., min_length=1, max_length=500, description="用户查询文本")
+
+
 class MetricsPlayback(APIModel):
     video_id: str
     fps: Optional[float] = None

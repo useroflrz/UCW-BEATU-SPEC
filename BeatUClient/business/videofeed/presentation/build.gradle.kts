@@ -74,5 +74,8 @@ dependencies {
     implementation(libs.material)
     // Coil for image loading in ImagePostFragment
     implementation(libs.coil)
+
+    // QRCode 生成（分享海报用）
+    implementation("com.google.zxing:core:3.5.3")
 }
 

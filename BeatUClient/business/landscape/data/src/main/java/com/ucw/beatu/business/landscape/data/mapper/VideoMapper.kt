@@ -22,6 +22,8 @@ fun Video.toLandscapeVideoItem(): VideoItem {
         commentCount = commentCount.toInt(),
         favoriteCount = favoriteCount.toInt(),
         shareCount = shareCount.toInt(),
+        isLiked = isLiked,
+        isFavorited = isFavorited,
         defaultSpeed = 1.0f, // 默认倍速，可以从Settings读取
         defaultQuality = "自动", // 默认清晰度，可以从Settings读取
         orientation = when (orientation.lowercase()) {

@@ -120,11 +120,11 @@ class ImagePostFragment : BaseFeedItemFragment() {
         commentCountText?.text = item.commentCount.toString()
         shareCountText?.text = item.shareCount.toString()
 
-        // 初始化互动状态到 ViewModel
+        // 初始化互动状态到 ViewModel（使用后端返回的真实状态）
         viewModel.initInteractionState(
             videoId = item.id,
-            isLiked = false,
-            isFavorited = false,
+            isLiked = item.isLiked,
+            isFavorited = item.isFavorited,
             likeCount = item.likeCount.toLong(),
             favoriteCount = item.favoriteCount.toLong()
         )
