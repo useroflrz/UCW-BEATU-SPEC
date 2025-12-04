@@ -8,6 +8,7 @@ import androidx.media3.ui.PlayerView
 import com.ucw.beatu.business.videofeed.domain.usecase.FavoriteVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.LikeVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.UnfavoriteVideoUseCase
+import com.ucw.beatu.business.videofeed.domain.usecase.ShareVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.UnlikeVideoUseCase
 import com.ucw.beatu.shared.common.result.AppResult
 import com.ucw.beatu.shared.player.VideoPlayer
@@ -53,7 +54,8 @@ class VideoItemViewModel @Inject constructor(
     private val likeVideoUseCase: LikeVideoUseCase,
     private val unlikeVideoUseCase: UnlikeVideoUseCase,
     private val favoriteVideoUseCase: FavoriteVideoUseCase,
-    private val unfavoriteVideoUseCase: UnfavoriteVideoUseCase
+    private val unfavoriteVideoUseCase: UnfavoriteVideoUseCase,
+    private val shareVideoUseCase: ShareVideoUseCase
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(VideoItemUiState())
@@ -516,6 +518,24 @@ class VideoItemViewModel @Inject constructor(
             likeCount = likeCount,
             favoriteCount = favoriteCount
         )
+    }
+
+    /**
+     * 上报一次分享行为（不负责拉起系统分享）
+     */
+    fun reportShare() {
+        val videoId = _uiState.value.currentVideoId ?: return
+        viewModelScope.launch {
+            when (val result = shareVideoUseCase(videoId)) {
+                is AppResult.Success -> {
+                    // 暂时不处理 UI 计数，由后端返回的列表刷新 shareCount
+                }
+                is AppResult.Error -> {
+                    android.util.Log.e("VideoItemViewModel", "shareVideo failed, videoId=$videoId", result.throwable)
+                }
+                else -> Unit
+            }
+        }
     }
 
     /**

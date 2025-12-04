@@ -2,6 +2,7 @@ package com.ucw.beatu.business.landscape.presentation.ui
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.media.AudioManager
@@ -36,6 +37,7 @@ import com.ucw.beatu.business.landscape.presentation.model.VideoItem
 import com.ucw.beatu.business.landscape.presentation.viewmodel.LandscapeControlsState
 import com.ucw.beatu.business.landscape.presentation.viewmodel.LandscapeVideoItemViewModel
 import com.ucw.beatu.business.videofeed.presentation.ui.VideoCommentsDialogFragment
+import com.ucw.beatu.business.videofeed.presentation.ui.VideoShareDialogFragment
 import dagger.hilt.android.AndroidEntryPoint
 import com.ucw.beatu.shared.designsystem.R as DesignSystemR
 import kotlinx.coroutines.launch
@@ -416,8 +418,38 @@ class LandscapeVideoItemFragment : Fragment() {
         // 分享
         shareButton?.setOnClickListener {
             if (isBrightnessAdjusting) return@setOnClickListener
-            // TODO: 打开分享浮层
-            Log.d(TAG, "分享按钮点击")
+            val item = videoItem ?: return@setOnClickListener
+            Log.d(TAG, "分享按钮点击, videoId=${item.id}")
+
+            val dialog = VideoShareDialogFragment.newInstance(
+                videoId = item.id,
+                title = item.title,
+                playUrl = item.videoUrl
+            )
+            dialog.shareActionListener = object : VideoShareDialogFragment.ShareActionListener {
+                override fun onSharePoster() {
+                    // TODO: 调用后端统计分享，并生成横屏分享图
+                    Log.d(TAG, "横屏分享：生成分享图")
+                }
+
+                override fun onShareLink() {
+                    // TODO: 调用后端统计分享
+                    Log.d(TAG, "横屏分享：链接分享")
+
+                    val context = requireContext()
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(
+                            Intent.EXTRA_TEXT,
+                            "${item.title}\n${item.videoUrl}"
+                        )
+                    }
+                    context.startActivity(
+                        Intent.createChooser(intent, "分享视频")
+                    )
+                }
+            }
+            dialog.show(parentFragmentManager, "video_share_options_landscape")
         }
 
         // 倍速

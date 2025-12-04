@@ -196,6 +196,10 @@ class VideoRepositoryImpl @Inject constructor(
         return remoteDataSource.unfavoriteVideo(videoId)
     }
 
+    override suspend fun shareVideo(videoId: String): AppResult<Unit> {
+        return remoteDataSource.shareVideo(videoId)
+    }
+
     override suspend fun postComment(videoId: String, content: String): AppResult<Comment> {
         return when (val result = remoteDataSource.postComment(videoId, content)) {
             is AppResult.Success -> {

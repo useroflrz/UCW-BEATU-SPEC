@@ -56,6 +56,11 @@ interface VideoRepository {
     suspend fun unfavoriteVideo(videoId: String): AppResult<Unit>
 
     /**
+     * 分享视频（统计）
+     */
+    suspend fun shareVideo(videoId: String): AppResult<Unit>
+
+    /**
      * 发布评论
      */
     suspend fun postComment(videoId: String, content: String): AppResult<Comment>

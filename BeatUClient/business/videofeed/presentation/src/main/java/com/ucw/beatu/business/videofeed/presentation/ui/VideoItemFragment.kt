@@ -1,5 +1,6 @@
 package com.ucw.beatu.business.videofeed.presentation.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -158,7 +159,36 @@ class VideoItemFragment : BaseFeedItemFragment() {
             }
 
             override fun onShareClicked() {
-                // TODO: 打开分享弹层
+                val item = videoItem ?: return
+                val dialog = VideoShareDialogFragment.newInstance(
+                    videoId = item.id,
+                    title = item.title,
+                    playUrl = item.videoUrl
+                )
+                dialog.shareActionListener = object : VideoShareDialogFragment.ShareActionListener {
+                    override fun onSharePoster() {
+                        // 先上报一次分享，再预留生成分享图逻辑
+                        viewModel.reportShare()
+                        // TODO: 生成带封面和二维码的分享图并调起系统分享
+                    }
+
+                    override fun onShareLink() {
+                        viewModel.reportShare()
+                        // 使用系统分享，分享视频标题 + 播放链接
+                        val context = requireContext()
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                "${item.title}\n${item.videoUrl}"
+                            )
+                        }
+                        context.startActivity(
+                            Intent.createChooser(intent, "分享视频")
+                        )
+                    }
+                }
+                dialog.show(parentFragmentManager, "video_share_options")
             }
 
             override fun onSeekRequested(positionMs: Long) {

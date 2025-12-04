@@ -75,6 +75,13 @@ interface VideoFeedApiService {
     suspend fun unfavoriteVideo(@Path("id") videoId: String): ApiResponse<Any?>
 
     /**
+     * 分享视频（统计用）
+     * POST /api/videos/{id}/share
+     */
+    @POST("api/videos/{id}/share")
+    suspend fun shareVideo(@Path("id") videoId: String): ApiResponse<Any?>
+
+    /**
      * 发布评论
      * POST /api/videos/{id}/comments
      */
