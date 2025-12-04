@@ -30,6 +30,7 @@ data class VideoItem(
     val title: String,
     val authorName: String,
     val authorId: String = "", // 作者ID，用于获取用户详细信息
+    val authorAvatar: String? = null,
     val likeCount: Int,
     val commentCount: Int,
     val favoriteCount: Int,

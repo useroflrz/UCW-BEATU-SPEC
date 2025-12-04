@@ -19,6 +19,7 @@ fun Video.toVideoItem(): VideoItem {
         videoUrl = playUrl,
         title = title,
         authorName = authorName,
+        authorAvatar = authorAvatar,
         authorId = authorId,
         likeCount = likeCount.toInt(),
         commentCount = commentCount.toInt(),

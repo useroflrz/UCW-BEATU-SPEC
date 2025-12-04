@@ -28,6 +28,7 @@ import com.ucw.beatu.shared.common.navigation.LandscapeLaunchContract
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
 import com.ucw.beatu.shared.designsystem.widget.VideoControlsView
+import coil.load
 import com.ucw.beatu.shared.router.RouterRegistry
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
@@ -112,6 +113,22 @@ class VideoItemFragment : BaseFeedItemFragment() {
                 com.ucw.beatu.shared.designsystem.R.id.tv_channel_name
             )
             channelNameView?.text = item.authorName
+
+            // 作者头像：使用后端返回的 authorAvatar URL，通过 Coil 加载
+            val channelAvatarView = sharedControlsRoot?.findViewById<android.widget.ImageView>(
+                com.ucw.beatu.shared.designsystem.R.id.iv_channel_avatar
+            )
+            val placeholderRes = com.ucw.beatu.shared.designsystem.R.drawable.ic_avatar_placeholder
+            val authorAvatarUrl = item.authorAvatar
+            if (authorAvatarUrl.isNullOrBlank()) {
+                channelAvatarView?.setImageResource(placeholderRes)
+            } else {
+                channelAvatarView?.load(authorAvatarUrl) {
+                    crossfade(true)
+                    placeholder(placeholderRes)
+                    error(placeholderRes)
+                }
+            }
 
             // 主页：点击作者头像/昵称显示用户信息（半屏展示）
             val avatarView = sharedControlsRoot?.findViewById<android.widget.ImageView>(

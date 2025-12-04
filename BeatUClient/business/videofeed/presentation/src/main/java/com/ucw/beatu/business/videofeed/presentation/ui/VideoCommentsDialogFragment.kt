@@ -13,6 +13,7 @@ import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
 import com.ucw.beatu.business.videofeed.domain.model.Comment
 import com.ucw.beatu.business.videofeed.domain.usecase.GetCommentsUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.PostCommentUseCase
@@ -241,8 +242,20 @@ private class CommentViewHolder(itemView: View) : RecyclerView.ViewHolder(itemVi
     private val likeCountView: TextView = itemView.findViewById(R.id.tv_like_count)
 
     fun bind(comment: Comment) {
-        // 头像目前用统一占位图 + 圆形背景
-        avatarView.setImageResource(R.drawable.ic_avatar_placeholder)
+        val placeholderRes = R.drawable.ic_avatar_placeholder
+
+        val avatarUrl = comment.authorAvatar
+        if (avatarUrl.isNullOrBlank()) {
+            // 无头像时使用占位图
+            avatarView.setImageResource(placeholderRes)
+        } else {
+            // 使用 Coil 加载网络头像
+            avatarView.load(avatarUrl) {
+                crossfade(true)
+                placeholder(placeholderRes)
+                error(placeholderRes)
+            }
+        }
 
         userNameView.text = comment.authorName
         

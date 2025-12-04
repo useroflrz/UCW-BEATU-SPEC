@@ -162,7 +162,7 @@ object MockVideoCatalog {
         ),
         Video(
             id = "video_005",
-            url = "https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/Justin%20Bieber%20-%20Beauty%20And%20A%20Beat.mp4",
+            url = "https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/Beauty%20And%20A%20Beat%20-%20Justin%20Bieber.mp4",
             title = "Justin Bieber - Beauty And A Beat",
             author = "视频5",
             likeCount = 678,
