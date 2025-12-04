@@ -28,6 +28,7 @@ import com.ucw.beatu.shared.common.navigation.LandscapeLaunchContract
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
 import com.ucw.beatu.shared.designsystem.widget.VideoControlsView
+import coil.load
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -95,9 +96,26 @@ class VideoItemFragment : BaseFeedItemFragment() {
             sharedControlsRoot?.findViewById<android.widget.TextView>(
                 com.ucw.beatu.shared.designsystem.R.id.tv_video_title
             )?.text = item.title
-            sharedControlsRoot?.findViewById<android.widget.TextView>(
+            val channelNameView = sharedControlsRoot?.findViewById<android.widget.TextView>(
                 com.ucw.beatu.shared.designsystem.R.id.tv_channel_name
-            )?.text = item.authorName
+            )
+            channelNameView?.text = item.authorName
+
+            // 作者头像：使用后端返回的 authorAvatar URL，通过 Coil 加载
+            val channelAvatarView = sharedControlsRoot?.findViewById<android.widget.ImageView>(
+                com.ucw.beatu.shared.designsystem.R.id.iv_channel_avatar
+            )
+            val placeholderRes = com.ucw.beatu.shared.designsystem.R.drawable.ic_avatar_placeholder
+            val authorAvatarUrl = item.authorAvatar
+            if (authorAvatarUrl.isNullOrBlank()) {
+                channelAvatarView?.setImageResource(placeholderRes)
+            } else {
+                channelAvatarView?.load(authorAvatarUrl) {
+                    crossfade(true)
+                    placeholder(placeholderRes)
+                    error(placeholderRes)
+                }
+            }
             // 四个互动按钮下方的计数文案（与截图风格一致）
             sharedControlsRoot?.findViewById<android.widget.TextView>(
                 com.ucw.beatu.shared.designsystem.R.id.tv_like_count

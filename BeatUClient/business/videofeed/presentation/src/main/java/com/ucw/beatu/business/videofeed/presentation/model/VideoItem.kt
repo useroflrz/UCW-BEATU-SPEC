@@ -28,6 +28,7 @@ data class VideoItem(
     val videoUrl: String,
     val title: String,
     val authorName: String,
+    val authorAvatar: String? = null,
     val likeCount: Int,
     val commentCount: Int,
     val favoriteCount: Int,
