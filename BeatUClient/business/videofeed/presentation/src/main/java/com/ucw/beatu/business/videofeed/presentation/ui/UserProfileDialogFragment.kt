@@ -10,13 +10,15 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import com.ucw.beatu.business.videofeed.presentation.R
 import com.ucw.beatu.shared.router.RouterRegistry
+import com.ucw.beatu.shared.router.UserProfileVideoClickHost
 
 /**
  * 用户信息弹窗（类似评论弹窗）
  * - 从底部弹出，占据下半部分
  * - 视频会缩小到上半部分（由父 Fragment 控制）
+ * - 通过 [UserProfileVideoClickHost] 接口接收子页面的作品点击回调
  */
-class UserProfileDialogFragment : DialogFragment() {
+class UserProfileDialogFragment : DialogFragment(), UserProfileVideoClickHost {
 
     private var userId: String? = null
     private var authorName: String? = null
@@ -54,38 +56,15 @@ class UserProfileDialogFragment : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 创建 UserProfileFragment 并添加到容器中
+        // 创建 UserProfileFragment 并添加到容器中（只读模式）
         val userId = this.userId ?: authorName ?: return
         val router = RouterRegistry.getUserProfileRouter()
         if (router != null) {
-            val userProfileFragment = router.createUserProfileFragment(userId, authorName ?: "", readOnly = true)
+            val userProfileFragment =
+                router.createUserProfileFragment(userId, authorName ?: "", readOnly = true)
             childFragmentManager.beginTransaction()
                 .replace(R.id.user_profile_container, userProfileFragment)
                 .commit()
-            
-            // 设置视频点击回调（通过反射或接口）
-            // 由于UserProfileFragment在另一个模块，我们使用延迟查找的方式
-            view.post {
-                val fragment = childFragmentManager.findFragmentById(R.id.user_profile_container)
-                if (fragment != null) {
-                    try {
-                        // 使用反射设置回调
-                        val method = fragment.javaClass.getMethod("setOnVideoClickListener", 
-                            android.os.Bundle::class.java, 
-                            String::class.java, 
-                            java.util.ArrayList::class.java, 
-                            Int::class.java)
-                        // 创建一个Bundle来传递回调信息
-                        val callbackBundle = android.os.Bundle().apply {
-                            putString("callback_type", "video_click")
-                        }
-                        // 这里我们需要一个更好的方式来传递回调
-                        // 暂时先不设置，让UserProfileFragment直接调用parentFragment的方法
-                    } catch (e: Exception) {
-                        // 如果方法不存在，忽略
-                    }
-                }
-            }
         }
     }
 
@@ -139,11 +118,23 @@ class UserProfileDialogFragment : DialogFragment() {
         onDismissListener = listener
     }
     
-    fun setOnVideoClickListener(listener: (String, String, ArrayList<com.ucw.beatu.shared.common.model.VideoItem>, Int) -> Unit) {
+    fun setOnVideoClickListener(
+        listener: (String, String, ArrayList<com.ucw.beatu.shared.common.model.VideoItem>, Int) -> Unit
+    ) {
         onVideoClickListener = listener
     }
-    
-    fun notifyVideoClick(userId: String, authorName: String, videoItems: ArrayList<com.ucw.beatu.shared.common.model.VideoItem>, initialIndex: Int) {
+
+    /**
+     * UserProfileVideoClickHost 接口实现：
+     * UserProfileFragment 在只读模式下，调用父 Fragment 的该方法，将点击的作品信息回传给弹窗；
+     * 弹窗再通过 onVideoClickListener 把事件转发给上层（例如 VideoItemFragment）。
+     */
+    override fun onUserWorkClicked(
+        userId: String,
+        authorName: String,
+        videoItems: ArrayList<com.ucw.beatu.shared.common.model.VideoItem>,
+        initialIndex: Int
+    ) {
         onVideoClickListener?.invoke(userId, authorName, videoItems, initialIndex)
     }
 

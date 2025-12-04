@@ -9,6 +9,10 @@ fun VideoEntity.toUserWork(): UserWork = UserWork(
     playUrl = playUrl,
     title = title,
     durationMs = durationMs,
-    viewCount = viewCount
+    viewCount = viewCount,
+    likeCount = likeCount,
+    commentCount = commentCount,
+    favoriteCount = favoriteCount,
+    shareCount = shareCount
 )
 

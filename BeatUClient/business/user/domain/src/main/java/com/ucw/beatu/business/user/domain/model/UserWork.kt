@@ -9,6 +9,10 @@ data class UserWork(
     val playUrl: String,
     val title: String,
     val durationMs: Long,
-    val viewCount: Long
+    val viewCount: Long,
+    val likeCount: Long,
+    val commentCount: Long,
+    val favoriteCount: Long,
+    val shareCount: Long
 )
 

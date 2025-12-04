@@ -40,5 +40,3 @@ class UserWorksViewerViewModel @Inject constructor() : ViewModel() {
 
     fun getVideoAt(position: Int): VideoItem? = _uiState.value.videoList.getOrNull(position)
 }
-
-

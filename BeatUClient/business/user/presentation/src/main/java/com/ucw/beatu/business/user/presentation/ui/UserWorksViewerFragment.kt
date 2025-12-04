@@ -128,6 +128,10 @@ class UserWorksViewerFragment : Fragment(R.layout.fragment_user_works_viewer), U
 
         Log.d(TAG, "parseArgumentsIfNeeded: userId=$userId, initialIndex=$initialIndex, videoListSize=${videos.size}")
 
+        videos.forEachIndexed { index, video ->
+            Log.d(TAG, "Video[$index]: id=${video.id}, likeCount=${video.likeCount}")
+        }
+
         if (userId.isNullOrEmpty()) {
             Log.e(TAG, "parseArgumentsIfNeeded: userId is null or empty, skip init")
             return
@@ -141,17 +145,26 @@ class UserWorksViewerFragment : Fragment(R.layout.fragment_user_works_viewer), U
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     Log.d(TAG, "collectUiState: videoListSize=${state.videoList.size}, currentIndex=${state.currentIndex}")
-                    adapter?.submitList(state.videoList)
+
                     if (state.videoList.isEmpty()) {
                         Log.w(TAG, "collectUiState: video list is empty, nothing to show")
-                        return@collect
                     }
-                    val desiredIndex = state.currentIndex.coerceIn(0, max(state.videoList.lastIndex, 0))
-                    val current = viewPager?.currentItem ?: -1
-                    if (current != desiredIndex) {
-                        viewPager?.setCurrentItem(desiredIndex, false)
+
+                    state.videoList.forEachIndexed { index, video ->
+                        Log.d(TAG, "UI State Video[$index]: id=${video.id}, likeCount=${video.likeCount}")
                     }
-                    handlePageSelected(desiredIndex)
+
+                    // 延迟提交列表，避免 RecyclerView 崩溃
+                    viewPager?.post {
+                        adapter?.submitList(state.videoList.toList()) // 提交新列表副本更安全
+
+                        val desiredIndex = state.currentIndex.coerceIn(0, max(state.videoList.lastIndex, 0))
+                        val current = viewPager?.currentItem ?: -1
+                        if (current != desiredIndex) {
+                            viewPager?.setCurrentItem(desiredIndex, false)
+                        }
+                        handlePageSelected(desiredIndex)
+                    }
                 }
             }
         }

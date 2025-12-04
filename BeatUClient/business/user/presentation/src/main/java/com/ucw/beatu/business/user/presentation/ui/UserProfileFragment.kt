@@ -38,6 +38,7 @@ import com.ucw.beatu.shared.common.model.VideoItem
 import com.ucw.beatu.shared.common.model.VideoOrientation
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
+import com.ucw.beatu.shared.router.UserProfileVideoClickHost
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.io.File
@@ -709,64 +710,16 @@ class UserProfileFragment : Fragment() {
             if (index == -1) 0 else index
         }
         
-        // 在只读模式下（从DialogFragment中显示），通过parentFragment调用回调
-        // 否则使用findNavController()导航
+        // 在只读模式下（从DialogFragment中显示），通过接口回调父 Fragment；否则使用findNavController()导航
         if (isReadOnly) {
-            // 在只读模式下，parentFragment是UserProfileDialogFragment
-            // 我们通过反射调用UserProfileDialogFragment的notifyVideoClick方法
-            val dialogFragment = parentFragment
-            if (dialogFragment != null) {
-                try {
-                    // 使用List::class.java，因为Java泛型擦除，ArrayList会被擦除为List
-                    // 或者直接使用ArrayList::class.java，但需要确保类型匹配
-                    val method = dialogFragment.javaClass.getMethod(
-                        "notifyVideoClick",
-                        String::class.java,
-                        String::class.java,
-                        java.util.List::class.java,
-                        Int::class.java
-                    )
-                    // 确保videoItems是ArrayList类型
-                    val arrayList = if (true) {
-                        videoItems
-                    } else {
-                        ArrayList(videoItems)
-                    }
-                    val currentUserId = latestUser?.id ?: "current_user"
-                    method.invoke(dialogFragment, currentUserId, authorName, arrayList, initialIndex)
-                    Log.d(TAG, "Successfully notified video click to DialogFragment")
-                } catch (e: NoSuchMethodException) {
-                    Log.e(TAG, "Method notifyVideoClick not found in DialogFragment", e)
-                    e.printStackTrace()
-                    // 尝试使用ArrayList::class.java
-                    try {
-                        val method2 = dialogFragment.javaClass.getMethod(
-                            "notifyVideoClick",
-                            String::class.java,
-                            String::class.java,
-                            ArrayList::class.java,
-                            Int::class.java
-                        )
-                        val arrayList = if (true) {
-                            videoItems
-                        } else {
-                            ArrayList(videoItems)
-                        }
-                        val currentUserId = latestUser?.id ?: "current_user"
-                        method2.invoke(dialogFragment, currentUserId, authorName, arrayList, initialIndex)
-                        Log.d(TAG, "Successfully notified video click to DialogFragment (using ArrayList)")
-                    } catch (e2: Exception) {
-                        Log.e(TAG, "Failed to notify video click with ArrayList", e2)
-                        Toast.makeText(requireContext(), "无法打开视频播放器: 方法未找到", Toast.LENGTH_SHORT).show()
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to notify video click to DialogFragment", e)
-                    e.printStackTrace()
-                    Toast.makeText(requireContext(), "无法打开视频播放器: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
+            val host = parentFragment as? UserProfileVideoClickHost
+            if (host != null) {
+                val currentUserId = latestUser?.id ?: "current_user"
+                host.onUserWorkClicked(currentUserId, authorName, videoItems, initialIndex)
+                Log.d(TAG, "Notified parent fragment via UserProfileVideoClickHost")
             } else {
-                Log.e(TAG, "Parent fragment is null")
-                Toast.makeText(requireContext(), "无法打开视频播放器: 父Fragment为空", Toast.LENGTH_SHORT).show()
+                Log.e(TAG, "Parent fragment does not implement UserProfileVideoClickHost")
+                Toast.makeText(requireContext(), "无法打开视频播放器: 父Fragment未实现回调接口", Toast.LENGTH_SHORT).show()
             }
         } else {
             // 非只读模式，使用findNavController()导航
@@ -796,16 +749,15 @@ class UserProfileFragment : Fragment() {
     }
 
     private fun UserWork.toVideoItem(authorName: String): VideoItem {
-        val safeCount = viewCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
         return VideoItem(
             id = id,
             videoUrl = playUrl,
             title = title,
             authorName = authorName,
-            likeCount = safeCount,
-            commentCount = 0,
-            favoriteCount = 0,
-            shareCount = 0,
+            likeCount = likeCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            commentCount = commentCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            favoriteCount = favoriteCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            shareCount = shareCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             orientation = VideoOrientation.PORTRAIT
         )
     }
