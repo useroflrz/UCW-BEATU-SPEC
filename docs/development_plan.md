@@ -831,7 +831,7 @@
       - 代码与配置完全解耦，支持不同环境使用不同配置
 
 - [x] AgentMCP 子模块初始化与文档更新
-    - 2025-12-03 - done by AI
+    - 2025-12-03 - done by lrz
     - 内容：
         1. ✅ **子模块初始化**：
            - 执行 `git submodule update --init --recursive AgentMCP` 初始化 Git 子模块
