@@ -3,6 +3,7 @@ package com.ucw.beatu.business.landscape.presentation.ui
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.media.AudioManager
@@ -36,6 +37,8 @@ import com.ucw.beatu.business.landscape.presentation.R
 import com.ucw.beatu.business.landscape.presentation.model.VideoItem
 import com.ucw.beatu.business.landscape.presentation.viewmodel.LandscapeControlsState
 import com.ucw.beatu.business.landscape.presentation.viewmodel.LandscapeVideoItemViewModel
+import com.ucw.beatu.business.videofeed.presentation.share.ShareImageUtils
+import com.ucw.beatu.business.videofeed.presentation.share.SharePosterGenerator
 import com.ucw.beatu.business.videofeed.presentation.ui.VideoCommentsDialogFragment
 import com.ucw.beatu.business.videofeed.presentation.ui.VideoShareDialogFragment
 import dagger.hilt.android.AndroidEntryPoint
@@ -428,13 +431,36 @@ class LandscapeVideoItemFragment : Fragment() {
             )
             dialog.shareActionListener = object : VideoShareDialogFragment.ShareActionListener {
                 override fun onSharePoster() {
-                    // TODO: 调用后端统计分享，并生成横屏分享图
+                    viewModel.reportShare()
                     Log.d(TAG, "横屏分享：生成分享图")
+
+                    val pv = playerView
+                    if (pv == null) {
+                        Log.e(TAG, "PlayerView is null, cannot capture cover for landscape share poster")
+                        return
+                    }
+
+                    val context = requireContext()
+                    val shareUrl = item.videoUrl
+                    val posterBitmap: Bitmap = SharePosterGenerator.generate(
+                        context = context,
+                        coverView = pv,
+                        title = item.title,
+                        author = item.authorName,
+                        shareUrl = shareUrl
+                    )
+
+                    ShareImageUtils.shareBitmap(
+                        context = context,
+                        bitmap = posterBitmap,
+                        fileName = "beatu_share_land_${item.id}.jpg",
+                        chooserTitle = "分享图片"
+                    )
                 }
 
                 override fun onShareLink() {
-                    // TODO: 调用后端统计分享
                     Log.d(TAG, "横屏分享：链接分享")
+                    viewModel.reportShare()
 
                     val context = requireContext()
                     val intent = Intent(Intent.ACTION_SEND).apply {

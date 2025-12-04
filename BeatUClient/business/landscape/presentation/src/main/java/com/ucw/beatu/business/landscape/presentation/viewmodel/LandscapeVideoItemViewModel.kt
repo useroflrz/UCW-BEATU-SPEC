@@ -8,6 +8,7 @@ import androidx.media3.ui.PlayerView
 import com.ucw.beatu.business.landscape.presentation.model.VideoItem
 import com.ucw.beatu.business.videofeed.domain.usecase.FavoriteVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.LikeVideoUseCase
+import com.ucw.beatu.business.videofeed.domain.usecase.ShareVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.UnfavoriteVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.UnlikeVideoUseCase
 import com.ucw.beatu.shared.common.logger.AppLogger
@@ -39,7 +40,8 @@ class LandscapeVideoItemViewModel @Inject constructor(
     private val likeVideoUseCase: LikeVideoUseCase,
     private val unlikeVideoUseCase: UnlikeVideoUseCase,
     private val favoriteVideoUseCase: FavoriteVideoUseCase,
-    private val unfavoriteVideoUseCase: UnfavoriteVideoUseCase
+    private val unfavoriteVideoUseCase: UnfavoriteVideoUseCase,
+    private val shareVideoUseCase: ShareVideoUseCase
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(LandscapeVideoItemUiState())
@@ -212,6 +214,17 @@ class LandscapeVideoItemViewModel @Inject constructor(
             if (result is com.ucw.beatu.shared.common.result.AppResult.Error) {
                 _controlsState.value = prev
             }
+        }
+    }
+
+    /**
+     * 上报一次分享（横屏使用）
+     */
+    fun reportShare() {
+        val videoId = _uiState.value.currentVideoId ?: return
+        viewModelScope.launch {
+            // 忽略结果，仅用于统计；失败时不影响前端 UI
+            runCatching { shareVideoUseCase(videoId) }
         }
     }
 

@@ -49,6 +49,17 @@
             android:exported="false"
             android:label="@string/app_name" />
 
+        <!-- FileProvider: 用于分享生成的图片（封面 + 二维码海报） -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.ucw.beatu.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
     </application>
 
 </manifest>

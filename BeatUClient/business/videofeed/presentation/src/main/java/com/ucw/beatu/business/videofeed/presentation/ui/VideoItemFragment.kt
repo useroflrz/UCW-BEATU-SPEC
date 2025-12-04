@@ -1,6 +1,7 @@
 package com.ucw.beatu.business.videofeed.presentation.ui
 
 import android.content.Intent
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -21,6 +22,8 @@ import com.ucw.beatu.business.videofeed.presentation.model.FeedContentType
 import com.ucw.beatu.business.videofeed.presentation.model.VideoItem
 import com.ucw.beatu.business.videofeed.presentation.model.VideoOrientation
 import com.ucw.beatu.business.videofeed.presentation.viewmodel.VideoItemViewModel
+import com.ucw.beatu.business.videofeed.presentation.share.SharePosterGenerator
+import com.ucw.beatu.business.videofeed.presentation.share.ShareImageUtils
 import com.ucw.beatu.shared.common.navigation.LandscapeLaunchContract
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
@@ -80,9 +83,9 @@ class VideoItemFragment : BaseFeedItemFragment() {
 
         playerView = view.findViewById(R.id.player_view)
         imagePager = view.findViewById(R.id.image_pager)
-        controlsView = view.findViewById(R.id.video_controls)
-        // 注意：全屏按钮及标题/频道名称等现在定义在 shared:designsystem 的 VideoControlsView 布局中
-        val sharedControlsRoot = controlsView
+         controlsView = view.findViewById(R.id.video_controls)
+         // 注意：全屏按钮及标题/频道名称等现在定义在 shared:designsystem 的 VideoControlsView 布局中
+         val sharedControlsRoot = controlsView
         val fullScreenButton = sharedControlsRoot?.findViewById<View>(
             com.ucw.beatu.shared.designsystem.R.id.iv_fullscreen
         )
@@ -99,9 +102,10 @@ class VideoItemFragment : BaseFeedItemFragment() {
             sharedControlsRoot?.findViewById<android.widget.TextView>(
                 com.ucw.beatu.shared.designsystem.R.id.tv_like_count
             )?.text = item.likeCount.toString()
-            sharedControlsRoot?.findViewById<android.widget.TextView>(
-                com.ucw.beatu.shared.designsystem.R.id.tv_share_count
-            )?.text = item.shareCount.toString()
+             val shareCountTextView = sharedControlsRoot?.findViewById<android.widget.TextView>(
+                 com.ucw.beatu.shared.designsystem.R.id.tv_share_count
+             )
+             shareCountTextView?.text = item.shareCount.toString()
             sharedControlsRoot?.findViewById<android.widget.TextView>(
                 com.ucw.beatu.shared.designsystem.R.id.tv_favorite_count
             )?.text = item.favoriteCount.toString()
@@ -158,22 +162,55 @@ class VideoItemFragment : BaseFeedItemFragment() {
                     .show(parentFragmentManager, "video_comments_dialog")
             }
 
-            override fun onShareClicked() {
-                val item = videoItem ?: return
+             override fun onShareClicked() {
+                 val item = videoItem ?: return
+                 // 当前展示的分享计数，本地乐观累加
+                 val shareCountTextView = sharedControlsRoot?.findViewById<android.widget.TextView>(
+                     com.ucw.beatu.shared.designsystem.R.id.tv_share_count
+                 )
+                 var currentShareCount: Long =
+                     shareCountTextView?.text?.toString()?.toLongOrNull() ?: item.shareCount.toLong()
                 val dialog = VideoShareDialogFragment.newInstance(
                     videoId = item.id,
                     title = item.title,
                     playUrl = item.videoUrl
                 )
                 dialog.shareActionListener = object : VideoShareDialogFragment.ShareActionListener {
-                    override fun onSharePoster() {
-                        // 先上报一次分享，再预留生成分享图逻辑
-                        viewModel.reportShare()
-                        // TODO: 生成带封面和二维码的分享图并调起系统分享
-                    }
+                     override fun onSharePoster() {
+                         // 上报分享 + 本地乐观更新计数
+                         viewModel.reportShare()
+                         currentShareCount += 1
+                         shareCountTextView?.text = currentShareCount.toString()
+
+                         // 生成“封面 + 二维码”分享图，并调用系统分享图片
+                         val pv = playerView
+                         if (pv == null) {
+                             Log.e(TAG, "PlayerView is null, cannot capture cover for share poster")
+                             return
+                         }
+                         val context = requireContext()
+                         val shareUrl = item.videoUrl // 若有专门的 H5 / DeepLink，可替换为专用链接
+                         val posterBitmap: Bitmap = SharePosterGenerator.generate(
+                             context = context,
+                             coverView = pv,
+                             title = item.title,
+                             author = item.authorName,
+                             shareUrl = shareUrl
+                         )
+
+                         // 把 Bitmap 保存到 Cache 并通过 FileProvider 分享
+                         ShareImageUtils.shareBitmap(
+                             context = context,
+                             bitmap = posterBitmap,
+                             fileName = "beatu_share_${item.id}.jpg",
+                             chooserTitle = "分享图片"
+                         )
+                     }
 
                     override fun onShareLink() {
-                        viewModel.reportShare()
+                         viewModel.reportShare()
+                         currentShareCount += 1
+                         shareCountTextView?.text = currentShareCount.toString()
                         // 使用系统分享，分享视频标题 + 播放链接
                         val context = requireContext()
                         val intent = Intent(Intent.ACTION_SEND).apply {

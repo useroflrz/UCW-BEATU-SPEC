@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 允许通过 FileProvider 共享 cacheDir/share_images 下的图片文件 -->
+    <cache-path
+        name="share_images"
+        path="share_images/" />
+</paths>
+
+
