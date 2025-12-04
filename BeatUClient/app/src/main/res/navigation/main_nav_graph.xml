@@ -39,6 +39,15 @@
         <action
             android:id="@+id/action_feed_to_landscape"
             app:destination="@id/landscape" />
+        
+        <!-- 跳转到用户作品观看页面 -->
+        <action
+            android:id="@+id/action_feed_to_userWorksViewer"
+            app:destination="@id/userWorksViewer"
+            app:enterAnim="@anim/slide_in_from_right"
+            app:exitAnim="@anim/slide_out_to_left"
+            app:popEnterAnim="@anim/slide_in_from_left"
+            app:popExitAnim="@anim/slide_out_to_right" />
     </fragment>
 
     <!-- 用户主页 -->

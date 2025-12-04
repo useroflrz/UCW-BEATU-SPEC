@@ -11,6 +11,7 @@ package com.ucw.beatu.shared.router
 object RouterRegistry {
     private var userProfileRouter: UserProfileRouter? = null
     private var videoItemRouter: VideoItemRouter? = null
+    private var userWorksViewerRouter: UserWorksViewerRouter? = null
     
     /**
      * 注册 UserProfileRouter 实现
@@ -27,6 +28,13 @@ object RouterRegistry {
     }
     
     /**
+     * 注册 UserWorksViewerRouter 实现
+     */
+    fun registerUserWorksViewerRouter(router: UserWorksViewerRouter?) {
+        userWorksViewerRouter = router
+    }
+    
+    /**
      * 获取 UserProfileRouter 实例
      */
     fun getUserProfileRouter(): UserProfileRouter? = userProfileRouter
@@ -35,5 +43,10 @@ object RouterRegistry {
      * 获取 VideoItemRouter 实例
      */
     fun getVideoItemRouter(): VideoItemRouter? = videoItemRouter
+    
+    /**
+     * 获取 UserWorksViewerRouter 实例
+     */
+    fun getUserWorksViewerRouter(): UserWorksViewerRouter? = userWorksViewerRouter
 }
 

@@ -309,6 +309,12 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
                     // 暂停所有视频
                     (feedFragmentCallback as? FeedFragment)?.pauseAllVideos()
                 }
+                R.id.userWorksViewer -> {
+                    // 视频详情页也需要像搜索页一样隐藏顶部导航栏
+                    hideTopNavigation()
+                    // 暂停所有视频
+                    (feedFragmentCallback as? FeedFragment)?.pauseAllVideos()
+                }
                 R.id.landscape -> {
                     // 横屏页面需要立即移除顶部导航栏，避免出现双退出按钮
                     hideTopNavigation(immediate = true)

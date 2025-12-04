@@ -711,7 +711,7 @@ class UserProfileFragment : Fragment() {
                         Int::class.java
                     )
                     // 确保videoItems是ArrayList类型
-                    val arrayList = if (videoItems is ArrayList) {
+                    val arrayList = if (true) {
                         videoItems
                     } else {
                         ArrayList(videoItems)
@@ -731,7 +731,7 @@ class UserProfileFragment : Fragment() {
                             ArrayList::class.java,
                             Int::class.java
                         )
-                        val arrayList = if (videoItems is ArrayList) {
+                        val arrayList = if (true) {
                             videoItems
                         } else {
                             ArrayList(videoItems)

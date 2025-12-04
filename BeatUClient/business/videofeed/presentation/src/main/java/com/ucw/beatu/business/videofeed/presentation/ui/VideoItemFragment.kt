@@ -24,12 +24,11 @@ import com.ucw.beatu.shared.common.navigation.LandscapeLaunchContract
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
 import com.ucw.beatu.shared.designsystem.widget.VideoControlsView
+import com.ucw.beatu.shared.router.RouterRegistry
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.transition.TransitionManager
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.commit
-import com.ucw.beatu.shared.router.RouterRegistry
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -627,9 +626,40 @@ class VideoItemFragment : BaseFeedItemFragment() {
             return
         }
         
+        // 检查当前是否已经在 userWorksViewer 页面
+        val currentDestination = navController.currentDestination
+        val userWorksViewerDestinationId = NavigationHelper.getResourceId(
+            requireContext(),
+            NavigationIds.USER_WORKS_VIEWER
+        )
+        val isInUserWorksViewer = currentDestination?.id == userWorksViewerDestinationId
+        
+        if (isInUserWorksViewer) {
+            // 已经在 userWorksViewer 页面，检查是否是同一个用户
+            val router = RouterRegistry.getUserWorksViewerRouter()
+            val currentUserId = router?.getCurrentUserId()
+            
+            if (currentUserId == userId && router != null) {
+                // 同一个用户，通过 Router 切换到对应的视频
+                Log.d(TAG, "Already in user works viewer for user $userId, switching to video at index $initialIndex")
+                val success = router.switchToVideo(initialIndex)
+                if (success) {
+                    // 成功切换，关闭用户信息弹窗
+                    hideUserInfoOverlay()
+                    return
+                } else {
+                    Log.w(TAG, "Failed to switch video in UserWorksViewer, falling back to navigation")
+                }
+            } else {
+                // 不同用户，允许导航到新用户的作品列表
+                Log.d(TAG, "Already in user works viewer but different user (current: $currentUserId, target: $userId), allowing navigation")
+            }
+        }
+        
+        // 从 feed fragment 导航，使用 feed 到 userWorksViewer 的动作
         val actionId = NavigationHelper.getResourceId(
             requireContext(),
-            NavigationIds.ACTION_USER_PROFILE_TO_USER_WORKS_VIEWER
+            NavigationIds.ACTION_FEED_TO_USER_WORKS_VIEWER
         )
         if (actionId == 0) {
             Log.e(TAG, "Navigation action not found for user works viewer")
@@ -644,4 +674,5 @@ class VideoItemFragment : BaseFeedItemFragment() {
         )
         navController.navigate(actionId, bundle)
     }
+    
 }

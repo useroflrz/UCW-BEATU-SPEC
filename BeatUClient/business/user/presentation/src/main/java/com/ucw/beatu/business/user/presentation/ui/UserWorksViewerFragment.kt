@@ -17,17 +17,18 @@ import com.google.android.material.appbar.MaterialToolbar
 import com.ucw.beatu.business.user.presentation.R
 import com.ucw.beatu.business.user.presentation.ui.adapter.UserWorksViewerAdapter
 import com.ucw.beatu.business.user.presentation.viewmodel.UserWorksViewerViewModel
+
 import com.ucw.beatu.shared.common.model.VideoItem
+import com.ucw.beatu.shared.router.UserWorksViewerRouter
 import com.ucw.beatu.shared.router.RouterRegistry
 import dagger.hilt.android.AndroidEntryPoint
 import android.util.Log
 import kotlin.math.max
-import kotlin.math.min
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-class UserWorksViewerFragment : Fragment(R.layout.fragment_user_works_viewer) {
-
+class UserWorksViewerFragment : Fragment(R.layout.fragment_user_works_viewer), UserWorksViewerRouter {
+    private val TAG = javaClass.simpleName
     private val viewModel: UserWorksViewerViewModel by viewModels()
 
     private var viewPager: ViewPager2? = null
@@ -53,13 +54,52 @@ class UserWorksViewerFragment : Fragment(R.layout.fragment_user_works_viewer) {
         setupViewPager(view)
         parseArgumentsIfNeeded(requireArguments())
         collectUiState()
+        // 注册 Router，供子 Fragment 使用
+        RouterRegistry.registerUserWorksViewerRouter(this)
     }
-
+    
     override fun onDestroyView() {
         super.onDestroyView()
         viewPager?.unregisterOnPageChangeCallback(pageChangeCallback)
         viewPager = null
         adapter = null
+        // 取消注册 Router
+        RouterRegistry.registerUserWorksViewerRouter(null)
+    }
+    
+    // UserWorksViewerRouter 接口实现
+    override fun switchToVideo(index: Int): Boolean {
+        val adapter = this.adapter
+        val pager = this.viewPager
+        if (adapter == null || pager == null) {
+            Log.w(TAG, "Cannot switch video: adapter or viewPager is null")
+            return false
+        }
+        
+        val itemCount = adapter.itemCount
+        if (itemCount == 0) {
+            Log.w(TAG, "Cannot switch video: video list is empty")
+            return false
+        }
+        
+        val boundedIndex = index.coerceIn(0, itemCount - 1)
+        val currentIndex = pager.currentItem
+        
+        // 如果目标索引与当前索引相同，不需要切换
+        if (currentIndex == boundedIndex) {
+            Log.d(TAG, "Already at video index $boundedIndex, no need to switch")
+            return true
+        }
+        
+        // 直接切换 ViewPager2，使用平滑滚动
+        // 这会触发 pageChangeCallback，进而更新 ViewModel 的 currentIndex
+        pager.setCurrentItem(boundedIndex, true)
+        Log.d(TAG, "Switched to video at index $boundedIndex (from $currentIndex)")
+        return true
+    }
+    
+    override fun getCurrentUserId(): String? {
+        return viewModel.uiState.value.userId.takeIf { it.isNotEmpty() }
     }
 
     private fun setupToolbar(root: View) {
