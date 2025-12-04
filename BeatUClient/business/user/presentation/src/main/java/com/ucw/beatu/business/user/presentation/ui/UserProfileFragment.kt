@@ -462,16 +462,32 @@ class UserProfileFragment : Fragment() {
         tabLikes = view.findViewById(R.id.tab_likes)
         tabHistory = view.findViewById(R.id.tab_history)
 
-        // 显式设置其他标签为未选中状态
-        updateTabState(tabCollections, false)
-        updateTabState(tabLikes, false)
-        updateTabState(tabHistory, false)
+        // 只读模式（弹窗）下，只保留“作品”一个选项，其它标签隐藏
+        if (isReadOnly) {
+            tabCollections.visibility = View.GONE
+            tabLikes.visibility = View.GONE
+            tabHistory.visibility = View.GONE
+
+            // 让“作品”标签在父布局中居中显示
+            (tabWorks.layoutParams as? androidx.constraintlayout.widget.ConstraintLayout.LayoutParams)?.let { lp ->
+                lp.startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                lp.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                lp.startToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
+                lp.endToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
+                tabWorks.layoutParams = lp
+            }
+        } else {
+            // 非只读模式下，显式设置其他标签为未选中状态
+            updateTabState(tabCollections, false)
+            updateTabState(tabLikes, false)
+            updateTabState(tabHistory, false)
+        }
 
         // 默认选中"作品"
         selectedTab = tabWorks
         updateTabState(tabWorks, true)
         
-        // 设置点击监听
+        // 设置点击监听（只读模式下，其它标签不可见，不会被点击）
         tabWorks.setOnClickListener { switchTab(it as TextView, UserProfileViewModel.TabType.WORKS) }
         tabCollections.setOnClickListener { switchTab(it as TextView, UserProfileViewModel.TabType.COLLECTIONS) }
         tabLikes.setOnClickListener { switchTab(it as TextView, UserProfileViewModel.TabType.LIKES) }
