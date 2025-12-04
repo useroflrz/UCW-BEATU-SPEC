@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF000000"
+    android:clickable="false"
+    android:focusable="false">
+
+    <!-- 用户信息面板：黑色背景 -->
+    <FrameLayout
+        android:id="@+id/layout_user_profile_panel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#FF000000"
+        android:clickable="false"
+        android:focusable="false">
+
+        <!-- UserProfileFragment 容器 -->
+        <androidx.fragment.app.FragmentContainerView
+            android:id="@+id/user_profile_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </FrameLayout>
+
+</FrameLayout>
+

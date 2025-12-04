@@ -25,6 +25,18 @@ interface UserDao {
     suspend fun getUserById(userId: String): UserEntity?
 
     /**
+     * 根据用户名查询用户信息（Flow）
+     */
+    @Query("SELECT * FROM users WHERE name = :userName LIMIT 1")
+    fun observeUserByName(userName: String): Flow<UserEntity?>
+
+    /**
+     * 根据用户名查询用户信息（一次性）
+     */
+    @Query("SELECT * FROM users WHERE name = :userName LIMIT 1")
+    suspend fun getUserByName(userName: String): UserEntity?
+
+    /**
      * 插入或更新用户信息
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)

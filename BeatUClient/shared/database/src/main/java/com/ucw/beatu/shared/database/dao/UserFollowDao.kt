@@ -19,6 +19,9 @@ interface UserFollowDao {
     @Query("SELECT * FROM user_follows WHERE followeeId = :userId ORDER BY createdAt DESC")
     fun observeFollowers(userId: String): Flow<List<UserFollowEntity>>
 
+    @Query("SELECT COUNT(*) > 0 FROM user_follows WHERE followerId = :followerId AND followeeId = :followeeId")
+    suspend fun isFollowing(followerId: String, followeeId: String): Boolean
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(relation: UserFollowEntity)
 

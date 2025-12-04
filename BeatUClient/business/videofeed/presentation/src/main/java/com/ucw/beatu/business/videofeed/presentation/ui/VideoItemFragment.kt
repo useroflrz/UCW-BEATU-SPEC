@@ -67,6 +67,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
     private var rootLayout: ConstraintLayout? = null
     private var isUserInfoVisible = false
     private var userProfileFragment: Fragment? = null
+    private var userProfileDialogFragment: UserProfileDialogFragment? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -195,8 +196,13 @@ class VideoItemFragment : BaseFeedItemFragment() {
         fullScreenButton?.setOnClickListener { openLandscapeMode() }
 
         // A：点视频区域 = 播放/暂停切换（仅视频内容生效）
+        // 如果用户信息覆盖层可见，点击视频区域则关闭覆盖层；否则切换播放/暂停
         playerView?.setOnClickListener {
-            viewModel.togglePlayPause()
+            if (isUserInfoVisible) {
+                hideUserInfoOverlay()
+            } else {
+                viewModel.togglePlayPause()
+            }
         }
 
     }
@@ -512,7 +518,8 @@ class VideoItemFragment : BaseFeedItemFragment() {
     }
 
     /**
-     * 显示用户信息覆盖层（视频缩小到上半部分，用户信息显示在下半部分）
+     * 显示用户信息弹窗（类似评论弹窗，从底部弹出）
+     * 视频缩小到上半部分，用户信息从底部弹出占据下半部分
      */
     private fun showUserInfoOverlay(authorId: String, authorName: String) {
         if (isUserInfoVisible) {
@@ -521,12 +528,13 @@ class VideoItemFragment : BaseFeedItemFragment() {
         }
         
         val layout = rootLayout ?: return
-        val overlay = userInfoOverlay ?: return
         val player = playerView ?: return
         
         isUserInfoVisible = true
         
-        // 使用 ConstraintSet 实现布局动画
+        // 不暂停视频播放，继续播放
+        
+        // 使用 ConstraintSet 实现布局动画：视频缩小到上半部分
         val constraintSet = ConstraintSet()
         constraintSet.clone(layout)
         
@@ -536,48 +544,48 @@ class VideoItemFragment : BaseFeedItemFragment() {
         constraintSet.connect(R.id.player_view, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 0)
         constraintSet.constrainPercentHeight(R.id.player_view, 0.5f)
         
-        // 用户信息覆盖层显示在下半部分
-        constraintSet.clear(R.id.user_info_overlay, ConstraintSet.TOP)
-        constraintSet.connect(R.id.user_info_overlay, ConstraintSet.TOP, R.id.player_view, ConstraintSet.BOTTOM)
-        constraintSet.connect(R.id.user_info_overlay, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM)
-        constraintSet.constrainHeight(R.id.user_info_overlay, ConstraintSet.MATCH_CONSTRAINT)
+        // 同时调整 image_pager 和 video_controls 的高度，确保它们也缩小到上半部分
+        constraintSet.clear(R.id.image_pager, ConstraintSet.BOTTOM)
+        constraintSet.connect(R.id.image_pager, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP)
+        constraintSet.connect(R.id.image_pager, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 0)
+        constraintSet.constrainPercentHeight(R.id.image_pager, 0.5f)
+        
+        constraintSet.clear(R.id.video_controls, ConstraintSet.BOTTOM)
+        constraintSet.connect(R.id.video_controls, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP)
+        constraintSet.connect(R.id.video_controls, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 0)
+        constraintSet.constrainPercentHeight(R.id.video_controls, 0.5f)
         
         // 应用动画
         TransitionManager.beginDelayedTransition(layout)
         constraintSet.applyTo(layout)
         
-        // 显示用户信息覆盖层
-        overlay.visibility = View.VISIBLE
-        
-        // 创建或显示 UserProfileFragment（只读模式）
-        // 使用 Router 接口创建 Fragment，避免编译时直接依赖，解决循环依赖问题
+        // 显示用户信息 DialogFragment（从底部弹出）
         val userId = if (authorId.isNotEmpty()) authorId else authorName
-        val router = RouterRegistry.getUserProfileRouter()
-        if (router != null) {
-            val newFragment = router.createUserProfileFragment(userId, authorName, readOnly = true)
-            childFragmentManager.commit {
-                replace(R.id.user_info_overlay, newFragment)
-            }
-            userProfileFragment = newFragment
-        } else {
-            Log.e(TAG, "UserProfileRouter not registered")
-        }
-        
-        // 点击用户信息区域外部（视频区域）可关闭
-        player.setOnClickListener {
+        userProfileDialogFragment = UserProfileDialogFragment.newInstance(userId, authorName)
+        userProfileDialogFragment?.setOnDismissListener {
             hideUserInfoOverlay()
         }
+        // 设置视频点击回调，当在个人主页中点击视频时，关闭Dialog并导航到视频播放器
+        userProfileDialogFragment?.setOnVideoClickListener { userId, authorName, videoItems, initialIndex ->
+            // 关闭Dialog
+            hideUserInfoOverlay()
+            // 导航到视频播放器
+            navigateToUserWorksViewer(userId, videoItems, initialIndex)
+        }
+        userProfileDialogFragment?.show(parentFragmentManager, "UserProfileDialog")
     }
 
     /**
-     * 隐藏用户信息覆盖层（恢复全屏视频）
+     * 隐藏用户信息弹窗（恢复全屏视频）
      */
     private fun hideUserInfoOverlay() {
         if (!isUserInfoVisible) return
         
+        // 关闭 DialogFragment
+        userProfileDialogFragment?.dismissAllowingStateLoss()
+        userProfileDialogFragment = null
+        
         val layout = rootLayout ?: return
-        val overlay = userInfoOverlay ?: return
-        val player = playerView ?: return
         
         isUserInfoVisible = false
         
@@ -591,21 +599,49 @@ class VideoItemFragment : BaseFeedItemFragment() {
         constraintSet.connect(R.id.player_view, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM)
         constraintSet.constrainPercentHeight(R.id.player_view, 1.0f)
         
-        // 用户信息覆盖层隐藏
-        constraintSet.clear(R.id.user_info_overlay, ConstraintSet.TOP)
-        constraintSet.clear(R.id.user_info_overlay, ConstraintSet.BOTTOM)
-        constraintSet.constrainHeight(R.id.user_info_overlay, 0)
+        // 同时恢复 image_pager 和 video_controls 的全屏高度
+        constraintSet.clear(R.id.image_pager, ConstraintSet.BOTTOM)
+        constraintSet.connect(R.id.image_pager, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP)
+        constraintSet.connect(R.id.image_pager, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM)
+        constraintSet.constrainPercentHeight(R.id.image_pager, 1.0f)
+        
+        constraintSet.clear(R.id.video_controls, ConstraintSet.BOTTOM)
+        constraintSet.connect(R.id.video_controls, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP)
+        constraintSet.connect(R.id.video_controls, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM)
+        constraintSet.constrainPercentHeight(R.id.video_controls, 1.0f)
         
         // 应用动画
         TransitionManager.beginDelayedTransition(layout)
         constraintSet.applyTo(layout)
         
-        // 隐藏用户信息覆盖层
-        overlay.visibility = View.GONE
-        
-        // 恢复视频点击事件
-        player.setOnClickListener {
-            viewModel.togglePlayPause()
+        // 不恢复播放（因为从未暂停），继续播放
+    }
+    
+    /**
+     * 导航到用户作品播放器
+     */
+    private fun navigateToUserWorksViewer(userId: String, videoItems: ArrayList<VideoItem>, initialIndex: Int) {
+        val navController = findParentNavController()
+        if (navController == null) {
+            Log.e(TAG, "NavController not found, cannot open user works viewer")
+            return
         }
+        
+        val actionId = NavigationHelper.getResourceId(
+            requireContext(),
+            NavigationIds.ACTION_USER_PROFILE_TO_USER_WORKS_VIEWER
+        )
+        if (actionId == 0) {
+            Log.e(TAG, "Navigation action not found for user works viewer")
+            return
+        }
+        
+        // 使用字符串常量避免循环依赖
+        val bundle = bundleOf(
+            "user_id" to userId,
+            "initial_index" to initialIndex,
+            "video_list" to videoItems
+        )
+        navController.navigate(actionId, bundle)
     }
 }

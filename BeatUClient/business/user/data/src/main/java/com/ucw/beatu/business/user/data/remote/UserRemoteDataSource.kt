@@ -15,6 +15,7 @@ import javax.inject.Inject
  */
 interface UserRemoteDataSource {
     suspend fun getUserById(userId: String): AppResult<User>
+    suspend fun getUserByName(userName: String): AppResult<User>
     suspend fun followUser(userId: String): AppResult<Unit>
     suspend fun unfollowUser(userId: String): AppResult<Unit>
 }
@@ -35,6 +36,37 @@ class UserRemoteDataSourceImpl @Inject constructor(
             }
 
             val response = apiService.getUserById(userId)
+            val data = response.data
+            when {
+                response.isSuccess && data != null -> {
+                    data.toDomain()
+                }
+                response.isUnauthorized -> {
+                    throw DataException.AuthException(
+                        response.message,
+                        response.code
+                    )
+                }
+                response.isNotFound -> {
+                    throw DataException.NotFoundException(response.message)
+                }
+                else -> {
+                    throw DataException.ServerException(
+                        response.message,
+                        response.code
+                    )
+                }
+            }
+        }
+    }
+
+    override suspend fun getUserByName(userName: String): AppResult<User> {
+        return runAppResult {
+            if (!connectivityObserver.isConnected()) {
+                throw DataException.NetworkException("No internet connection")
+            }
+
+            val response = apiService.getUserByName(userName)
             val data = response.data
             when {
                 response.isSuccess && data != null -> {

@@ -5,6 +5,8 @@ import com.ucw.beatu.business.user.data.mapper.toEntity
 import com.ucw.beatu.business.user.domain.model.User
 import com.ucw.beatu.shared.database.BeatUDatabase
 import com.ucw.beatu.shared.database.dao.UserDao
+import com.ucw.beatu.shared.database.dao.UserFollowDao
+import com.ucw.beatu.shared.database.entity.UserFollowEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -19,9 +21,19 @@ interface UserLocalDataSource {
     fun observeUserById(userId: String): Flow<User?>
 
     /**
+     * 根据用户名观察用户信息（Flow）
+     */
+    fun observeUserByName(userName: String): Flow<User?>
+
+    /**
      * 获取用户信息（一次性）
      */
     suspend fun getUserById(userId: String): User?
+
+    /**
+     * 根据用户名获取用户信息（一次性）
+     */
+    suspend fun getUserByName(userName: String): User?
 
     /**
      * 保存用户信息
@@ -32,6 +44,26 @@ interface UserLocalDataSource {
      * 批量保存用户信息
      */
     suspend fun saveUsers(users: List<User>)
+
+    /**
+     * 检查是否关注了某个用户
+     */
+    suspend fun isFollowing(currentUserId: String, targetUserId: String): Boolean
+
+    /**
+     * 观察关注状态（Flow）
+     */
+    fun observeIsFollowing(currentUserId: String, targetUserId: String): Flow<Boolean>
+
+    /**
+     * 添加关注关系（本地）
+     */
+    suspend fun followUser(currentUserId: String, targetUserId: String)
+
+    /**
+     * 删除关注关系（本地）
+     */
+    suspend fun unfollowUser(currentUserId: String, targetUserId: String)
 }
 
 /**
@@ -43,6 +75,7 @@ class UserLocalDataSourceImpl @Inject constructor(
 ) : UserLocalDataSource {
 
     private val userDao: UserDao = database.userDao()
+    private val userFollowDao: UserFollowDao = database.userFollowDao()
 
     override fun observeUserById(userId: String): Flow<User?> {
         return userDao.observeUserById(userId).map { entity ->
@@ -54,12 +87,45 @@ class UserLocalDataSourceImpl @Inject constructor(
         return userDao.getUserById(userId)?.toDomain()
     }
 
+    override fun observeUserByName(userName: String): Flow<User?> {
+        return userDao.observeUserByName(userName).map { entity ->
+            entity?.toDomain()
+        }
+    }
+
+    override suspend fun getUserByName(userName: String): User? {
+        return userDao.getUserByName(userName)?.toDomain()
+    }
+
     override suspend fun saveUser(user: User) {
         userDao.insertOrUpdate(user.toEntity())
     }
 
     override suspend fun saveUsers(users: List<User>) {
         userDao.insertOrUpdateAll(users.map { it.toEntity() })
+    }
+
+    override suspend fun isFollowing(currentUserId: String, targetUserId: String): Boolean {
+        return userFollowDao.isFollowing(currentUserId, targetUserId)
+    }
+
+    override fun observeIsFollowing(currentUserId: String, targetUserId: String): Flow<Boolean> {
+        return userFollowDao.observeFollowees(currentUserId).map { list ->
+            list.any { it.followeeId == targetUserId }
+        }
+    }
+
+    override suspend fun followUser(currentUserId: String, targetUserId: String) {
+        val relation = UserFollowEntity(
+            followerId = currentUserId,
+            followeeId = targetUserId,
+            createdAt = System.currentTimeMillis()
+        )
+        userFollowDao.insert(relation)
+    }
+
+    override suspend fun unfollowUser(currentUserId: String, targetUserId: String) {
+        userFollowDao.delete(currentUserId, targetUserId)
     }
 }
 

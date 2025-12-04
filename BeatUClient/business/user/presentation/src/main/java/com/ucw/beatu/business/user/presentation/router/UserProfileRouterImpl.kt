@@ -10,7 +10,9 @@ import com.ucw.beatu.shared.router.UserProfileRouter
  */
 class UserProfileRouterImpl : UserProfileRouter {
     override fun createUserProfileFragment(userId: String, authorName: String, readOnly: Boolean): Fragment {
-        return UserProfileFragment.newInstance(userId, readOnly)
+        // 使用authorName作为用户名，如果authorName为空则使用userId
+        val userName = authorName.ifEmpty { userId }
+        return UserProfileFragment.newInstance(userName, readOnly)
     }
 }
 

@@ -8,24 +8,24 @@ import kotlinx.coroutines.flow.Flow
  */
 interface UserWorksRepository {
     /**
-     * 订阅指定用户的作品列表；若作者暂无缓存，则回落到首页 Top N 视频
+     * 订阅指定用户的作品列表（使用authorName查询）
      */
-    fun observeUserWorks(userId: String, limit: Int = DEFAULT_LIMIT): Flow<List<UserWork>>
+    fun observeUserWorks(authorName: String, limit: Int = DEFAULT_LIMIT): Flow<List<UserWork>>
 
     /**
-     * 订阅收藏的视频列表
+     * 订阅收藏的视频列表（需要userId，JOIN user_interactions表）
      */
-    fun observeFavoritedWorks(limit: Int = DEFAULT_LIMIT): Flow<List<UserWork>>
+    fun observeFavoritedWorks(userId: String, limit: Int = DEFAULT_LIMIT): Flow<List<UserWork>>
 
     /**
-     * 订阅点赞的视频列表
+     * 订阅点赞的视频列表（需要userId，JOIN user_interactions表）
      */
-    fun observeLikedWorks(limit: Int = DEFAULT_LIMIT): Flow<List<UserWork>>
+    fun observeLikedWorks(userId: String, limit: Int = DEFAULT_LIMIT): Flow<List<UserWork>>
 
     /**
-     * 订阅播放历史的视频列表
+     * 订阅播放历史的视频列表（需要userId，JOIN watch_history表）
      */
-    fun observeHistoryWorks(limit: Int = DEFAULT_LIMIT): Flow<List<UserWork>>
+    fun observeHistoryWorks(userId: String, limit: Int = DEFAULT_LIMIT): Flow<List<UserWork>>
 
     companion object {
         const val DEFAULT_LIMIT = 30

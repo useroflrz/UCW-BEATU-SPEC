@@ -42,6 +42,7 @@
             <option value="$PROJECT_DIR$/shared/designsystem" />
             <option value="$PROJECT_DIR$/shared/network" />
             <option value="$PROJECT_DIR$/shared/player" />
+            <option value="$PROJECT_DIR$/shared/router" />
           </set>
         </option>
       </GradleProjectSettings>

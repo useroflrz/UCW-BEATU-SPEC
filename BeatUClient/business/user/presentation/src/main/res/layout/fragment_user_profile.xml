@@ -5,7 +5,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FF000000"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="true"
+    tools:background="#FF000000">
 
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar_user_profile"
@@ -14,12 +15,14 @@
         android:background="@android:color/transparent"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
+        android:minHeight="?attr/actionBarSize"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:navigationIcon="?attr/homeAsUpIndicator"
         app:title="@string/user_profile_title"
         app:titleTextColor="@android:color/white"
+        app:contentInsetStartWithNavigation="0dp"
         tools:visibility="visible" />
 
     <!-- 可滚动内容区域（只包含用户信息和统计信息） -->
@@ -43,10 +46,12 @@
                 android:id="@+id/user_info_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingStart="32dp"
-                android:paddingTop="24dp"
-                android:paddingEnd="32dp"
+                android:paddingStart="36dp"
+                android:paddingTop="16dp"
+                android:paddingEnd="16dp"
                 android:paddingBottom="24dp"
+                android:clickable="false"
+                android:focusable="false"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent">
@@ -57,7 +62,6 @@
                     android:layout_width="80dp"
                     android:layout_height="80dp"
                     android:background="@drawable/bg_avatar_rounded"
-                    app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent">
 
@@ -72,24 +76,48 @@
 
                 </FrameLayout>
 
-                <!-- 用户昵称 - 在头像右边一点，相对现在要下面一点 -->
+                <!-- 关注/取消关注按钮 - 在头像下面 -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_follow"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="32dp"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginEnd="32dp"
+                    android:text="关注"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:enabled="true"
+                    android:elevation="4dp"
+                    app:cornerRadius="18dp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/avatar_container"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
+
+                <!-- 用户昵称 - 在头像右边，与头像顶部对齐 -->
 
                 <!-- 一句话介绍 - 在名字下面，与名字左对齐 -->
+
                 <TextView
                     android:id="@+id/tv_username"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="16dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
                     android:text="名字"
                     android:textColor="#FFFFFFFF"
                     android:textSize="18sp"
                     android:textStyle="bold"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:foreground="?attr/selectableItemBackground"
                     app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintHorizontal_bias="0.054"
+                    app:layout_constraintHorizontal_bias="0.053"
                     app:layout_constraintStart_toEndOf="@id/avatar_container"
                     app:layout_constraintTop_toTopOf="@id/avatar_container" />
 

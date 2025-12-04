@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.kapt)
-    alias(libs.plugins.hilt)  // 新增
+    alias(libs.plugins.hilt)
 }
 
 android {
@@ -36,26 +36,28 @@ android {
 dependencies {
     // Business Domain
     implementation(project(":business:user:domain"))
-
+    implementation(project(":business:videofeed:domain"))
+    
     // Shared modules
     implementation(project(":shared:common"))
     implementation(project(":shared:network"))
     implementation(project(":shared:database"))
-
+    
     // Retrofit
     implementation(libs.retrofit)
     implementation(libs.retrofit.moshi)
-
+    
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     kapt(libs.androidx.room.compiler)
-
+    
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
-
-    // Hilt  // 新增
+    
+    // Hilt  
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
 }
+

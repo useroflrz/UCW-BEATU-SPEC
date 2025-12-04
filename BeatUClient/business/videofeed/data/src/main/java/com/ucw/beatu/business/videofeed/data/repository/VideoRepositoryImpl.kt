@@ -107,8 +107,10 @@ class VideoRepositoryImpl @Inject constructor(
             when (remoteResult) {
                 is AppResult.Success -> {
                     // 保存所有页面的数据到本地缓存，支持离线滑动
-                    if (orientation == null) {
+                    if (orientation != null) {
                         localDataSource.saveVideos(remoteResult.data)
+                        // 异步为没有封面的视频生成缩略图
+                        localDataSource.enqueueThumbnailGeneration(remoteResult.data)
                     }
                     emit(remoteResult) // 用远程最新数据刷新
                 }
@@ -118,8 +120,10 @@ class VideoRepositoryImpl @Inject constructor(
                         val fallbackVideos = buildMockVideos(page, limit, orientation)
                         if (fallbackVideos.isNotEmpty()) {
                             // 保存mock数据到本地缓存，支持后续离线使用
-                            if (orientation == null) {
+                            if (orientation != null) {
                                 localDataSource.saveVideos(fallbackVideos)
+                                // 异步为没有封面的视频生成缩略图
+                                localDataSource.enqueueThumbnailGeneration(fallbackVideos)
                             }
                             emit(AppResult.Success(fallbackVideos))
                         } else {
@@ -140,6 +144,10 @@ class VideoRepositoryImpl @Inject constructor(
         // 如果本地和mock都没有数据，才发送错误
         val fallbackVideos = buildMockVideos(1, 20, null)
         if (fallbackVideos.isNotEmpty()) {
+            // 保存mock数据到本地缓存
+            localDataSource.saveVideos(fallbackVideos)
+            // 异步为没有封面的视频生成缩略图
+            localDataSource.enqueueThumbnailGeneration(fallbackVideos)
             emit(AppResult.Success(fallbackVideos))
         } else {
             emit(AppResult.Error(it))
@@ -164,6 +172,8 @@ class VideoRepositoryImpl @Inject constructor(
         return when (val result = remoteDataSource.getVideoDetail(videoId)) {
             is AppResult.Success -> {
                 localDataSource.saveVideo(result.data)
+                // 异步为没有封面的视频生成缩略图
+                localDataSource.enqueueThumbnailGeneration(listOf(result.data))
                 result
             }
             else -> result

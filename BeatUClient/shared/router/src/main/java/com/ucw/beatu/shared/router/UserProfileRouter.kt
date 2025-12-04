@@ -11,8 +11,8 @@ import androidx.fragment.app.Fragment
 interface UserProfileRouter {
     /**
      * 创建用户信息展示 Fragment（只读模式）
-     * @param userId 用户ID
-     * @param authorName 作者名称（fallback）
+     * @param userId 用户ID（保留用于兼容，但优先使用authorName）
+     * @param authorName 作者名称（作为用户名使用）
      * @param readOnly 是否只读模式
      * @return 用户信息展示 Fragment
      */
