@@ -121,22 +121,26 @@ class UserWorksViewerFragment : Fragment(R.layout.fragment_user_works_viewer), U
     }
 
     private fun parseArgumentsIfNeeded(bundle: Bundle) {
-        val userId = bundle.getString(ARG_USER_ID)
+        val userId = bundle.getString(ARG_USER_ID).orEmpty()
         val initialIndex = bundle.getInt(ARG_INITIAL_INDEX, 0)
         val videos = BundleCompat.getParcelableArrayList(bundle, ARG_VIDEO_LIST, VideoItem::class.java)
             ?: arrayListOf()
+        val searchTitle = bundle.getString(ARG_SEARCH_TITLE).orEmpty()
+        val sourceTab = bundle.getString(ARG_SOURCE_TAB).orEmpty()
 
-        Log.d(TAG, "parseArgumentsIfNeeded: userId=$userId, initialIndex=$initialIndex, videoListSize=${videos.size}")
+        Log.d(TAG, "parseArgumentsIfNeeded: userId=$userId, initialIndex=$initialIndex, videoListSize=${videos.size}, searchTitle=$searchTitle, sourceTab=$sourceTab")
 
         videos.forEachIndexed { index, video ->
             Log.d(TAG, "Video[$index]: id=${video.id}, likeCount=${video.likeCount}")
         }
 
-        if (userId.isNullOrEmpty()) {
-            Log.e(TAG, "parseArgumentsIfNeeded: userId is null or empty, skip init")
-            return
+        // Toolbar 标题：优先显示搜索标题，否则使用默认
+        val toolbar: MaterialToolbar? = view?.findViewById(R.id.toolbar_user_works)
+        if (searchTitle.isNotBlank()) {
+            toolbar?.title = searchTitle
         }
 
+        // 允许 userId 为空（搜索模式），仅依赖传入的视频列表
         viewModel.setInitialData(userId, videos, initialIndex)
     }
 
@@ -193,6 +197,8 @@ class UserWorksViewerFragment : Fragment(R.layout.fragment_user_works_viewer), U
         const val ARG_USER_ID = "user_id"
         const val ARG_VIDEO_LIST = "video_list"
         const val ARG_INITIAL_INDEX = "initial_index"
+        const val ARG_SEARCH_TITLE = "search_title"
+        const val ARG_SOURCE_TAB = "source_tab" // works/favorite/like/history/search
     }
 
     private fun attachBounceEffect(pager: ViewPager2) {

@@ -11,6 +11,7 @@ object NavigationIds {
     const val USER_WORKS_VIEWER = "userWorksViewer"
     const val SEARCH = "search"
     const val SEARCH_RESULT = "searchResult"
+    const val SEARCH_RESULT_VIDEO_VIEWER = "searchResultVideoViewer"
     const val AI_SEARCH = "aiSearch"
     const val SETTINGS = "settings"
     const val LANDSCAPE = "landscape"
@@ -26,6 +27,8 @@ object NavigationIds {
     const val ACTION_SEARCH_TO_FEED = "action_search_to_feed"
     const val ACTION_SEARCH_TO_SEARCH_RESULT = "action_search_to_searchResult"
     const val ACTION_SEARCH_TO_AI_SEARCH = "action_search_to_aiSearch"
+    const val ACTION_SEARCH_RESULT_TO_VIDEO_VIEWER = "action_searchResult_to_videoViewer"
+    const val ACTION_SEARCH_RESULT_TO_USER_WORKS_VIEWER = "action_searchResult_to_userWorksViewer"
     const val ACTION_SETTINGS_TO_FEED = "action_settings_to_feed"
     const val ACTION_LANDSCAPE_TO_FEED = "action_landscape_to_feed"
 }

@@ -93,7 +93,7 @@ class UserProfileFragment : Fragment() {
 
     // 用户名（从参数获取，默认为当前用户）
     private val userName: String
-        get() = arguments?.getString(ARG_USER_NAME) ?: "current_user"
+        get() = arguments?.getString(ARG_USER_NAME) ?: CURRENT_USER_NAME
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -112,14 +112,14 @@ class UserProfileFragment : Fragment() {
         // 设置头像圆角裁剪
         setupAvatarRoundCorner(view)
 
-        // 只读模式下禁用编辑功能
+        // 非只读模式：允许修改头像和简介，但「用户名不可编辑」
         if (!isReadOnly) {
             // 设置头像点击上传
             setupAvatarUpload()
 
-            // 设置名字和名言的点击编辑功能
+            // 只允许编辑简介，不允许编辑用户名
             setupEditableFields()
-            // 非只读模式：隐藏关注按钮（自己的主页不需要关注按钮）
+            // 自己的主页不需要关注按钮
             btnFollow.visibility = View.GONE
         } else {
             // 只读模式：禁用头像、名称、名言的点击
@@ -213,51 +213,22 @@ class UserProfileFragment : Fragment() {
     }
 
     /**
-    * 设置名字和名言的点击编辑功能
+    * 设置可编辑字段（仅简介可编辑，用户名禁止编辑）
     */
     private fun setupEditableFields() {
-        // 名字点击编辑
-        tvUsername.setOnClickListener {
-            android.util.Log.d("UserProfileFragment", "用户名被点击")
-            showEditNameDialog()
-        }
-        
-        // 名言点击编辑
+        // 禁止用户名点击与焦点
+        tvUsername.isClickable = false
+        tvUsername.isFocusable = false
+
+        // 简介点击编辑
         tvBio.setOnClickListener {
             android.util.Log.d("UserProfileFragment", "简介被点击")
             showEditBioDialog()
         }
         
-        // 确保 TextView 可点击
-        tvUsername.isClickable = true
-        tvUsername.isFocusable = true
+        // 确保简介 TextView 可点击
         tvBio.isClickable = true
         tvBio.isFocusable = true
-    }
-    /**
-    * 显示编辑名字对话框
-    */
-    private fun showEditNameDialog() {
-        val currentName = tvUsername.text.toString()
-        val input = android.widget.EditText(requireContext()).apply {
-            setText(currentName)
-            setSelection(currentName.length)
-            hint = "请输入名字"
-            textSize = 16f
-        }
-        
-        android.app.AlertDialog.Builder(requireContext())
-            .setTitle("编辑名字")
-            .setView(input)
-            .setPositiveButton("保存") { _, _ ->
-                    val newName = input.text.toString().trim()
-                    if (newName.isNotEmpty()) {
-                        val currentUserId = latestUser?.id ?: return@setPositiveButton
-                        viewModel.updateName(currentUserId, newName)
-                    }
-            }
-            .setNegativeButton("取消", null)
-            .show()
     }
 
     /**
@@ -302,9 +273,9 @@ class UserProfileFragment : Fragment() {
                             // 使用用户的实际名称作为 authorName（因为作品是通过 authorName 查询的）
                             val authorName = if (userName == "current_user") user.name else userName
                             viewModel.switchTab(UserProfileViewModel.TabType.WORKS, authorName = authorName, currentUserId = user.id)
-                            // 开始观察关注状态（只读模式）
+                            // 开始观察关注状态（只读模式），当前登录用户固定为 BEATU
                             if (isReadOnly) {
-                                val currentUserId = "current_user" // TODO: 从用户会话获取当前用户ID
+                                val currentUserId = CURRENT_USER_ID
                                 viewModel.startObservingFollowStatus(currentUserId, user.id)
                             }
                         } else {
@@ -352,7 +323,7 @@ class UserProfileFragment : Fragment() {
                 Toast.makeText(requireContext(), "无法获取用户信息", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val currentUserId = "current_user" // TODO: 从用户会话获取当前用户ID
+            val currentUserId = CURRENT_USER_ID
             Log.d(TAG, "Follow button clicked, userName: $userName, userId: $targetUserId, currentUserId: $currentUserId")
             val isFollowing = viewModel.isFollowing.value ?: false
             Log.d(TAG, "Current follow status: $isFollowing")
@@ -420,11 +391,18 @@ class UserProfileFragment : Fragment() {
             loadAvatar(avatarPath)
         }
         
-        // 确保点击监听器仍然有效（数据更新后重新设置）
-        tvUsername.isClickable = true
-        tvUsername.isFocusable = true
-        tvBio.isClickable = true
-        tvBio.isFocusable = true
+        // 用户名在任何模式下都不可编辑
+        tvUsername.isClickable = false
+        tvUsername.isFocusable = false
+
+        // 非只读模式下允许编辑简介
+        if (!isReadOnly) {
+            tvBio.isClickable = true
+            tvBio.isFocusable = true
+        } else {
+            tvBio.isClickable = false
+            tvBio.isFocusable = false
+        }
     }
     
     /**
@@ -764,6 +742,9 @@ class UserProfileFragment : Fragment() {
 
     companion object {
         private const val TAG = "UserProfileFragment"
+        // 当前登录用户的固定 ID 与用户名
+        private const val CURRENT_USER_ID = "current_user"
+        private const val CURRENT_USER_NAME = "BEATU"
         private const val ARG_USER_NAME = "user_name"
         private const val ARG_USER_ID = "user_id" // 保留用于兼容
         private const val ARG_READ_ONLY = "read_only"
@@ -776,7 +757,8 @@ class UserProfileFragment : Fragment() {
         fun newInstance(userName: String? = null, readOnly: Boolean = false): UserProfileFragment {
             return UserProfileFragment().apply {
                 arguments = Bundle().apply {
-                    putString(ARG_USER_NAME, userName)
+                    // 如果未显式传用户名称，则默认展示当前登录用户 BEATU 的主页
+                    putString(ARG_USER_NAME, userName ?: CURRENT_USER_NAME)
                     putBoolean(ARG_READ_ONLY, readOnly)
                 }
             }

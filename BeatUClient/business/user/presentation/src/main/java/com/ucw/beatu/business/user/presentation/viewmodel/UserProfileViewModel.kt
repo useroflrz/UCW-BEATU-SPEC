@@ -174,19 +174,6 @@ class UserProfileViewModel @Inject constructor(
     }
 
     /**
-     * 更新用户名字
-     */
-    fun updateName(userId: String, name: String) {
-        viewModelScope.launch {
-            val currentUser = userRepository.getUserById(userId)
-            if (currentUser != null) {
-                val updatedUser = currentUser.copy(name = name)
-                userRepository.saveUser(updatedUser)
-            }
-        }
-    }
-
-    /**
      * 更新用户简介
      */
     fun updateBio(userId: String, bio: String?) {

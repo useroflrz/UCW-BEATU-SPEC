@@ -906,16 +906,15 @@
 
 
 - [x] 完善搜索结果页面的结果显示
-    - 2025-12-04 - done by KJH
-    - 方案：
+    - 2025-12-05 - done by KJH
+    - 效果：搜索以搜索词与远程与本地数据库的视频的title做搜索，
+    - 视频列表以抖音风格，单列的图文流显示，点击可以进入视频播放，以搜索的视频列表显示
     - 内容：
-      - 
+      - SearchResultFragment 接入 SearchResultVideoViewModel，基于 GetFeedUseCase 拉取视频并按搜索词过滤后以图文列表展示
+      - 搜索结果点击后复用个人主页的 UserWorksViewer 播放器（传递 video_list + initial_index + search_title + source_tab=search），保持返回键先回到搜索结果视频页
+      - 新增导航 action searchResult_to_userWorksViewer（并继续保留 searchResult_to_videoViewer），按当前 destination 精确选择可用 action，避免 “action not found” 崩溃
+      - 依赖接入 videofeed:domain + data + presentation，保证 GetFeedUseCase 与 VideoRepository Hilt 绑定可用
 
-- [x] 发布器的UI与数据连接
-    - 2025-12-04 - done by KJH
-    - 方案：
-    - 内容：
-      - 
 
 
 > 后续迭代中，请将具体任务拆分为更细粒度条目，并在完成后标记 `[x]`，附上日期与负责人。

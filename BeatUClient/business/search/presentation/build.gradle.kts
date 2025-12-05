@@ -31,6 +31,10 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    kapt {
+        // 避免 Hilt 处理阶段因跨模块符号暂不可见而生成 NonExistentClass 占位
+        correctErrorTypes = true
+    }
     buildFeatures {
         viewBinding = true
     }
@@ -39,6 +43,11 @@ android {
 dependencies {
     // Business Domain
     implementation(project(":business:search:domain"))
+    implementation(project(":business:videofeed:domain")) // GetFeedUseCase / Video
+    implementation(project(":business:videofeed:data"))   // VideoRepository 实现与 Hilt 绑定
+    
+    // Business Presentation (复用视频播放组件)
+    implementation(project(":business:videofeed:presentation"))
     
     // Shared modules
     implementation(project(":shared:common"))

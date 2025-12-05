@@ -39,30 +39,53 @@ class VideoRemoteDataSourceImpl @Inject constructor(
         return runAppResult {
             // 检查网络连接
             if (!connectivityObserver.isConnected()) {
+                android.util.Log.e("VideoRemoteDataSource", "网络未连接")
                 throw DataException.NetworkException("No internet connection")
             }
 
-            val response = apiService.getVideoFeed(page, limit, orientation)
-            val data = response.data
-            when {
-                response.isSuccess && data != null -> {
-                    data.items.map { it.toDomain() }
+            android.util.Log.d("VideoRemoteDataSource", "开始请求视频列表: page=$page, limit=$limit, orientation=$orientation")
+            
+            try {
+                val response = apiService.getVideoFeed(page, limit, orientation)
+                android.util.Log.d("VideoRemoteDataSource", 
+                    "收到响应: code=${response.code}, message=${response.message}, " +
+                    "data=${if (response.data != null) "有数据" else "无数据"}"
+                )
+                
+                val data = response.data
+                when {
+                    response.isSuccess && data != null -> {
+                        android.util.Log.d("VideoRemoteDataSource", "解析成功，视频数量: ${data.items.size}")
+                        data.items.map { it.toDomain() }
+                    }
+                    response.isUnauthorized -> {
+                        android.util.Log.e("VideoRemoteDataSource", "认证失败: code=${response.code}, message=${response.message}")
+                        throw DataException.AuthException(
+                            response.message,
+                            response.code
+                        )
+                    }
+                    response.isNotFound -> {
+                        android.util.Log.e("VideoRemoteDataSource", "资源未找到: code=${response.code}, message=${response.message}")
+                        throw DataException.NotFoundException(response.message)
+                    }
+                    else -> {
+                        android.util.Log.e("VideoRemoteDataSource", 
+                            "服务器错误: code=${response.code}, message=${response.message}, " +
+                            "data=${response.data}"
+                        )
+                        throw DataException.ServerException(
+                            response.message ?: "Unknown server error",
+                            response.code
+                        )
+                    }
                 }
-                response.isUnauthorized -> {
-                    throw DataException.AuthException(
-                        response.message,
-                        response.code
-                    )
-                }
-                response.isNotFound -> {
-                    throw DataException.NotFoundException(response.message)
-                }
-                else -> {
-                    throw DataException.ServerException(
-                        response.message,
-                        response.code
-                    )
-                }
+            } catch (e: Exception) {
+                android.util.Log.e("VideoRemoteDataSource", 
+                    "请求异常: ${e.javaClass.simpleName}, message=${e.message}", 
+                    e
+                )
+                throw e
             }
         }
     }

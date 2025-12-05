@@ -738,17 +738,47 @@ class VideoItemFragment : BaseFeedItemFragment() {
             }
         }
 
-        // 从 feed fragment 导航，使用 feed 到 userWorksViewer 的动作
-        val actionId = NavigationHelper.getResourceId(
-            requireContext(),
-            NavigationIds.ACTION_FEED_TO_USER_WORKS_VIEWER
+        val context = requireContext()
+        val currentDestId = navController.currentDestination?.id
+        val userWorksDestId = NavigationHelper.getResourceId(context, NavigationIds.USER_WORKS_VIEWER)
+        val searchResultDestId = NavigationHelper.getResourceId(context, NavigationIds.SEARCH_RESULT)
+        val searchResultVideoDestId = NavigationHelper.getResourceId(context, NavigationIds.SEARCH_RESULT_VIDEO_VIEWER)
+        val userProfileDestId = NavigationHelper.getResourceId(context, NavigationIds.USER_PROFILE)
+
+        Log.d(
+            TAG,
+            "navigateToUserWorksViewer: currentDestId=$currentDestId, " +
+                "userWorksDestId=$userWorksDestId, searchResultDestId=$searchResultDestId, " +
+                "searchResultVideoDestId=$searchResultVideoDestId, userProfileDestId=$userProfileDestId, " +
+                "targetUserId=$userId, initialIndex=$initialIndex, videoListSize=${videoItems.size}"
         )
+
+        // 如果当前已经在 UserWorksViewer，保持在同一目的地上叠加新入参（不 pop），
+        // 这样返回键能回到之前的用户作品（搜索来源希望回到上一层视频页）
+
+        // 根据当前所在的 destination 精确选择 action，且仅使用当前目的地下存在的 action
+        val candidateIds = listOf(
+            NavigationHelper.getResourceId(context, NavigationIds.ACTION_SEARCH_RESULT_TO_USER_WORKS_VIEWER),
+            NavigationHelper.getResourceId(context, NavigationIds.ACTION_USER_PROFILE_TO_USER_WORKS_VIEWER),
+            NavigationHelper.getResourceId(context, NavigationIds.ACTION_FEED_TO_USER_WORKS_VIEWER)
+        ).filter { it != 0 }
+
+        val usableActionId = candidateIds.firstOrNull { actionId ->
+            navController.currentDestination?.getAction(actionId) != null
+        }
+
+        val actionId = usableActionId ?: userWorksDestId
+
         if (actionId == 0) {
-            Log.e(TAG, "Navigation action not found for user works viewer")
+            Log.e(TAG, "Navigation action not found for user works viewer (currentDest=$currentDestId)")
             return
         }
 
-        // 使用字符串常量避免循环依赖
+        Log.d(
+            TAG,
+            "navigateToUserWorksViewer: using actionId=$actionId, usableActionId=$usableActionId, candidates=$candidateIds"
+        )
+
         val bundle = bundleOf(
             "user_id" to userId,
             "initial_index" to initialIndex,

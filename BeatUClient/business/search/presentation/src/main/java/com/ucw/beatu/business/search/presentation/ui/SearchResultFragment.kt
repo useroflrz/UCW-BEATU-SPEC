@@ -9,22 +9,37 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.TextView
+import androidx.core.os.bundleOf
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.ucw.beatu.business.search.presentation.R
+import com.ucw.beatu.business.search.presentation.viewmodel.SearchResultVideoViewModel
+import com.ucw.beatu.shared.common.navigation.NavigationHelper
+import com.ucw.beatu.shared.common.navigation.NavigationIds
+import com.ucw.beatu.shared.common.model.VideoItem
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 /**
  * 常规搜索结果页面
+ * 单列图文流，点击进入视频播放列表（匹配搜索词）
  */
+@AndroidEntryPoint
 class SearchResultFragment : Fragment() {
 
     private lateinit var searchEditText: EditText
     private lateinit var clearButton: View
     private lateinit var searchButton: TextView
     private lateinit var backButton: View
+    private val viewModel: SearchResultVideoViewModel by viewModels()
+
     private lateinit var resultAdapter: SearchResultListAdapter
     private var currentQuery: String = ""
 
@@ -41,7 +56,8 @@ class SearchResultFragment : Fragment() {
         currentQuery = arguments?.getString(ARG_QUERY).orEmpty()
         setupSearchHeader(view)
         setupResultList(view)
-        renderResults(currentQuery)
+        observeViewModel()
+        viewModel.initSearch(currentQuery, titleKeyword = "")
     }
 
     private fun setupSearchHeader(view: View) {
@@ -91,60 +107,49 @@ class SearchResultFragment : Fragment() {
     private fun setupResultList(view: View) {
         val rvResults = view.findViewById<RecyclerView>(R.id.rv_search_result_list)
         rvResults.layoutManager = LinearLayoutManager(requireContext())
-        resultAdapter = SearchResultListAdapter()
+        resultAdapter = SearchResultListAdapter { item ->
+            navigateToVideoViewer(currentQuery, item.title)
+        }
         rvResults.adapter = resultAdapter
     }
 
     private fun triggerSearch(query: String) {
         if (query.isBlank()) return
         currentQuery = query
-        renderResults(query)
+        viewModel.initSearch(query, titleKeyword = "")
     }
 
-    private fun renderResults(query: String) {
-        val results = buildMockResults(query)
-        resultAdapter.submitList(results)
-    }
-
-    private fun buildMockResults(keyword: String): List<SearchResultUiModel> {
-        val prefix = if (keyword.isBlank()) "热门" else keyword
-        return listOf(
-            SearchResultUiModel(
-                title = "$prefix · 城市夜游 Vlog",
-                description = "3 天 2 夜超详细路线，附航拍镜头与人均预算",
-                author = "旅拍小熊",
-                duration = "05:12"
-            ),
-            SearchResultUiModel(
-                title = "$prefix · AI 精选好物",
-                description = "护肤品测评 + 实测对比，AI 智能匹配肤质",
-                author = "元宝实验室",
-                duration = "03:48"
-            ),
-            SearchResultUiModel(
-                title = "$prefix · 进阶训练计划",
-                description = "针对新手的 7 天训练流程，含饮食建议与动作讲解",
-                author = "BeatU Coach",
-                duration = "08:20"
-            ),
-            SearchResultUiModel(
-                title = "$prefix · 热门话题讨论",
-                description = "邀请三位创作者聊聊最近爆火的趋势，彩蛋在最后",
-                author = "话题放映室",
-                duration = "04:05"
-            )
-        )
+    private fun observeViewModel() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collect { state ->
+                    if (state.videoList.isNotEmpty()) {
+                        val uiModels = state.videoList.map { it.toUiModel() }
+                        resultAdapter.submitList(uiModels)
+                    }
+                    // 省略 loading/error 展示，后续可扩展
+                }
+            }
+        }
     }
 
     data class SearchResultUiModel(
         val title: String,
         val description: String,
-        val author: String,
-        val duration: String
+        val author: String
     )
 
-    private class SearchResultListAdapter :
-        RecyclerView.Adapter<SearchResultListAdapter.ResultViewHolder>() {
+    private fun VideoItem.toUiModel(): SearchResultUiModel {
+        return SearchResultUiModel(
+            title = title,
+            description = "点赞 $likeCount · 评论 $commentCount",
+            author = authorName
+        )
+    }
+
+    private class SearchResultListAdapter(
+        private val onClick: (SearchResultUiModel) -> Unit
+    ) : RecyclerView.Adapter<SearchResultListAdapter.ResultViewHolder>() {
 
         private var items: List<SearchResultUiModel> = emptyList()
 
@@ -156,7 +161,7 @@ class SearchResultFragment : Fragment() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ResultViewHolder {
             val view = LayoutInflater.from(parent.context)
                 .inflate(R.layout.item_search_result, parent, false)
-            return ResultViewHolder(view)
+            return ResultViewHolder(view, onClick)
         }
 
         override fun onBindViewHolder(holder: ResultViewHolder, position: Int) {
@@ -165,23 +170,74 @@ class SearchResultFragment : Fragment() {
 
         override fun getItemCount(): Int = items.size
 
-        inner class ResultViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        inner class ResultViewHolder(
+            itemView: View,
+            private val onClick: (SearchResultUiModel) -> Unit
+        ) : RecyclerView.ViewHolder(itemView) {
             private val title: TextView = itemView.findViewById(R.id.tv_title)
             private val desc: TextView = itemView.findViewById(R.id.tv_description)
             private val author: TextView = itemView.findViewById(R.id.tv_author)
-            private val duration: TextView = itemView.findViewById(R.id.tv_duration)
+
+            init {
+                itemView.setOnClickListener {
+                    if (bindingAdapterPosition != RecyclerView.NO_POSITION) {
+                        onClick(items[bindingAdapterPosition])
+                    }
+                }
+            }
 
             fun bind(model: SearchResultUiModel) {
                 title.text = model.title
                 desc.text = model.description
                 author.text = model.author
-                duration.text = model.duration
             }
         }
     }
 
     companion object {
         private const val ARG_QUERY = "search_query"
+        private const val ARG_RESULT_TITLE = "result_title"
+        private const val ARG_SEARCH_TITLE = "search_title"
+        private const val ARG_SOURCE_TAB = "source_tab"
+    }
+
+    /**
+     * 跳转到用户作品播放器（复用个人主页组件）
+     * 使用搜索结果过滤后的视频列表作为播放源
+     */
+    private fun navigateToVideoViewer(searchQuery: String, resultTitle: String) {
+        val videos = viewModel.uiState.value.videoList
+        if (videos.isEmpty()) return
+
+        val targetIndex = videos.indexOfFirst { it.title == resultTitle }.let {
+            if (it >= 0) it else 0
+        }
+
+        // 搜索来源：用目标视频作者作为 userId（若为空则回退作者名，再不行用空字符串）
+        val targetVideo = videos.getOrNull(targetIndex)
+        val userId = when {
+            targetVideo?.authorId?.isNotBlank() == true -> targetVideo.authorId
+            targetVideo?.authorName?.isNotBlank() == true -> targetVideo.authorName
+            else -> ""
+        }
+
+        val args = bundleOf(
+            "user_id" to userId,
+            "initial_index" to targetIndex,
+            "video_list" to ArrayList(videos),
+            "search_title" to "“$searchQuery” 的搜索结果",
+            "source_tab" to "search"
+        )
+
+        val navController = findNavController()
+        val context = requireContext()
+        val actionId = NavigationHelper.getResourceId(
+            context,
+            NavigationIds.ACTION_SEARCH_RESULT_TO_USER_WORKS_VIEWER
+        )
+        if (actionId != 0) {
+            navController.navigate(actionId, args)
+        }
     }
 }
 

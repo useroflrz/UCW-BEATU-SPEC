@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+import os
 
 from dotenv import load_dotenv
 from pydantic import Field
@@ -18,6 +19,28 @@ if env_file.exists():
     load_dotenv(dotenv_path=env_file)
 
 
+def build_database_url() -> str:
+    """
+    构建数据库连接URL
+    优先级：
+    1. DATABASE_URL 环境变量（如果已设置）
+    2. 从 DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME 构建
+    3. 默认值
+    """
+    # 如果已设置 DATABASE_URL，直接使用
+    if os.getenv("DATABASE_URL"):
+        return os.getenv("DATABASE_URL")
+    
+    # 从分离的变量构建
+    db_host = os.getenv("DB_HOST", "localhost")
+    db_port = os.getenv("DB_PORT", "3306")
+    db_user = os.getenv("DB_USER", "beatu")
+    db_password = os.getenv("DB_PASSWORD", "RXSSbTkGZWFkyThj")
+    db_name = os.getenv("DB_NAME", "beatu")
+    
+    return f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+
+
 class Settings(BaseSettings):
     """
     应用配置类
@@ -27,15 +50,15 @@ class Settings(BaseSettings):
     3. 默认值
     
     使用说明：
-    - 复制 .env.example 为 .env 并修改配置
-    - 或通过环境变量设置（推荐生产环境）
+    - 可以直接设置 DATABASE_URL 环境变量
+    - 或者设置 DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME 变量
     - 修改配置后重启服务生效
     """
     project_name: str = Field(default="BeatU Backend", description="项目名称")
     version: str = Field(default="0.1.0", description="版本号")
     debug: bool = Field(default=False, description="是否开启调试模式")
     database_url: str = Field(
-        default="mysql+pymysql://jeecg:haomo123@192.168.1.206:3306/jeecg-boot3",
+        default_factory=build_database_url,
         description="数据库连接URL，格式：mysql+pymysql://用户名:密码@主机:端口/数据库名"
     )
     redis_url: str = Field(

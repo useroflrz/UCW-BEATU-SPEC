@@ -31,7 +31,6 @@ class SearchFragment : Fragment() {
     private lateinit var searchButton: TextView
     private lateinit var backButton: View
     private lateinit var scrollBeforeSearch: View
-    private lateinit var llSearchHistory: FlowLayout
     private lateinit var llHotSearch: FlowLayout
     private lateinit var rvSearchSuggestions: RecyclerView
     private lateinit var aiButton: View
@@ -61,9 +60,11 @@ class SearchFragment : Fragment() {
         // 先初始化列表和适配器，再绑定 TextWatcher，避免 NPE
         initSearchSuggestions()
         initSearchBox(view)
-        initSearchHistory()
         initHotSearch()
-        aiButton.setOnClickListener { navigateToAiSearch() }
+        aiButton.setOnClickListener {
+            val prompt = searchEditText.text?.toString()?.trim().orEmpty()
+            navigateToAiSearch(prompt.takeIf { it.isNotBlank() })
+        }
     }
 
     /**
@@ -75,7 +76,6 @@ class SearchFragment : Fragment() {
         backButton = view.findViewById(R.id.btn_back)
         searchButton = view.findViewById(R.id.tv_search)
         scrollBeforeSearch = view.findViewById(R.id.scroll_before_search)
-        llSearchHistory = view.findViewById(R.id.ll_search_history)
         llHotSearch = view.findViewById(R.id.ll_hot_search)
         rvSearchSuggestions = view.findViewById(R.id.rv_search_suggestions)
         aiButton = view.findViewById(R.id.btn_ai)
@@ -134,21 +134,6 @@ class SearchFragment : Fragment() {
         }
     }
 
-    /**
-     * 初始化搜索历史
-     */
-    private fun initSearchHistory() {
-        val historyItems = getMockSearchHistory()
-        llSearchHistory.removeAllViews()
-        
-        historyItems.forEach { tag ->
-            val tagView = createTagView(tag) {
-                searchEditText.setText(tag)
-                performSearch(tag)
-            }
-            llSearchHistory.addView(tagView)
-        }
-    }
 
     /**
      * 返回首页 Feed
@@ -185,15 +170,16 @@ class SearchFragment : Fragment() {
     }
 
     /**
-     * 创建标签视图（流式布局）
+     * 创建一个热门搜索标签 View
      */
-    private fun createTagView(tag: String, onClick: () -> Unit): TextView {
-        val tagView = LayoutInflater.from(context)
-            .inflate(R.layout.item_search_tag, llSearchHistory, false) as TextView
-        tagView.text = tag
-        tagView.setOnClickListener { onClick() }
-        return tagView
+    private fun createTagView(text: String, onClick: () -> Unit): View {
+        val inflater = LayoutInflater.from(requireContext())
+        val view = inflater.inflate(R.layout.item_search_tag, llHotSearch, false) as TextView
+        view.text = text
+        view.setOnClickListener { onClick() }
+        return view
     }
+
 
     /**
      * 初始化搜索建议

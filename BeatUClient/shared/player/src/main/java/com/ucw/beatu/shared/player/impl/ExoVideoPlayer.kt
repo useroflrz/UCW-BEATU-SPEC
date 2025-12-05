@@ -30,9 +30,14 @@ class ExoVideoPlayer(
     // 使用配置的超时时间，从config.xml读取
     private val httpDataSourceFactory: HttpDataSource.Factory = DefaultHttpDataSource.Factory()
         .setUserAgent("BeatU-Android-Player/1.0")
-        .setAllowCrossProtocolRedirects(true)
+        .setAllowCrossProtocolRedirects(true) // 允许跨协议重定向（HTTP -> HTTPS）
         .setConnectTimeoutMs(config.connectTimeoutMs)
         .setReadTimeoutMs(config.readTimeoutMs)
+        // 设置默认请求属性，支持OSS等云存储服务
+        .setDefaultRequestProperties(mapOf(
+            "Accept" to "*/*",
+            "Accept-Encoding" to "identity" // 禁用压缩，避免某些OSS的问题
+        ))
 
     private val mediaSourceFactory = DefaultMediaSourceFactory(context)
         .setDataSourceFactory(httpDataSourceFactory)
@@ -67,13 +72,32 @@ class ExoVideoPlayer(
                 val errorMessage = when (error.errorCode) {
                     PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED -> "网络连接失败"
                     PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> "网络连接超时"
-                    PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> "HTTP 错误: ${error.message}"
+                    PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> {
+                        // 尝试从异常中提取HTTP状态码
+                        val httpStatus = error.cause?.message?.let { msg ->
+                            Regex("HTTP (\\d+)").find(msg)?.groupValues?.get(1)
+                        } ?: "未知"
+                        "HTTP 错误 ($httpStatus): ${error.message}"
+                    }
                     PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> "视频文件未找到"
                     PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED -> "视频格式错误"
                     PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED -> "不支持的视频格式"
+                    PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED -> "视频清单格式错误"
+                    PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED -> "不支持的视频清单格式"
+                    PlaybackException.ERROR_CODE_IO_CLEARTEXT_NOT_PERMITTED -> "不允许使用HTTP（需要HTTPS）"
                     else -> error.message ?: "播放错误 (${error.errorCode})"
                 }
-                AppLogger.e(TAG, "onPlayerError: videoId=$currentVideoId, errorCode=${error.errorCode}, message=$errorMessage", error)
+                
+                // 记录详细的错误信息
+                AppLogger.e(TAG, 
+                    "onPlayerError: videoId=$currentVideoId, " +
+                    "errorCode=${error.errorCode}, " +
+                    "errorName=${error.errorCodeName}, " +
+                    "message=$errorMessage, " +
+                    "cause=${error.cause?.javaClass?.simpleName}: ${error.cause?.message}", 
+                    error
+                )
+                
                 currentVideoId?.let { videoId ->
                     // 创建一个新的异常，包含更友好的错误信息
                     val friendlyError = Exception(errorMessage, error)
@@ -119,10 +143,49 @@ class ExoVideoPlayer(
             return
         }
         
+        // 清理和验证 URL
+        val cleanedUrl = source.url.trim()
+        if (cleanedUrl.isEmpty()) {
+            AppLogger.e(TAG, "prepare: 视频 URL 为空（去除空格后），videoId=${source.videoId}")
+            currentVideoId?.let { videoId ->
+                listeners.forEach { 
+                    it.onError(videoId, IllegalArgumentException("视频 URL 为空"))
+                }
+            }
+            return
+        }
+        
+        // 验证 URL 格式
+        val uri = try {
+            android.net.Uri.parse(cleanedUrl)
+        } catch (e: Exception) {
+            AppLogger.e(TAG, "prepare: URL 格式无效，videoId=${source.videoId}, url=$cleanedUrl", e)
+            currentVideoId?.let { videoId ->
+                listeners.forEach { 
+                    it.onError(videoId, IllegalArgumentException("视频 URL 格式无效: $cleanedUrl", e))
+                }
+            }
+            return
+        }
+        
+        // 检查是否是有效的 HTTP/HTTPS URL
+        val scheme = uri.scheme?.lowercase()
+        if (scheme != "http" && scheme != "https") {
+            AppLogger.e(TAG, "prepare: 不支持的 URL 协议，videoId=${source.videoId}, scheme=$scheme, url=$cleanedUrl")
+            currentVideoId?.let { videoId ->
+                listeners.forEach { 
+                    it.onError(videoId, IllegalArgumentException("不支持的 URL 协议: $scheme"))
+                }
+            }
+            return
+        }
+        
         try {
             currentVideoId = source.videoId
+            AppLogger.d(TAG, "prepare: 准备播放视频，videoId=${source.videoId}, scheme=$scheme, host=${uri.host}, path=${uri.path}")
+            
             val mediaItem = MediaItem.Builder()
-                .setUri(source.url)
+                .setUri(uri)
                 .setTag(source.videoId)
                 .build()
             AppLogger.d(TAG, "prepare: MediaItem created, URI=${mediaItem.localConfiguration?.uri}, setting to player")
@@ -130,10 +193,10 @@ class ExoVideoPlayer(
             player.prepare()
             AppLogger.d(TAG, "prepare: player.prepare() called, playbackState=${player.playbackState}")
         } catch (e: Exception) {
-            AppLogger.e(TAG, "prepare: 准备视频时出错，videoId=${source.videoId}, url=${source.url}", e)
+            AppLogger.e(TAG, "prepare: 准备视频时出错，videoId=${source.videoId}, url=$cleanedUrl", e)
             currentVideoId?.let { videoId ->
                 listeners.forEach { 
-                    it.onError(videoId, e)
+                    it.onError(videoId, Exception("准备视频失败: ${e.message}", e))
                 }
             }
         }

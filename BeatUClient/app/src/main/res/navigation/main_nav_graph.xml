@@ -92,6 +92,14 @@
             android:name="initial_index"
             app:argType="integer"
             android:defaultValue="0" />
+        <argument
+            android:name="search_title"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="source_tab"
+            app:argType="string"
+            android:defaultValue="search" />
     </fragment>
 
     <!-- 搜索页面 -->
@@ -138,6 +146,40 @@
         tools:layout="@layout/fragment_search_result">
         <argument
             android:name="search_query"
+            app:argType="string"
+            android:defaultValue="" />
+
+        <!-- 跳转到搜索结果视频播放页面 -->
+        <action
+            android:id="@+id/action_searchResult_to_videoViewer"
+            app:destination="@id/searchResultVideoViewer"
+            app:enterAnim="@anim/slide_in_from_right"
+            app:exitAnim="@anim/slide_out_to_left"
+            app:popEnterAnim="@anim/slide_in_from_left"
+            app:popExitAnim="@anim/slide_out_to_right" />
+
+        <!-- 跳转到用户作品播放器（复用个人主页视频播放组件） -->
+        <action
+            android:id="@+id/action_searchResult_to_userWorksViewer"
+            app:destination="@id/userWorksViewer"
+            app:enterAnim="@anim/slide_in_from_right"
+            app:exitAnim="@anim/slide_out_to_left"
+            app:popEnterAnim="@anim/slide_in_from_left"
+            app:popExitAnim="@anim/slide_out_to_right" />
+    </fragment>
+
+    <!-- 搜索结果视频播放页面 -->
+    <fragment
+        android:id="@+id/searchResultVideoViewer"
+        android:name="com.ucw.beatu.business.search.presentation.ui.SearchResultVideoViewerFragment"
+        android:label="SearchResultVideoViewer"
+        tools:layout="@layout/fragment_search_result_video_viewer">
+        <argument
+            android:name="search_query"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="result_title"
             app:argType="string"
             android:defaultValue="" />
     </fragment>

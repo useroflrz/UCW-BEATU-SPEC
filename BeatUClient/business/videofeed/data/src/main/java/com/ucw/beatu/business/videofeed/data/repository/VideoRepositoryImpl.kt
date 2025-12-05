@@ -57,18 +57,20 @@ class VideoRepositoryImpl @Inject constructor(
                 }
             }
 
-            // 远程请求添加超时控制（3秒），快速失败，避免长时间卡顿
-            // 弱网环境下，3秒足够判断网络是否可用，快速fallback到本地缓存或mock数据
+            // 远程请求添加超时控制（15秒），与网络配置保持一致
             val remoteDeferred = async {
                 try {
-                    // 使用较短的超时时间（3秒），快速失败并fallback到本地缓存或mock数据
-                    withTimeout(3000L) {
+                    // 使用15秒超时时间，与网络配置的connectTimeout保持一致
+                    withTimeout(15000L) {
                         remoteDataSource.getVideoFeed(page, limit, orientation)
                     }
                 } catch (e: TimeoutCancellationException) {
-                    // 超时立即返回错误，不等待15秒，确保UI流畅
+                    // 记录超时错误
+                    android.util.Log.e("VideoRepository", "获取视频列表超时: page=$page, limit=$limit, orientation=$orientation", e)
                     AppResult.Error(e)
                 } catch (e: Exception) {
+                    // 记录其他错误
+                    android.util.Log.e("VideoRepository", "获取视频列表失败: page=$page, limit=$limit, orientation=$orientation", e)
                     AppResult.Error(e)
                 }
             }
@@ -87,6 +89,11 @@ class VideoRepositoryImpl @Inject constructor(
 
             when (remoteResult) {
                 is AppResult.Success -> {
+                    // 记录成功获取远程数据
+                    android.util.Log.d("VideoRepository", 
+                        "成功获取远程数据: page=$page, limit=$limit, orientation=$orientation, " +
+                        "视频数量=${remoteResult.data.size}"
+                    )
                     // 保存所有页面的数据到本地缓存，支持离线滑动
                     localDataSource.saveVideos(remoteResult.data)
                     // 异步为没有封面的视频生成缩略图
@@ -94,8 +101,17 @@ class VideoRepositoryImpl @Inject constructor(
                     emit(remoteResult) // 用远程最新数据刷新
                 }
                 is AppResult.Error -> {
+                    // 记录远程请求失败的详细信息
+                    val errorMessage = remoteResult.message ?: remoteResult.throwable.message ?: "未知错误"
+                    val errorType = remoteResult.throwable::class.java.simpleName
+                    android.util.Log.w("VideoRepository", 
+                        "远程请求失败，使用fallback数据: errorType=$errorType, message=$errorMessage, " +
+                        "page=$page, limit=$limit, orientation=$orientation"
+                    )
+                    
                     // 远程失败时，优先使用本地缓存，如果没有则使用mock数据
                     if (localVideos.isEmpty()) {
+                        android.util.Log.w("VideoRepository", "本地缓存为空，使用mock数据作为fallback")
                         val fallbackVideos = buildMockVideos(page, limit, orientation)
                         if (fallbackVideos.isNotEmpty()) {
                             // 保存mock数据到本地缓存，支持后续离线使用
@@ -105,11 +121,13 @@ class VideoRepositoryImpl @Inject constructor(
                             emit(AppResult.Success(fallbackVideos))
                         } else {
                             // 如果mock数据也没有，才发送错误
+                            android.util.Log.e("VideoRepository", "mock数据也为空，发送错误响应")
                             emit(remoteResult)
                         }
                     } else {
                         // 本地已有数据时，静默失败，不发送错误，保持UI流畅
                         // 使用本地缓存数据，确保用户可以继续滑动
+                        android.util.Log.d("VideoRepository", "使用本地缓存数据，忽略远程错误")
                         emit(AppResult.Success(localVideos))
                     }
                 }
