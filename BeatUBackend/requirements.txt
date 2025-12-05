@@ -1,10 +1,10 @@
 fastapi
 uvicorn
-pydantic==1.10.15
-sqlalchemy==2.0.36
-redis==5.0.8
-python-dotenv==1.0.1
-pytest==8.3.3
-pymysql==1.1.1
+pydantic
+sqlalchemy
+redis
+python-dotenv
+pytest
+pymysql
 
 
