@@ -61,7 +61,10 @@ class SearchFragment : Fragment() {
         initSearchSuggestions()
         initSearchBox(view)
         initHotSearch()
-        aiButton.setOnClickListener { navigateToAiSearch() }
+        aiButton.setOnClickListener {
+            val prompt = searchEditText.text?.toString()?.trim().orEmpty()
+            navigateToAiSearch(prompt.takeIf { it.isNotBlank() })
+        }
     }
 
     /**
