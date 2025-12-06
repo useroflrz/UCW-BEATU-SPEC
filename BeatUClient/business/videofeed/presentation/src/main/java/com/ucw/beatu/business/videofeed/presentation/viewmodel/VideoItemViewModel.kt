@@ -113,6 +113,11 @@ class VideoItemViewModel @Inject constructor(
                     return@launch
                 }
 
+                // 先设置 currentVideoId，避免其他逻辑检查失败
+                // 从横屏返回时，currentVideoId 可能为 null
+                currentVideoId = videoId
+                currentVideoUrl = videoUrl
+
                 val source = VideoSource(
                     videoId = videoId,
                     url = videoUrl
@@ -121,7 +126,19 @@ class VideoItemViewModel @Inject constructor(
                 android.util.Log.d("VideoItemViewModel", "preparePlayer: 正在获取播放器，视频ID=$videoId")
                 val player = playerPool.acquire(videoId)
                 currentPlayer = player
-                currentVideoUrl = videoUrl
+                
+                // 检查播放器当前的内容是否匹配新的 videoId
+                // 如果从 availablePlayers 中获取的播放器可能还在播放其他视频
+                val currentMediaItem = player.player.currentMediaItem
+                val currentTag = currentMediaItem?.localConfiguration?.tag as? String
+                if (currentTag != null && currentTag != videoId) {
+                    android.util.Log.w("VideoItemViewModel", "preparePlayer: 播放器当前播放的视频ID=$currentTag 与目标视频ID=$videoId 不匹配，需要重新准备")
+                    // 停止当前播放并清除内容
+                    player.pause()
+                    player.player.stop()
+                    player.player.clearMediaItems()
+                }
+                
                 android.util.Log.d("VideoItemViewModel", "preparePlayer: 播放器已获取，正在绑定到 PlayerView")
 
                 // 添加监听器
@@ -187,6 +204,11 @@ class VideoItemViewModel @Inject constructor(
 
                 // 绑定播放器到 PlayerView
                 android.util.Log.d("VideoItemViewModel", "preparePlayer: 正在将播放器绑定到 PlayerView")
+                // 如果 PlayerView 已经绑定了其他播放器，先解绑
+                if (playerView.player != null && playerView.player !== player.player) {
+                    android.util.Log.d("VideoItemViewModel", "preparePlayer: PlayerView 已绑定其他播放器，先解绑")
+                    playerView.player = null
+                }
                 player.attach(playerView)
                 android.util.Log.d("VideoItemViewModel", "preparePlayer: 播放器已绑定到 PlayerView，playerView.player=${playerView.player}")
 
@@ -456,17 +478,77 @@ class VideoItemViewModel @Inject constructor(
 
     private fun applyPlaybackSession(player: VideoPlayer, session: PlaybackSession) {
         android.util.Log.d("VideoItemViewModel", "applyPlaybackSession: 视频ID=${session.videoId}，位置=${session.positionMs}ms，是否准备播放=${session.playWhenReady}，播放状态=${player.player.playbackState}")
+        
+        // 检查播放器当前的内容是否匹配会话的视频ID
+        val currentMediaItem = player.player.currentMediaItem
+        val currentTag = currentMediaItem?.localConfiguration?.tag as? String
+        if (currentTag != null && currentTag != session.videoId) {
+            android.util.Log.w("VideoItemViewModel", "applyPlaybackSession: 播放器当前播放的视频ID=$currentTag 与会话视频ID=${session.videoId} 不匹配，需要重新准备")
+            // 停止当前播放并清除内容
+            player.pause()
+            player.player.stop()
+            player.player.clearMediaItems()
+        }
+        
         if (player.player.currentMediaItem == null) {
             android.util.Log.d("VideoItemViewModel", "applyPlaybackSession: 正在准备新的媒体项")
             player.prepare(VideoSource(session.videoId, session.videoUrl))
         }
         player.seekTo(session.positionMs)
         player.setSpeed(session.speed)
-        if (session.playWhenReady) {
-            player.play()
-        } else {
+        
+        // 如果播放器已经准备好了，但 Surface 可能还没准备好（从横屏返回竖屏时）
+        // 需要等待 Surface 准备好后再开始播放
+        if (player.player.playbackState == Player.STATE_READY) {
+            android.util.Log.d("VideoItemViewModel", "applyPlaybackSession: 播放器已准备好，等待 Surface 初始化后再播放")
+            // 先暂停，等待 Surface 准备好
             player.pause()
+            
+            // 使用标记变量来跟踪是否已经处理过，避免在闭包中修改 listener 变量
+            var surfaceReadyHandled = false
+            
+            // 添加临时监听器，等待首帧渲染后再播放（确保 Surface 已准备好）
+            val surfaceReadyListener = object : Player.Listener {
+                override fun onRenderedFirstFrame() {
+                    if (!surfaceReadyHandled) {
+                        surfaceReadyHandled = true
+                        android.util.Log.d("VideoItemViewModel", "applyPlaybackSession: Surface 准备好，首帧已渲染，恢复播放")
+                        player.player.removeListener(this)
+                        if (session.playWhenReady) {
+                            player.play()
+                        }
+                    }
+                }
+            }
+            player.player.addListener(surfaceReadyListener)
+            
+            // 如果已经有首帧了（从横屏切换回来时可能已经渲染过），延迟检查
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(300) // 给 Surface 更多时间初始化
+                // 检查是否已经有首帧了（通过检查视频尺寸）
+                if (!surfaceReadyHandled) {
+                    if (player.player.videoSize.width > 0 && player.player.videoSize.height > 0) {
+                        surfaceReadyHandled = true
+                        android.util.Log.d("VideoItemViewModel", "applyPlaybackSession: 检测到视频尺寸，Surface 可能已准备好，恢复播放")
+                        player.player.removeListener(surfaceReadyListener)
+                        if (session.playWhenReady) {
+                            player.play()
+                        }
+                    } else {
+                        // 如果300ms后还没有首帧，再等待一段时间
+                        android.util.Log.d("VideoItemViewModel", "applyPlaybackSession: 300ms后仍未检测到视频尺寸，继续等待首帧渲染")
+                    }
+                }
+            }
+        } else {
+            // 播放器还没准备好，直接设置播放状态
+            if (session.playWhenReady) {
+                player.play()
+            } else {
+                player.pause()
+            }
         }
+        
         // 同步状态：只有当播放器准备好且 playWhenReady=true 时才认为正在播放
         val isActuallyPlaying = session.playWhenReady && player.player.playbackState == Player.STATE_READY
         _uiState.value = _uiState.value.copy(

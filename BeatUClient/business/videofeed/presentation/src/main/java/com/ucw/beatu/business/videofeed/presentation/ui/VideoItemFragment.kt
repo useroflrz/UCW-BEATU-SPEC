@@ -319,12 +319,31 @@ class VideoItemFragment : BaseFeedItemFragment() {
             // 图文内容：此处仅确保后续可见时准备音频，无需绑定 PlayerView
             // 真实播放时机仍由 checkVisibilityAndPlay/startPlaybackIfNeeded 控制
         } else {
-            if (viewModel.uiState.value.currentVideoId != null) {
-                // 横屏返回，恢复播放器
-                reattachPlayer()
-            } else {
-                // 首次加载 - 只准备播放器，不立即播放
-                preparePlayerForFirstTime()
+            val itemId = item?.id
+            if (itemId != null) {
+                // 检查播放器当前的内容是否匹配当前的 videoItem
+                val player = playerView?.player
+                val currentMediaItem = (player as? androidx.media3.common.Player)?.currentMediaItem
+                val currentTag = currentMediaItem?.localConfiguration?.tag as? String
+                val contentMismatch = currentTag != null && currentTag != itemId
+                
+                // 从横屏返回时，播放器池中可能已经有该视频的播放器
+                // 或者有播放会话需要恢复
+                // 总是尝试重新绑定，preparePlayer 会检查是否有会话并正确处理
+                Log.d(TAG, "onStart: 准备播放器，videoId=$itemId, currentVideoId=${viewModel.uiState.value.currentVideoId}, hasPreparedPlayer=$hasPreparedPlayer, contentMismatch=$contentMismatch")
+                if (viewModel.uiState.value.currentVideoId != null || hasPreparedPlayer || contentMismatch) {
+                    // 横屏返回或内容不匹配，恢复播放器
+                    if (contentMismatch) {
+                        Log.w(TAG, "onStart: 播放器内容不匹配 (当前=$currentTag, 目标=$itemId)，强制重新绑定")
+                    } else {
+                        Log.d(TAG, "onStart: 检测到已有播放器或已准备，重新绑定")
+                    }
+                    reattachPlayer()
+                } else {
+                    // 首次加载 - 只准备播放器，不立即播放
+                    Log.d(TAG, "onStart: 首次加载，准备播放器")
+                    preparePlayerForFirstTime()
+                }
             }
             // ✅ 修复：不在这里立即播放，等待 Fragment 真正可见时再播放（由 handlePageSelected() 触发）
         }
@@ -419,18 +438,28 @@ class VideoItemFragment : BaseFeedItemFragment() {
                 Log.w(TAG, "startPlaybackIfNeeded: playerView is null for video item, skip")
                 return
             }
-            val needsReprepare = forcePrepare || !hasPreparedPlayer || playerView?.player == null
+            // 检查播放器当前的内容是否匹配当前的 videoItem
+            val player = playerView?.player
+            val currentMediaItem = (player as? androidx.media3.common.Player)?.currentMediaItem
+            val currentTag = currentMediaItem?.localConfiguration?.tag as? String
+            val contentMismatch = currentTag != null && currentTag != item.id
+            
+            val needsReprepare = forcePrepare || !hasPreparedPlayer || playerView?.player == null || contentMismatch
             if (needsReprepare) {
+                if (contentMismatch) {
+                    Log.w(TAG, "startPlaybackIfNeeded: 播放器内容不匹配 (当前=$currentTag, 目标=${item.id})，强制重新准备")
+                }
                 Log.d(
                     TAG,
-                    "startPlaybackIfNeeded: (re)preparing player (force=$forcePrepare, hasPrepared=$hasPreparedPlayer, playerView.player=${playerView?.player})"
+                    "startPlaybackIfNeeded: (re)preparing player (force=$forcePrepare, hasPrepared=$hasPreparedPlayer, playerView.player=${playerView?.player}, contentMismatch=$contentMismatch)"
                 )
                 preparePlayerForFirstTime()
             } else {
                 Log.d(TAG, "startPlaybackIfNeeded: player already prepared and attached, resuming")
+                // Fragment 已可见，确保播放状态恢复
+                // 从横屏返回时，即使会话中 playWhenReady=false，如果 Fragment 可见也应该播放
+                viewModel.resume()
             }
-            // Fragment 已可见，确保播放状态恢复
-            viewModel.resume()
         }
     }
 
@@ -452,18 +481,42 @@ class VideoItemFragment : BaseFeedItemFragment() {
 
     // ✅ 修复：重绑定播放器逻辑（统一走 preparePlayer，让 PlaybackSession 决定是否续播）
     private fun reattachPlayer() {
-        if (!isAdded) return
-        val item = videoItem ?: return
-        val pv = playerView ?: return
+        if (!isAdded) {
+            Log.w(TAG, "reattachPlayer: Fragment not added, skip")
+            return
+        }
+        val item = videoItem ?: run {
+            Log.w(TAG, "reattachPlayer: videoItem is null, skip")
+            return
+        }
+        val pv = playerView ?: run {
+            Log.w(TAG, "reattachPlayer: playerView is null, skip")
+            return
+        }
         if (item.type == FeedContentType.IMAGE_POST) {
             // 图文内容目前不支持横竖屏热切换，忽略重绑定
             Log.d(TAG, "reattachPlayer: skip for image post ${item.id}")
             return
         }
         Log.d(TAG, "reattachPlayer: re-preparing video ${item.id}")
-        viewModel.preparePlayer(item.id, item.videoUrl, pv)
-        hasPreparedPlayer = true
-        Log.d(TAG, "reattachPlayer: hasPreparedPlayer=$hasPreparedPlayer, playerView.player=${pv.player}")
+        // 确保 PlayerView 已经准备好，然后再绑定播放器
+        // 从横屏返回竖屏时，需要等待 View 布局完成
+        pv.post {
+            if (isAdded && pv != null) {
+                // 确保 PlayerView 的 player 为 null，避免绑定冲突
+                if (pv.player != null && pv.player !== viewModel.mediaPlayer()) {
+                    Log.d(TAG, "reattachPlayer: 清理 PlayerView 上之前的播放器")
+                    pv.player = null
+                }
+                // 直接调用 preparePlayer，它会检查是否有会话并正确处理
+                // preparePlayer 内部会调用 playVideo 来设置状态，但不会释放播放器（因为播放器在池中）
+                viewModel.preparePlayer(item.id, item.videoUrl, pv)
+                hasPreparedPlayer = true
+                Log.d(TAG, "reattachPlayer: hasPreparedPlayer=$hasPreparedPlayer, playerView.player=${pv.player}")
+            } else {
+                Log.w(TAG, "reattachPlayer: Fragment not added or PlayerView is null after post")
+            }
+        }
     }
 
     private fun openLandscapeMode() {

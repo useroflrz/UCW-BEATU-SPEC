@@ -119,10 +119,10 @@ class ExoVideoPlayer(
             AppLogger.d(TAG, "attach: 播放器已绑定到此 PlayerView")
             return
         }
-        // 如果播放器已经 attach 到其他 PlayerView，先 detach
-        val previousView = playerView.player?.let { 
-            // 查找当前播放器 attach 的 PlayerView（通过反射或状态检查）
-            null // ExoPlayer 会自动处理，但我们需要记录日志
+        // 如果目标 PlayerView 已经绑定了其他播放器，先解绑
+        if (playerView.player != null && playerView.player !== player) {
+            AppLogger.d(TAG, "attach: 目标 PlayerView 已绑定其他播放器，先解绑")
+            playerView.player = null
         }
         AppLogger.d(TAG, "attach: 正在将播放器绑定到 PlayerView，视频ID=$currentVideoId，播放状态=${player.playbackState}，是否准备播放=${player.playWhenReady}")
         playerView.player = player

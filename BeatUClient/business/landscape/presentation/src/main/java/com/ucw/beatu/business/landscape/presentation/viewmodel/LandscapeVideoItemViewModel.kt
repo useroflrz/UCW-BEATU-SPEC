@@ -105,9 +105,25 @@ class LandscapeVideoItemViewModel @Inject constructor(
                 }
 
                 val source = VideoSource(videoId = videoId, url = videoUrl)
+                AppLogger.d(TAG, "preparePlayer: 正在获取播放器，视频ID=$videoId")
                 val player = playerPool.acquire(videoId)
                 currentPlayer = player
                 currentVideoUrl = videoUrl
+                AppLogger.d(TAG, "preparePlayer: 播放器已获取，正在检查内容匹配")
+                
+                // ✅ 添加：检查播放器当前的内容是否匹配新的 videoId
+                val currentMediaItem = player.player.currentMediaItem
+                val currentTag = currentMediaItem?.localConfiguration?.tag as? String
+                if (currentTag != null && currentTag != videoId) {
+                    AppLogger.w(TAG, "preparePlayer: 播放器当前播放的视频ID=$currentTag 与目标视频ID=$videoId 不匹配，需要重新准备")
+                    // 停止当前播放并清除内容
+                    player.pause()
+                    player.player.stop()
+                    player.player.clearMediaItems()
+                } else {
+                    AppLogger.d(TAG, "preparePlayer: 播放器内容检查通过，当前视频ID=${currentTag ?: "null"}，目标视频ID=$videoId")
+                }
+                
                 startUpStopwatch.start()
 
                 playerListener?.let { player.removeListener(it) }
@@ -356,6 +372,17 @@ class LandscapeVideoItemViewModel @Inject constructor(
     fun mediaPlayer(): Player? = currentPlayer?.player
 
     private fun applyPlaybackSession(player: VideoPlayer, session: PlaybackSession) {
+        // ✅ 添加：检查播放器当前的内容是否匹配会话的视频ID
+        val currentMediaItem = player.player.currentMediaItem
+        val currentTag = currentMediaItem?.localConfiguration?.tag as? String
+        if (currentTag != null && currentTag != session.videoId) {
+            AppLogger.w(TAG, "applyPlaybackSession: 播放器当前播放的视频ID=$currentTag 与会话视频ID=${session.videoId} 不匹配，需要重新准备")
+            // 停止当前播放并清除内容
+            player.pause()
+            player.player.stop()
+            player.player.clearMediaItems()
+        }
+        
         if (player.player.currentMediaItem == null) {
             player.prepare(VideoSource(session.videoId, session.videoUrl))
         }
