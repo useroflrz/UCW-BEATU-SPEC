@@ -1,23 +1,15 @@
 package com.ucw.beatu.business.user.presentation.ui
 
-import android.app.Activity
-import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Outline
 import android.net.Uri
 import android.os.Bundle
-import android.provider.MediaStore
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewOutlineProvider
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -27,23 +19,21 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.button.MaterialButton
 import com.ucw.beatu.business.user.domain.model.User
 import com.ucw.beatu.business.user.domain.model.UserWork
 import com.ucw.beatu.business.user.presentation.R
 import com.ucw.beatu.business.user.presentation.ui.adapter.UserWorkUiModel
 import com.ucw.beatu.business.user.presentation.ui.adapter.UserWorksAdapter
-import com.ucw.beatu.business.user.presentation.ui.UserWorksViewerFragment
+import com.ucw.beatu.business.user.presentation.ui.helper.UserProfileAvatarManager
+import com.ucw.beatu.business.user.presentation.ui.helper.UserProfileBioEditor
+import com.ucw.beatu.business.user.presentation.ui.helper.UserProfileFollowButtonManager
+import com.ucw.beatu.business.user.presentation.ui.helper.UserProfileNavigationHelper
+import com.ucw.beatu.business.user.presentation.ui.helper.UserProfileTabManager
 import com.ucw.beatu.business.user.presentation.viewmodel.UserProfileViewModel
-import com.ucw.beatu.shared.common.model.VideoItem
-import com.ucw.beatu.shared.common.model.VideoOrientation
-import com.ucw.beatu.shared.common.navigation.NavigationHelper
-import com.ucw.beatu.shared.common.navigation.NavigationIds
-import com.ucw.beatu.shared.router.UserProfileVideoClickHost
+import com.ucw.beatu.shared.designsystem.util.IOSButtonEffect
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
 
 /**
  * 用户主页Fragment
@@ -63,27 +53,24 @@ class UserProfileFragment : Fragment() {
     private lateinit var tvFollowersCount: TextView
     private lateinit var toolbar: MaterialToolbar
     private lateinit var rvWorks: RecyclerView
-    private lateinit var btnFollow: com.google.android.material.button.MaterialButton
+    private lateinit var btnFollow: MaterialButton
     
     // 头像上传相关
-    private var currentAvatarFile: File? = null
     private val pickImageLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let { handleImageSelection(it) } ?: run {
+        uri?.let { avatarManager.handleImageSelection(it) } ?: run {
             Log.w(TAG, "Image selection cancelled or failed")
             Toast.makeText(requireContext(), "未选择图片", Toast.LENGTH_SHORT).show()
         }
     }
     
-    // 标签按钮
-    private lateinit var tabWorks: TextView
-    private lateinit var tabCollections: TextView
-    private lateinit var tabLikes: TextView
-    private lateinit var tabHistory: TextView
-    
-    // 当前选中的标签
-    private var selectedTab: TextView? = null
+    // 辅助类实例
+    private lateinit var avatarManager: UserProfileAvatarManager
+    private lateinit var bioEditor: UserProfileBioEditor
+    private lateinit var followButtonManager: UserProfileFollowButtonManager
+    private lateinit var navigationHelper: UserProfileNavigationHelper
+    private lateinit var tabManager: UserProfileTabManager
     
     private val worksAdapter by lazy {
         UserWorksAdapter { work -> navigateToUserWorksViewer(work.id) }
@@ -109,13 +96,16 @@ class UserProfileFragment : Fragment() {
         // 初始化 UI 元素
         initViews(view)
 
+        // 初始化辅助类
+        initHelpers(view)
+
         // 设置头像圆角裁剪
-        setupAvatarRoundCorner(view)
+        avatarManager.setupAvatarRoundCorner()
 
         // 非只读模式：允许修改头像和简介，但「用户名不可编辑」
         if (!isReadOnly) {
             // 设置头像点击上传
-            setupAvatarUpload()
+            avatarManager.setupAvatarUpload()
 
             // 只允许编辑简介，不允许编辑用户名
             setupEditableFields()
@@ -129,16 +119,17 @@ class UserProfileFragment : Fragment() {
             // 只读模式：显示关注按钮
             btnFollow.visibility = View.VISIBLE
             btnFollow.isClickable = true
-            setupFollowButton()
+            followButtonManager.setupFollowButton()
             Log.d(TAG, "Follow button initialized in read-only mode")
         }
 
         // 初始化标签切换
-        initTabs(view)
+        tabManager.initTabs()
 
         // 只读模式下调整文本颜色为黑色，以便在白色背景上可见
         if (isReadOnly) {
             applyReadOnlyTextColors(view)
+            tabManager.applyReadOnlyTabColors()
         }
 
         // 初始化作品列表
@@ -164,6 +155,64 @@ class UserProfileFragment : Fragment() {
         if (isReadOnly) {
             viewModel.startObservingFollowSyncResult()
         }
+    }
+
+    /**
+     * 初始化辅助类
+     */
+    private fun initHelpers(view: View) {
+        avatarManager = UserProfileAvatarManager(
+            fragment = this,
+            ivAvatar = ivAvatar,
+            viewModel = viewModel,
+            pickImageLauncher = pickImageLauncher,
+            getCurrentUserId = { latestUser?.id }
+        )
+
+        bioEditor = UserProfileBioEditor(
+            fragment = this,
+            viewModel = viewModel,
+            getCurrentBio = { tvBio.text.toString() },
+            getCurrentUserId = { latestUser?.id }
+        )
+
+        followButtonManager = UserProfileFollowButtonManager(
+            fragment = this,
+            btnFollow = btnFollow,
+            viewModel = viewModel,
+            getTargetUserId = { latestUser?.id },
+            getCurrentUserId = { CURRENT_USER_ID }
+        )
+
+        navigationHelper = UserProfileNavigationHelper(
+            fragment = this,
+            isReadOnly = isReadOnly,
+            getUser = { latestUser },
+            getUserWorks = { latestUserWorks }
+        )
+
+        tabManager = UserProfileTabManager(
+            view = view,
+            viewModel = viewModel,
+            isReadOnly = isReadOnly,
+            onTabSwitched = { tabType, authorName, currentUserId ->
+                val actualAuthorName = if (authorName.isEmpty()) {
+                    if (userName == "current_user" && latestUser != null) {
+                        latestUser!!.name
+                    } else {
+                        userName
+                    }
+                } else {
+                    authorName
+                }
+                val actualCurrentUserId = if (currentUserId.isEmpty()) {
+                    latestUser?.id ?: "current_user"
+                } else {
+                    currentUserId
+                }
+                viewModel.switchTab(tabType, authorName = actualAuthorName, currentUserId = actualCurrentUserId)
+            }
+        )
     }
 
     /**
@@ -221,40 +270,14 @@ class UserProfileFragment : Fragment() {
         tvUsername.isFocusable = false
 
         // 简介点击编辑
-        tvBio.setOnClickListener {
+        IOSButtonEffect.applyIOSEffect(tvBio) {
             android.util.Log.d("UserProfileFragment", "简介被点击")
-            showEditBioDialog()
+            bioEditor.showEditBioDialog()
         }
         
         // 确保简介 TextView 可点击
         tvBio.isClickable = true
         tvBio.isFocusable = true
-    }
-
-    /**
-    * 显示编辑名言对话框
-    */
-    private fun showEditBioDialog() {
-        val currentBio = tvBio.text.toString()
-        val input = android.widget.EditText(requireContext()).apply {
-            setText(currentBio)
-            setSelection(currentBio.length)
-            hint = "请输入一句话介绍自己"
-            textSize = 14f
-            minLines = 2
-            maxLines = 4
-        }
-        
-        android.app.AlertDialog.Builder(requireContext())
-            .setTitle("编辑简介")
-            .setView(input)
-            .setPositiveButton("保存") { _, _ ->
-                val newBio = input.text.toString().trim()
-                val currentUserId = latestUser?.id ?: return@setPositiveButton
-                viewModel.updateBio(currentUserId, newBio.ifEmpty { null })
-            }
-            .setNegativeButton("取消", null)
-            .show()
     }
 
     /**
@@ -293,7 +316,7 @@ class UserProfileFragment : Fragment() {
                     // 观察关注状态（从本地数据库，通过 ViewModel StateFlow）
                     if (isReadOnly) {
                         viewModel.isFollowing.collect { isFollowing ->
-                            updateFollowButton(isFollowing)
+                            followButtonManager.updateFollowButton(isFollowing)
                         }
                     }
                 }
@@ -312,67 +335,6 @@ class UserProfileFragment : Fragment() {
         }
     }
 
-    /**
-     * 设置关注按钮
-     */
-    private fun setupFollowButton() {
-        btnFollow.setOnClickListener {
-            val targetUserId = latestUser?.id
-            if (targetUserId == null) {
-                Log.e(TAG, "Cannot follow/unfollow: user ID is null")
-                Toast.makeText(requireContext(), "无法获取用户信息", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            val currentUserId = CURRENT_USER_ID
-            Log.d(TAG, "Follow button clicked, userName: $userName, userId: $targetUserId, currentUserId: $currentUserId")
-            val isFollowing = viewModel.isFollowing.value ?: false
-            Log.d(TAG, "Current follow status: $isFollowing")
-            if (isFollowing) {
-                Log.d(TAG, "Unfollowing user: $targetUserId")
-                viewModel.unfollowUser(targetUserId, currentUserId)
-            } else {
-                Log.d(TAG, "Following user: $targetUserId")
-                viewModel.followUser(targetUserId, currentUserId)
-            }
-        }
-        // 确保按钮可以接收点击事件
-        btnFollow.isClickable = true
-        btnFollow.isFocusable = true
-        btnFollow.isFocusableInTouchMode = true
-        btnFollow.isEnabled = true
-        // 确保按钮在最上层，不被其他视图遮挡
-        btnFollow.bringToFront()
-        Log.d(TAG, "Follow button setup completed, visibility: ${btnFollow.visibility}, clickable: ${btnFollow.isClickable}, enabled: ${btnFollow.isEnabled}")
-    }
-
-    /**
-     * 更新关注按钮状态
-     */
-    private fun updateFollowButton(isFollowing: Boolean?) {
-        when (isFollowing) {
-            true -> {
-                btnFollow.text = "取消关注"
-                btnFollow.isEnabled = true
-                btnFollow.isClickable = true
-                btnFollow.alpha = 1.0f
-            }
-            false -> {
-                btnFollow.text = "关注"
-                btnFollow.isEnabled = true
-                btnFollow.isClickable = true
-                btnFollow.alpha = 1.0f
-            }
-            null -> {
-                btnFollow.text = "关注"
-                btnFollow.isEnabled = false
-                btnFollow.isClickable = false
-                btnFollow.alpha = 0.5f
-            }
-        }
-        // 确保按钮可以接收点击事件
-        btnFollow.bringToFront()
-        Log.d(TAG, "Follow button updated: text=${btnFollow.text}, enabled=${btnFollow.isEnabled}, clickable=${btnFollow.isClickable}")
-    }
 
     /**
      * 更新用户信息 UI
@@ -388,7 +350,7 @@ class UserProfileFragment : Fragment() {
         
         // 加载头像
         user.avatarUrl?.let { avatarPath ->
-            loadAvatar(avatarPath)
+            avatarManager.loadAvatar(avatarPath)
         }
         
         // 用户名在任何模式下都不可编辑
@@ -405,20 +367,6 @@ class UserProfileFragment : Fragment() {
         }
     }
     
-    /**
-     * 加载头像
-     */
-    private fun loadAvatar(avatarPath: String) {
-        try {
-            val file = File(avatarPath)
-            if (file.exists()) {
-                val bitmap = BitmapFactory.decodeFile(avatarPath)
-                ivAvatar.setImageBitmap(bitmap)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
 
     /**
      * 格式化数字显示（如：5.6万）
@@ -433,47 +381,6 @@ class UserProfileFragment : Fragment() {
     }
 
     /**
-     * 初始化标签切换
-     */
-    private fun initTabs(view: View) {
-        tabWorks = view.findViewById(R.id.tab_works)
-        tabCollections = view.findViewById(R.id.tab_collections)
-        tabLikes = view.findViewById(R.id.tab_likes)
-        tabHistory = view.findViewById(R.id.tab_history)
-
-        // 只读模式（弹窗）下，只保留“作品”一个选项，其它标签隐藏
-        if (isReadOnly) {
-            tabCollections.visibility = View.GONE
-            tabLikes.visibility = View.GONE
-            tabHistory.visibility = View.GONE
-
-            // 让“作品”标签在父布局中居中显示
-            (tabWorks.layoutParams as? androidx.constraintlayout.widget.ConstraintLayout.LayoutParams)?.let { lp ->
-                lp.startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
-                lp.endToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
-                lp.startToEnd = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
-                lp.endToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
-                tabWorks.layoutParams = lp
-            }
-        } else {
-            // 非只读模式下，显式设置其他标签为未选中状态
-            updateTabState(tabCollections, false)
-            updateTabState(tabLikes, false)
-            updateTabState(tabHistory, false)
-        }
-
-        // 默认选中"作品"
-        selectedTab = tabWorks
-        updateTabState(tabWorks, true)
-        
-        // 设置点击监听（只读模式下，其它标签不可见，不会被点击）
-        tabWorks.setOnClickListener { switchTab(it as TextView, UserProfileViewModel.TabType.WORKS) }
-        tabCollections.setOnClickListener { switchTab(it as TextView, UserProfileViewModel.TabType.COLLECTIONS) }
-        tabLikes.setOnClickListener { switchTab(it as TextView, UserProfileViewModel.TabType.LIKES) }
-        tabHistory.setOnClickListener { switchTab(it as TextView, UserProfileViewModel.TabType.HISTORY) }
-    }
-    
-    /**
      * 应用只读模式下的文本颜色（黑色背景，白色文本）
      */
     private fun applyReadOnlyTextColors(view: View) {
@@ -487,49 +394,6 @@ class UserProfileFragment : Fragment() {
         view.findViewById<TextView>(R.id.tv_likes_label)?.setTextColor(android.graphics.Color.parseColor("#80FFFFFF"))
         view.findViewById<TextView>(R.id.tv_following_label)?.setTextColor(android.graphics.Color.parseColor("#80FFFFFF"))
         view.findViewById<TextView>(R.id.tv_followers_label)?.setTextColor(android.graphics.Color.parseColor("#80FFFFFF"))
-        // 调整标签按钮颜色（标签按钮已在initTabs中初始化）
-        tabWorks.setTextColor(android.graphics.Color.WHITE)
-        tabCollections.setTextColor(android.graphics.Color.parseColor("#80FFFFFF"))
-        tabLikes.setTextColor(android.graphics.Color.parseColor("#80FFFFFF"))
-        tabHistory.setTextColor(android.graphics.Color.parseColor("#80FFFFFF"))
-    }
-    
-    /**
-     * 切换标签
-     */
-    private fun switchTab(tab: TextView, tabType: UserProfileViewModel.TabType) {
-        if (selectedTab == tab) return
-
-        // 更新之前选中的标签
-        selectedTab?.let { updateTabState(it, false) }
-
-        // 更新新选中的标签
-        selectedTab = tab
-        updateTabState(tab, true)
-
-        // 切换 ViewModel 的数据源
-        // authorName用于作品查询，currentUserId用于收藏、点赞、历史记录查询
-        val currentUserId = latestUser?.id ?: "current_user"
-        // 如果 userName 是 "current_user"，使用用户的实际名称作为 authorName
-        val authorName = if (userName == "current_user" && latestUser != null) {
-            latestUser!!.name
-        } else {
-            userName
-        }
-        viewModel.switchTab(tabType, authorName = authorName, currentUserId = currentUserId)
-    }
-    
-    /**
-     * 更新标签状态
-     */
-    private fun updateTabState(tab: TextView, isSelected: Boolean) {
-        if (isSelected) {
-            tab.setBackgroundColor(0xFFFF0000.toInt()) // 红色
-            tab.setTextColor(0xFFFFFFFF.toInt())       // 白字
-        } else {
-            tab.setBackgroundColor(0x00000000.toInt()) // 透明背景
-            tab.setTextColor(0x80FFFFFF.toInt())       // 白色 50% 透明
-        }
     }
 
     private fun UserWork.toUiModel(): UserWorkUiModel = UserWorkUiModel(
@@ -540,204 +404,9 @@ class UserProfileFragment : Fragment() {
         title = title
     )
 
-    /**
-     * 设置头像圆角裁剪（使用 post 解决宽高=0 的问题）
-     */
-    private fun setupAvatarRoundCorner(view: View) {
-        ivAvatar.post {
-            val size = ivAvatar.width.coerceAtMost(ivAvatar.height)
-            ivAvatar.outlineProvider = object : ViewOutlineProvider() {
-                override fun getOutline(v: View, outline: Outline) {
-                    outline.setOval(0, 0, size, size)
-                }
-            }
-            ivAvatar.clipToOutline = true
-        }
-    }
-
-    /**
-     * 设置头像点击上传功能
-     */
-    private fun setupAvatarUpload() {
-        ivAvatar.setOnClickListener {
-            openImagePicker()
-        }
-    }
-
-    /**
-     * 打开图片选择器
-     */
-    private fun openImagePicker() {
-        try {
-            pickImageLauncher.launch("image/*")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to open image picker", e)
-            Toast.makeText(requireContext(), "无法打开图片选择器: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    /**
-     * 处理图片选择结果
-     */
-    private fun handleImageSelection(uri: Uri) {
-        try {
-            Log.d(TAG, "Handling image selection: $uri")
-            
-            // 检查用户ID是否存在
-            val currentUserId = latestUser?.id
-            if (currentUserId == null) {
-                Log.e(TAG, "Cannot update avatar: currentUserId is null")
-                Toast.makeText(requireContext(), "无法更新头像：用户信息未加载", Toast.LENGTH_SHORT).show()
-                return
-            }
-            
-            // 读取图片
-            val inputStream = requireContext().contentResolver.openInputStream(uri)
-                ?: run {
-                    Log.e(TAG, "Failed to open input stream for URI: $uri")
-                    Toast.makeText(requireContext(), "无法读取图片", Toast.LENGTH_SHORT).show()
-                    return
-                }
-            
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-            inputStream.close()
-            
-            if (bitmap == null) {
-                Log.e(TAG, "Failed to decode bitmap from URI: $uri")
-                Toast.makeText(requireContext(), "无法解析图片", Toast.LENGTH_SHORT).show()
-                return
-            }
-            
-            Log.d(TAG, "Bitmap decoded successfully: ${bitmap.width}x${bitmap.height}")
-            
-            // 保存到本地文件
-            val avatarFile = saveAvatarToLocal(bitmap)
-            if (avatarFile != null) {
-                Log.d(TAG, "Avatar saved to: ${avatarFile.absolutePath}")
-                
-                // 更新数据库
-                viewModel.updateAvatar(currentUserId, avatarFile.absolutePath)
-                
-                // 更新 UI
-                ivAvatar.setImageBitmap(bitmap)
-                
-                Toast.makeText(requireContext(), "头像更新成功", Toast.LENGTH_SHORT).show()
-            } else {
-                Log.e(TAG, "Failed to save avatar to local file")
-                Toast.makeText(requireContext(), "保存头像失败", Toast.LENGTH_SHORT).show()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error handling image selection", e)
-            Toast.makeText(requireContext(), "处理图片失败: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    /**
-     * 保存头像到本地文件
-     */
-    private fun saveAvatarToLocal(bitmap: Bitmap): File? {
-        return try {
-            // 创建头像目录
-            val avatarDir = File(requireContext().filesDir, "avatars")
-            if (!avatarDir.exists()) {
-                val created = avatarDir.mkdirs()
-                Log.d(TAG, "Created avatar directory: $created, path: ${avatarDir.absolutePath}")
-            }
-
-            // 创建头像文件
-            val currentUserId = latestUser?.id ?: "current_user"
-            val avatarFile = File(avatarDir, "avatar_${currentUserId}.jpg")
-            
-            // 压缩并保存
-            FileOutputStream(avatarFile).use { outputStream ->
-                val compressed = bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
-                if (!compressed) {
-                    Log.e(TAG, "Failed to compress bitmap")
-                    return null
-                }
-                outputStream.flush()
-            }
-            
-            // 验证文件是否创建成功
-            if (!avatarFile.exists() || avatarFile.length() == 0L) {
-                Log.e(TAG, "Avatar file not created or empty: ${avatarFile.absolutePath}")
-                return null
-            }
-            
-            Log.d(TAG, "Avatar file saved successfully: ${avatarFile.absolutePath}, size: ${avatarFile.length()} bytes")
-            avatarFile
-        } catch (e: IOException) {
-            Log.e(TAG, "IOException while saving avatar", e)
-            null
-        } catch (e: Exception) {
-            Log.e(TAG, "Unexpected error while saving avatar", e)
-            null
-        }
-    }
 
     private fun navigateToUserWorksViewer(selectedWorkId: String) {
-        val works = latestUserWorks
-        if (works.isEmpty()) {
-            Toast.makeText(requireContext(), "暂无可播放的视频", Toast.LENGTH_SHORT).show()
-            return
-        }
-        
-        val authorName = latestUser?.name ?: "BeatU 用户"
-        val videoItems = ArrayList(works.map { it.toVideoItem(authorName) })
-        val initialIndex = works.indexOfFirst { it.id == selectedWorkId }.let { index ->
-            if (index == -1) 0 else index
-        }
-        
-        // 在只读模式下（从DialogFragment中显示），通过接口回调父 Fragment；否则使用findNavController()导航
-        if (isReadOnly) {
-            val host = parentFragment as? UserProfileVideoClickHost
-            if (host != null) {
-                val currentUserId = latestUser?.id ?: "current_user"
-                host.onUserWorkClicked(currentUserId, authorName, videoItems, initialIndex)
-                Log.d(TAG, "Notified parent fragment via UserProfileVideoClickHost")
-            } else {
-                Log.e(TAG, "Parent fragment does not implement UserProfileVideoClickHost")
-                Toast.makeText(requireContext(), "无法打开视频播放器: 父Fragment未实现回调接口", Toast.LENGTH_SHORT).show()
-            }
-        } else {
-            // 非只读模式，使用findNavController()导航
-            val navController = runCatching { findNavController() }.getOrNull()
-            if (navController == null) {
-                Log.e(TAG, "NavController not found, cannot open user works viewer")
-                return
-            }
-            
-            val actionId = NavigationHelper.getResourceId(
-                requireContext(),
-                NavigationIds.ACTION_USER_PROFILE_TO_USER_WORKS_VIEWER
-            )
-            if (actionId == 0) {
-                Log.e(TAG, "Navigation action not found for user works viewer")
-                return
-            }
-            
-            val currentUserId = latestUser?.id ?: "current_user"
-            val bundle = bundleOf(
-                UserWorksViewerFragment.ARG_USER_ID to currentUserId,
-                UserWorksViewerFragment.ARG_INITIAL_INDEX to initialIndex,
-                UserWorksViewerFragment.ARG_VIDEO_LIST to videoItems
-            )
-            navController.navigate(actionId, bundle)
-        }
-    }
-
-    private fun UserWork.toVideoItem(authorName: String): VideoItem {
-        return VideoItem(
-            id = id,
-            videoUrl = playUrl,
-            title = title,
-            authorName = authorName,
-            likeCount = likeCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-            commentCount = commentCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-            favoriteCount = favoriteCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-            shareCount = shareCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-            orientation = VideoOrientation.PORTRAIT
-        )
+        navigationHelper.navigateToUserWorksViewer(selectedWorkId)
     }
 
     companion object {

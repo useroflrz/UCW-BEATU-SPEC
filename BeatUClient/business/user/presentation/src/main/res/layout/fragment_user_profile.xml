@@ -241,6 +241,7 @@
         android:id="@+id/tabs_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:minHeight="56dp"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
         android:paddingTop="8dp"
@@ -249,76 +250,98 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- 作品 -->
-        <TextView
-            android:id="@+id/tab_works"
+        <LinearLayout
+            android:id="@+id/tab_container"
             android:layout_width="0dp"
-            android:layout_height="36dp"
-            android:text="作品"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:textColor="#FFFFFFFF"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            app:layout_constraintStart_toStartOf="parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="4"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/tab_collections"
-            app:layout_constraintHorizontal_chainStyle="spread"
-            android:layout_marginEnd="4dp" />
-
-        <!-- 收藏 -->
-        <TextView
-            android:id="@+id/tab_collections"
-            android:layout_width="0dp"
-            android:layout_height="36dp"
-            android:text="收藏"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:textColor="#80FFFFFF"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            app:layout_constraintStart_toEndOf="@id/tab_works"
-            app:layout_constraintTop_toTopOf="@id/tab_works"
-            app:layout_constraintEnd_toStartOf="@id/tab_likes"
-            android:layout_marginStart="4dp"
-            android:layout_marginEnd="4dp" />
-
-        <!-- 点赞 -->
-        <TextView
-            android:id="@+id/tab_likes"
-            android:layout_width="0dp"
-            android:layout_height="36dp"
-            android:text="点赞"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:textColor="#80FFFFFF"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            app:layout_constraintStart_toEndOf="@id/tab_collections"
-            app:layout_constraintTop_toTopOf="@id/tab_works"
-            app:layout_constraintEnd_toStartOf="@id/tab_history"
-            android:layout_marginStart="4dp"
-            android:layout_marginEnd="4dp" />
-
-        <!-- 历史 -->
-        <TextView
-            android:id="@+id/tab_history"
-            android:layout_width="0dp"
-            android:layout_height="36dp"
-            android:text="历史"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:textColor="#80FFFFFF"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            app:layout_constraintStart_toEndOf="@id/tab_likes"
-            app:layout_constraintTop_toTopOf="@id/tab_works"
+            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginStart="4dp" />
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <!-- 作品 -->
+            <TextView
+                android:id="@+id/tab_works"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:minHeight="56dp"
+                android:text="作品"
+                android:textSize="17sp"
+                android:textStyle="normal"
+                android:textColor="#FFFFFFFF"
+                android:gravity="center"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:includeFontPadding="false" />
+
+            <!-- 收藏 -->
+            <TextView
+                android:id="@+id/tab_collections"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:minHeight="56dp"
+                android:text="收藏"
+                android:textSize="17sp"
+                android:textStyle="normal"
+                android:textColor="#99FFFFFF"
+                android:gravity="center"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:includeFontPadding="false" />
+
+            <!-- 点赞 -->
+            <TextView
+                android:id="@+id/tab_likes"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:minHeight="56dp"
+                android:text="点赞"
+                android:textSize="17sp"
+                android:textStyle="normal"
+                android:textColor="#99FFFFFF"
+                android:gravity="center"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:includeFontPadding="false" />
+
+            <!-- 历史 -->
+            <TextView
+                android:id="@+id/tab_history"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:minHeight="56dp"
+                android:text="历史"
+                android:textSize="17sp"
+                android:textStyle="normal"
+                android:textColor="#99FFFFFF"
+                android:gravity="center"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:includeFontPadding="false" />
+
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

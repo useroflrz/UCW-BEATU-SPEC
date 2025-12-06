@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import com.ucw.beatu.business.user.presentation.R
+import com.ucw.beatu.shared.designsystem.util.IOSButtonEffect
 
 class UserWorksAdapter(
     private val onVideoClick: (UserWorkUiModel) -> Unit
@@ -57,7 +58,9 @@ class UserWorksAdapter(
             }
             
             playCount.text = formatPlayCount(item.playCount)
-            itemView.setOnClickListener { onVideoClick(item) }
+            IOSButtonEffect.applyIOSEffect(itemView) {
+                onVideoClick(item)
+            }
         }
 
         private fun formatPlayCount(count: Long): String {

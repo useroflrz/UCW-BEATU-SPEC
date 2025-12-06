@@ -71,6 +71,9 @@ class TabIndicatorView @JvmOverloads constructor(
     private var followTabY: Float = 0f
     private var recommendTabX: Float = 0f
     private var recommendTabY: Float = 0f
+    
+    // 支持多个Tab的位置（用于用户主页等场景）
+    private val tabPositions = mutableListOf<Pair<Float, Float>>()
 
     // 动画
     private var animator: ValueAnimator? = null
@@ -201,7 +204,7 @@ class TabIndicatorView @JvmOverloads constructor(
     }
     
     /**
-     * 设置Tab位置（用于初始化）
+     * 设置Tab位置（用于初始化）- 2个Tab版本（关注、推荐）
      * @param followX 关注Tab的中心X坐标（相对于指示器View）
      * @param followY 关注Tab的中心Y坐标（相对于指示器View）
      * @param recommendX 推荐Tab的中心X坐标（相对于指示器View）
@@ -216,14 +219,37 @@ class TabIndicatorView @JvmOverloads constructor(
     }
     
     /**
+     * 设置Tab位置（用于初始化）- 多个Tab版本（作品、收藏、点赞、历史等）
+     * @param positions 可变参数，每个Tab的中心坐标 (x, y) 对
+     */
+    fun setTabPositions(vararg positions: Pair<Float, Float>) {
+        tabPositions.clear()
+        tabPositions.addAll(positions)
+        // 如果只有2个Tab，也更新旧的变量以保持兼容性
+        if (positions.size >= 2) {
+            followTabX = positions[0].first
+            followTabY = positions[0].second
+            recommendTabX = positions[1].first
+            recommendTabY = positions[1].second
+        }
+        invalidate()
+    }
+    
+    /**
      * 移动到指定Tab位置（用于页面切换完成时）
-     * @param tabIndex 0=关注，1=推荐
+     * @param tabIndex 0=关注/作品, 1=推荐/收藏, 2=点赞, 3=历史等
      */
     fun moveToTab(tabIndex: Int) {
-        val (targetTabX, targetTabY) = when (tabIndex) {
-            0 -> followTabX to followTabY
-            1 -> recommendTabX to recommendTabY
-            else -> recommendTabX to recommendTabY
+        val (targetTabX, targetTabY) = if (tabPositions.isNotEmpty() && tabIndex < tabPositions.size) {
+            // 使用多Tab位置
+            tabPositions[tabIndex]
+        } else {
+            // 回退到2个Tab的旧逻辑
+            when (tabIndex) {
+                0 -> followTabX to followTabY
+                1 -> recommendTabX to recommendTabY
+                else -> recommendTabX to recommendTabY
+            }
         }
         startX = targetTabX
         startY = targetTabY
