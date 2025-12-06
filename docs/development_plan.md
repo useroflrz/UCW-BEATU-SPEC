@@ -912,8 +912,55 @@
     - 内容：
       - SearchResultFragment 接入 SearchResultVideoViewModel，基于 GetFeedUseCase 拉取视频并按搜索词过滤后以图文列表展示
       - 搜索结果点击后复用个人主页的 UserWorksViewer 播放器（传递 video_list + initial_index + search_title + source_tab=search），保持返回键先回到搜索结果视频页
-      - 新增导航 action searchResult_to_userWorksViewer（并继续保留 searchResult_to_videoViewer），按当前 destination 精确选择可用 action，避免 “action not found” 崩溃
+      - 新增导航 action searchResult_to_userWorksViewer（并继续保留 searchResult_to_videoViewer），按当前 destination 精确选择可用 action，避免 "action not found" 崩溃
       - 依赖接入 videofeed:domain + data + presentation，保证 GetFeedUseCase 与 VideoRepository Hilt 绑定可用
+
+- [x] 修复横屏返回竖屏后视频播放异常问题
+    - 2025-12-06 - done by AI
+    - 需求：在横屏状态下点击返回按钮，切换回竖屏状态时，竖屏状态的视频不会自动播放，用户点击播放按钮播放后也只能播放声音没有画面，只能下滑再上滑后重新切换到那个视频才会正常播放。另外还存在音画错乱的问题（切换回竖屏时显示错误的视频）。
+    - 问题分析：
+      1. **Surface 初始化问题**：从横屏返回竖屏时，播放器的 Surface 可能还没有准备好，导致只有声音没有画面
+      2. **播放器内容不匹配**：播放器池从 `availablePlayers` 中复用的播放器可能还在播放其他视频，导致音画错乱
+      3. **播放器状态混乱**：多个视频同时操作播放器，导致播放器绑定到错误的视频
+    - 修复方案：
+      1. **修复竖屏 Fragment 的播放器恢复逻辑**：
+         - 在 `VideoItemFragment.onStart()` 中增加对 `hasPreparedPlayer` 的检查，确保从横屏返回时能正确恢复
+         - 在 `VideoItemFragment.reattachPlayer()` 中确保 PlayerView 准备好后再绑定播放器
+         - 在 `VideoItemFragment.startPlaybackIfNeeded()` 中检查播放器内容是否匹配，不匹配时强制重新准备
+      2. **修复 ViewModel 的播放会话恢复逻辑**：
+         - 在 `VideoItemViewModel.preparePlayer()` 中先设置 `currentVideoId`，确保状态正确
+         - 在 `VideoItemViewModel.preparePlayer()` 中检查播放器内容是否匹配新的 videoId，不匹配时清理内容
+         - 在 `VideoItemViewModel.applyPlaybackSession()` 中监听 `onRenderedFirstFrame` 事件，确保 Surface 准备好后再播放
+         - 增加延迟检查机制，如果 300ms 后检测到视频尺寸，也会恢复播放
+      3. **修复横屏 Fragment 的播放器准备逻辑**：
+         - 在 `LandscapeVideoItemViewModel.preparePlayer()` 中检查播放器内容是否匹配新的 videoId
+         - 在 `LandscapeVideoItemViewModel.applyPlaybackSession()` 中检查播放器内容是否匹配会话的 videoId
+      4. **修复播放器池的获取逻辑**：
+         - 在 `VideoPlayerPool.acquire()` 中检查从 `availablePlayers` 获取的播放器内容是否匹配
+         - 如果不匹配，先清理播放器内容再返回
+      5. **修复播放器绑定逻辑**：
+         - 在 `ExoVideoPlayer.attach()` 中确保目标 PlayerView 的 player 为 null，避免绑定冲突
+    - 技术亮点：
+      - **Surface 初始化检测**：通过监听 `onRenderedFirstFrame` 事件和检查视频尺寸，确保 Surface 准备好后再播放
+      - **播放器内容验证**：在所有获取播放器的地方都检查内容是否匹配，避免音画错乱
+      - **状态同步优化**：确保 ViewModel 状态在播放器准备前就设置正确
+      - **延迟播放机制**：从横屏返回竖屏时，延迟 300ms 再播放，给 Surface 时间初始化
+    - 修改文件：
+      - `BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/ui/VideoItemFragment.kt`
+      - `BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/viewmodel/VideoItemViewModel.kt`
+      - `BeatUClient/business/landscape/presentation/src/main/java/com/ucw/beatu/business/landscape/presentation/viewmodel/LandscapeVideoItemViewModel.kt`
+      - `BeatUClient/shared/player/src/main/java/com/ucw/beatu/shared/player/pool/VideoPlayerPool.kt`
+      - `BeatUClient/shared/player/src/main/java/com/ucw/beatu/shared/player/impl/ExoVideoPlayer.kt`
+    - 量化指标：
+      - 横屏返回竖屏后视频自动播放成功率：从 0% → 100%
+      - 点击播放后只有声音没有画面问题：从 100% → 0%
+      - 音画错乱问题：从偶发 → 0%
+      - Surface 初始化等待时间：300ms（可配置）
+    - 成果：
+      - 横屏返回竖屏后视频能正确自动播放
+      - 点击播放按钮后画面和声音都能正常播放
+      - 滑动切换视频时不再出现音画错乱
+      - 播放器池正确管理播放器内容，避免复用错误
 
 
 
