@@ -65,6 +65,8 @@ class VideoItemFragment : BaseFeedItemFragment() {
     private var navigatingToLandscape = false
     private var hasPreparedPlayer = false
     private var imageAutoScrollJob: Job? = null
+    private var lastFullScreenClickTime = 0L
+    private var isRestoringFromLandscape = false
 
     // 用户信息展示相关
     private var userInfoOverlay: View? = null
@@ -100,6 +102,9 @@ class VideoItemFragment : BaseFeedItemFragment() {
          controlsView = view.findViewById(R.id.video_controls)
          // 注意：标题/频道名称等现在定义在 shared:designsystem 的 VideoControlsView 布局中
          val sharedControlsRoot = controlsView
+        val fullScreenButton = sharedControlsRoot?.findViewById<View>(
+            com.ucw.beatu.shared.designsystem.R.id.iv_fullscreen
+        )
 
         videoItem?.let { item ->
             // 通过 VideoControlsView 内部的 TextView 展示标题与频道名称
@@ -169,11 +174,20 @@ class VideoItemFragment : BaseFeedItemFragment() {
                 playerView?.visibility = View.GONE
                 imagePager?.visibility = View.VISIBLE
                 setupImagePager(item.imageUrls)
+                // 图文内容不显示横屏按钮
+                fullScreenButton?.visibility = View.GONE
             } else {
                 // 视频内容：显示播放器，隐藏图文容器
                 playerView?.visibility = View.VISIBLE
                 imagePager?.visibility = View.GONE
+                // 所有视频内容都显示横屏按钮
+                fullScreenButton?.visibility = View.VISIBLE
             }
+        }
+        
+        // 设置横屏按钮点击监听（所有视频内容都支持横屏）
+        fullScreenButton?.setOnClickListener {
+            handleFullScreenButtonClick()
         }
 
         observeViewModel()
@@ -314,6 +328,12 @@ class VideoItemFragment : BaseFeedItemFragment() {
         } else {
             val itemId = item?.id
             if (itemId != null) {
+                // 如果正在从横屏恢复，跳过 onStart 的逻辑，让 restorePlayerFromLandscape 处理
+                if (isRestoringFromLandscape) {
+                    Log.d(TAG, "onStart: 正在从横屏恢复，跳过，等待 restorePlayerFromLandscape 处理")
+                    return
+                }
+                
                 // 检查播放器当前的内容是否匹配当前的 videoItem
                 val player = playerView?.player
                 val currentMediaItem = (player as? androidx.media3.common.Player)?.currentMediaItem
@@ -512,6 +532,41 @@ class VideoItemFragment : BaseFeedItemFragment() {
         }
     }
 
+    /**
+     * 处理横屏按钮点击事件
+     * 添加防抖处理和状态检查
+     */
+    private fun handleFullScreenButtonClick() {
+        // 防抖处理：500ms内只响应一次点击
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastFullScreenClickTime < 500) {
+            Log.d(TAG, "handleFullScreenButtonClick: 点击过快，忽略")
+            return
+        }
+        lastFullScreenClickTime = currentTime
+
+        // 检查是否正在导航中
+        if (navigatingToLandscape) {
+            Log.d(TAG, "handleFullScreenButtonClick: 正在导航中，忽略")
+            return
+        }
+
+        // 检查视频项是否有效
+        val item = videoItem ?: run {
+            Log.e(TAG, "handleFullScreenButtonClick: videoItem is null")
+            return
+        }
+
+        // 检查是否为图文内容
+        if (item.type == FeedContentType.IMAGE_POST) {
+            Log.d(TAG, "handleFullScreenButtonClick: 图文内容不支持横屏")
+            return
+        }
+
+        // 执行横屏切换（所有视频内容都支持横屏）
+        openLandscapeMode()
+    }
+
     fun openLandscapeMode() {
         val navController = findParentNavController()
         if (navController == null) {
@@ -621,10 +676,14 @@ class VideoItemFragment : BaseFeedItemFragment() {
 
         Log.d(TAG, "restorePlayerFromLandscape: 恢复播放器，videoId=${item.id}")
 
+        // 设置标志，防止 onStart 重复处理
+        isRestoringFromLandscape = true
+
         // 优化：使用post延迟执行，确保View已经布局完成，减少卡顿
         pv.post {
             if (!isAdded || pv == null) {
                 Log.w(TAG, "restorePlayerFromLandscape: Fragment not added or PlayerView is null after post")
+                isRestoringFromLandscape = false
                 return@post
             }
 
@@ -639,7 +698,9 @@ class VideoItemFragment : BaseFeedItemFragment() {
                 if (isAdded && isViewVisibleOnScreen()) {
                     viewModel.resume()
                 }
-            }, 50) // 延迟50ms，让UI先渲染
+                // 恢复完成后，重置标志
+                isRestoringFromLandscape = false
+            }, 100) // 延迟100ms，让UI先渲染，并确保播放器完全恢复
         }
     }
 
