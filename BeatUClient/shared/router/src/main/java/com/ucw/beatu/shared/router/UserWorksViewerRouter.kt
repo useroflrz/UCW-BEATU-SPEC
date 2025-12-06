@@ -1,5 +1,7 @@
 package com.ucw.beatu.shared.router
 
+import com.ucw.beatu.shared.common.model.VideoItem
+
 /**
  * 用户作品播放器路由接口
  * 用于解耦 videofeed 和 user 模块之间的循环依赖
@@ -19,5 +21,17 @@ interface UserWorksViewerRouter {
      * @return 当前用户 ID，如果不在 UserWorksViewerFragment 中，返回 null
      */
     fun getCurrentUserId(): String?
+    
+    /**
+     * 获取当前视频列表
+     * @return 当前视频列表，如果不在 UserWorksViewerFragment 中，返回 null
+     */
+    fun getCurrentVideoList(): List<VideoItem>?
+    
+    /**
+     * 获取当前视频索引
+     * @return 当前视频索引，如果不在 UserWorksViewerFragment 中，返回 null
+     */
+    fun getCurrentVideoIndex(): Int?
 }
 

@@ -36,6 +36,10 @@ android {
 dependencies {
     // Business Domain
     implementation(project(":business:search:domain"))
+    implementation(project(":business:videofeed:domain"))
+    
+    // Business Data (for VideoFeedApiService)
+    implementation(project(":business:videofeed:data"))
     
     // Shared modules
     implementation(project(":shared:common"))

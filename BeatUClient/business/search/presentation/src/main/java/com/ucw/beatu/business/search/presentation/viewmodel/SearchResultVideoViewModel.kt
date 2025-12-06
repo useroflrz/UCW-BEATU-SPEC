@@ -3,7 +3,7 @@ package com.ucw.beatu.business.search.presentation.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.ucw.beatu.business.videofeed.domain.usecase.GetFeedUseCase
+import com.ucw.beatu.business.search.domain.repository.SearchRepository
 import com.ucw.beatu.business.videofeed.presentation.mapper.toVideoItem
 import com.ucw.beatu.shared.common.model.VideoItem
 import com.ucw.beatu.shared.common.result.AppResult
@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import javax.inject.Inject
@@ -27,7 +28,7 @@ data class SearchResultVideoUiState(
 @HiltViewModel
 class SearchResultVideoViewModel @Inject constructor(
     application: Application,
-    private val getFeedUseCase: GetFeedUseCase
+    private val searchRepository: SearchRepository
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(SearchResultVideoUiState())
@@ -41,7 +42,7 @@ class SearchResultVideoViewModel @Inject constructor(
     private var titleKeyword: String = ""
 
     /**
-     * 初始化搜索，根据搜索词和title关键词匹配视频
+     * 初始化搜索，调用后端接口搜索视频
      */
     fun initSearch(query: String, titleKeyword: String) {
         searchQuery = query
@@ -51,7 +52,7 @@ class SearchResultVideoViewModel @Inject constructor(
     }
 
     /**
-     * 加载视频列表，并根据搜索词和title进行匹配
+     * 加载视频列表：调用后端接口，保存到数据库，然后从数据库读取
      */
     private fun loadVideoList() {
         if (isLoadingMore) return
@@ -60,11 +61,25 @@ class SearchResultVideoViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(error = null)
 
-            getFeedUseCase(currentPage, pageSize, null)
+            // 确定搜索关键词：优先使用titleKeyword，如果没有则使用searchQuery
+            val query = if (titleKeyword.isNotBlank()) titleKeyword else searchQuery
+            
+            if (query.isBlank()) {
+                _uiState.value = _uiState.value.copy(
+                    videoList = emptyList(),
+                    isLoading = false,
+                    error = "搜索关键词不能为空"
+                )
+                isLoadingMore = false
+                return@launch
+            }
+
+            // 调用后端搜索接口（会自动保存到数据库）
+            searchRepository.searchVideos(query, currentPage, pageSize)
                 .catch { e ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        error = e.message ?: "加载失败"
+                        error = e.message ?: "搜索失败"
                     )
                     isLoadingMore = false
                 }
@@ -76,18 +91,25 @@ class SearchResultVideoViewModel @Inject constructor(
                             }
                         }
                         is AppResult.Success -> {
-                            val allVideos = result.data.map { it.toVideoItem() }
-                            // 根据搜索词和title关键词过滤视频
-                            val filteredVideos = filterVideosByKeyword(allVideos, searchQuery, titleKeyword)
+                            // 后端接口已经将结果保存到数据库
+                            // 直接使用后端返回的结果更新UI
+                            val videoItems = result.data.map { it.toVideoItem() }
                             
-                            val hasLoadedAll = filteredVideos.size < pageSize
+                            // 如果同时提供了searchQuery和titleKeyword，需要进一步过滤
+                            val filteredVideos = if (searchQuery.isNotBlank() && titleKeyword.isNotBlank() && query == titleKeyword) {
+                                // 如果query是titleKeyword，还需要检查是否包含searchQuery
+                                videoItems.filter { it.title.contains(searchQuery, ignoreCase = true) }
+                            } else {
+                                videoItems
+                            }
                             
                             val currentList = if (currentPage == 1) {
                                 filteredVideos
                             } else {
                                 _uiState.value.videoList + filteredVideos
                             }
-
+                            
+                            val hasLoadedAll = result.data.size < pageSize
                             _uiState.value = _uiState.value.copy(
                                 videoList = currentList,
                                 isLoading = false,
@@ -96,9 +118,12 @@ class SearchResultVideoViewModel @Inject constructor(
                             isLoadingMore = false
                         }
                         is AppResult.Error -> {
+                            // 后端失败，尝试从本地数据库读取
+                            loadFromLocalDatabase(query)
+                            
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
-                                error = result.message ?: "加载失败"
+                                error = result.message ?: "搜索失败"
                             )
                             isLoadingMore = false
                         }
@@ -108,42 +133,30 @@ class SearchResultVideoViewModel @Inject constructor(
     }
 
     /**
-     * 根据搜索词和title关键词过滤视频
-     * 匹配逻辑：视频title需要同时包含搜索词和resultTitle关键词
+     * 从本地数据库读取搜索结果并更新UI（一次性读取）
      */
-    private fun filterVideosByKeyword(
-        videos: List<VideoItem>,
-        searchQuery: String,
-        titleKeyword: String
-    ): List<VideoItem> {
-        if (searchQuery.isBlank() && titleKeyword.isBlank()) {
-            return videos
+    private suspend fun loadFromLocalDatabase(query: String) {
+        val videos = searchRepository.observeSearchResults(query).firstOrNull() ?: emptyList()
+        val videoItems = videos.map { it.toVideoItem() }
+        
+        // 如果同时提供了searchQuery和titleKeyword，需要进一步过滤
+        val filteredVideos = if (searchQuery.isNotBlank() && titleKeyword.isNotBlank() && query == titleKeyword) {
+            // 如果query是titleKeyword，还需要检查是否包含searchQuery
+            videoItems.filter { it.title.contains(searchQuery, ignoreCase = true) }
+        } else {
+            videoItems
+        }
+        
+        val currentList = if (currentPage == 1) {
+            filteredVideos
+        } else {
+            _uiState.value.videoList + filteredVideos
         }
 
-        return videos.filter { video ->
-            val titleContainsKeyword = titleKeyword.isNotBlank() && 
-                video.title.contains(titleKeyword, ignoreCase = true)
-            val titleContainsQuery = searchQuery.isNotBlank() && 
-                video.title.contains(searchQuery, ignoreCase = true)
-            
-            // 如果同时提供了searchQuery和titleKeyword，title需要同时包含两者
-            // 如果只提供了其中一个，则只需要包含该关键词即可
-            when {
-                searchQuery.isNotBlank() && titleKeyword.isNotBlank() -> {
-                    // 两者都提供：title需要同时包含搜索词和title关键词
-                    titleContainsQuery && titleContainsKeyword
-                }
-                titleKeyword.isNotBlank() -> {
-                    // 只提供titleKeyword：title需要包含title关键词
-                    titleContainsKeyword
-                }
-                searchQuery.isNotBlank() -> {
-                    // 只提供searchQuery：title需要包含搜索词
-                    titleContainsQuery
-                }
-                else -> true
-            }
-        }
+        _uiState.value = _uiState.value.copy(
+            videoList = currentList,
+            isLoading = false
+        )
     }
 
     /**

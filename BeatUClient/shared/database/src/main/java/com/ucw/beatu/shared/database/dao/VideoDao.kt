@@ -90,5 +90,16 @@ interface VideoDao {
 
     @Query("DELETE FROM videos WHERE id = :id")
     suspend fun deleteById(id: String)
+
+    /**
+     * 根据关键词搜索视频（标题匹配）
+     * 使用LIKE进行模糊匹配
+     */
+    @Query("""
+    SELECT * FROM videos
+    WHERE title LIKE '%' || :query || '%'
+    ORDER BY viewCount DESC
+    """)
+    fun observeSearchResults(query: String): Flow<List<VideoEntity>>
 }
 

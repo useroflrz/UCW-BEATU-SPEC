@@ -21,6 +21,7 @@ import com.ucw.beatu.business.user.presentation.viewmodel.UserWorksViewerViewMod
 import com.ucw.beatu.shared.common.model.VideoItem
 import com.ucw.beatu.shared.router.UserWorksViewerRouter
 import com.ucw.beatu.shared.router.RouterRegistry
+import com.ucw.beatu.shared.designsystem.widget.NoMoreVideosToast
 import dagger.hilt.android.AndroidEntryPoint
 import android.util.Log
 import kotlin.math.max
@@ -33,6 +34,7 @@ class UserWorksViewerFragment : Fragment(R.layout.fragment_user_works_viewer), U
 
     private var viewPager: ViewPager2? = null
     private var adapter: UserWorksViewerAdapter? = null
+    private var noMoreVideosToast: NoMoreVideosToast? = null
     private val pageChangeCallback = object : ViewPager2.OnPageChangeCallback() {
         override fun onPageSelected(position: Int) {
             super.onPageSelected(position)
@@ -101,6 +103,16 @@ class UserWorksViewerFragment : Fragment(R.layout.fragment_user_works_viewer), U
     override fun getCurrentUserId(): String? {
         return viewModel.uiState.value.userId.takeIf { it.isNotEmpty() }
     }
+    
+    override fun getCurrentVideoList(): List<VideoItem>? {
+        return viewModel.uiState.value.videoList.takeIf { it.isNotEmpty() }
+    }
+    
+    override fun getCurrentVideoIndex(): Int? {
+        return viewModel.uiState.value.currentIndex.takeIf { 
+            viewModel.uiState.value.videoList.isNotEmpty() 
+        }
+    }
 
     private fun setupToolbar(root: View) {
         val toolbar: MaterialToolbar = root.findViewById(R.id.toolbar_user_works)
@@ -115,9 +127,26 @@ class UserWorksViewerFragment : Fragment(R.layout.fragment_user_works_viewer), U
         pager.adapter = adapter
         pager.orientation = ViewPager2.ORIENTATION_VERTICAL
         pager.offscreenPageLimit = 1
-        attachBounceEffect(pager)
+        attachBounceEffect(pager, root)
         pager.registerOnPageChangeCallback(pageChangeCallback)
         viewPager = pager
+        
+        // 设置提示视图
+        setupNoMoreVideosToast(root)
+    }
+    
+    private fun setupNoMoreVideosToast(root: View) {
+        val container = root as? ViewGroup ?: run {
+            Log.e(TAG, "setupNoMoreVideosToast: root is not a ViewGroup")
+            return
+        }
+        noMoreVideosToast = NoMoreVideosToast(requireContext())
+        val layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
+        container.addView(noMoreVideosToast, layoutParams)
+        Log.d(TAG, "setupNoMoreVideosToast: toast added to container, container=${container.javaClass.simpleName}")
     }
 
     private fun parseArgumentsIfNeeded(bundle: Bundle) {
@@ -201,24 +230,26 @@ class UserWorksViewerFragment : Fragment(R.layout.fragment_user_works_viewer), U
         const val ARG_SOURCE_TAB = "source_tab" // works/favorite/like/history/search
     }
 
-    private fun attachBounceEffect(pager: ViewPager2) {
+    private fun attachBounceEffect(pager: ViewPager2, root: View) {
         val recyclerView = pager.getChildAt(0) as? RecyclerView ?: return
         recyclerView.edgeEffectFactory = object : RecyclerView.EdgeEffectFactory() {
             override fun createEdgeEffect(rv: RecyclerView, direction: Int): EdgeEffect {
                 if (direction == DIRECTION_LEFT || direction == DIRECTION_RIGHT) {
                     return super.createEdgeEffect(rv, direction)
                 }
-                return BounceEdgeEffect(pager, direction)
+                return BounceEdgeEffect(pager, direction, this@UserWorksViewerFragment)
             }
         }
     }
 
     private class BounceEdgeEffect(
         private val viewPager: ViewPager2,
-        private val direction: Int
+        private val direction: Int,
+        private val fragment: UserWorksViewerFragment
     ) : EdgeEffect(viewPager.context) {
 
         private var pulling = false
+        private var hasShownToast = false
         private val maxTranslationPx =
             viewPager.context.resources.displayMetrics.density * MAX_TRANSLATION_DP
 
@@ -237,15 +268,32 @@ class UserWorksViewerFragment : Fragment(R.layout.fragment_user_works_viewer), U
             if (pulling) {
                 animateBack()
                 pulling = false
+                hasShownToast = false
             }
         }
 
         override fun onAbsorb(velocity: Int) {
             super.onAbsorb(velocity)
             animateBack()
+            hasShownToast = false
         }
 
         private fun handlePull(deltaDistance: Float) {
+            val adapter = viewPager.adapter ?: return
+            val itemCount = adapter.itemCount
+            if (itemCount == 0) return
+
+            val currentItem = viewPager.currentItem
+            val isAtTop = currentItem == 0 && direction == RecyclerView.EdgeEffectFactory.DIRECTION_TOP
+            val isAtBottom = currentItem == itemCount - 1 && direction == RecyclerView.EdgeEffectFactory.DIRECTION_BOTTOM
+
+            // 如果到达边界，显示提示（降低阈值，确保更容易触发）
+            if ((isAtTop || isAtBottom) && !hasShownToast && Math.abs(deltaDistance) > 0.01f) {
+                Log.d("BounceEdgeEffect", "Showing no more videos toast: isAtTop=$isAtTop, isAtBottom=$isAtBottom, deltaDistance=$deltaDistance")
+                fragment.showNoMoreVideosToast()
+                hasShownToast = true
+            }
+
             val sign = if (direction == RecyclerView.EdgeEffectFactory.DIRECTION_TOP) 1 else -1
             val drag = sign * viewPager.height * deltaDistance * 0.6f
             val newTranslation = (viewPager.translationY + drag)
@@ -265,6 +313,11 @@ class UserWorksViewerFragment : Fragment(R.layout.fragment_user_works_viewer), U
         companion object {
             private const val MAX_TRANSLATION_DP = 96f
         }
+    }
+    
+    fun showNoMoreVideosToast() {
+        Log.d(TAG, "showNoMoreVideosToast called, toast=${noMoreVideosToast != null}")
+        noMoreVideosToast?.show()
     }
 }
 

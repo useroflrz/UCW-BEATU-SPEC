@@ -1048,14 +1048,52 @@
       - 支持流式数据的累积和状态更新
     - 下一步：完善AI搜索结果与视频列表的关联展示，优化流式传输的UI体验
 
-- [ ] 修改搜索为调用后端接口，视频存储本地，并显示
+- [x] 视频列表可以横屏，不显示其他视频，会在超出范围时弹出“无更多视频"
     - 2025-12-06 - done by KJH
-    - 开始对应数据库逻辑修改：
+      - 成果：
+          - 所有来源（搜索、历史、收藏、点赞、作品）的视频列表都可以切换到横屏模式
+          - 横屏模式下限制视频列表，只显示当前列表的视频，不加载其他视频
+          - 在第一个和最后一个视频时，向外滑动会触发回弹效果并显示"没有更多视频"提示
+          - 提示视图自动淡入淡出，2秒后自动消失
+  - 实现细节：
+      - **横屏视频列表限制**：
+          - 扩展 `LandscapeLaunchContract`，添加 `EXTRA_VIDEO_LIST` 和 `EXTRA_CURRENT_INDEX` 参数
+          - 扩展 `UserWorksViewerRouter` 接口，添加 `getCurrentVideoList()` 和 `getCurrentVideoIndex()` 方法
+          - `UserWorksViewerFragment` 实现上述方法，返回当前视频列表和索引
+          - `VideoItemFragment.openLandscapeMode()` 检测是否从 `userWorksViewer` 页面导航，如果是则获取并传递视频列表
+          - `LandscapeFragment` 检查是否有传入的视频列表，如果有则使用固定列表，否则加载所有横屏视频
+          - `LandscapeViewModel` 添加 `isUsingFixedVideoList` 标志，使用固定列表时禁止加载更多视频
+      - **边界回弹和提示**：
+          - 创建 `NoMoreVideosToast` 组件（`shared/designsystem` 模块），显示"没有更多视频"提示
+          - 提示视图支持淡入淡出动画，2秒后自动消失
+          - `UserWorksViewerFragment` 和 `LandscapeFragment` 都添加 `BounceEdgeEffect` 自定义 `EdgeEffect`
+          - 在 `handlePull` 方法中检测边界（第一个/最后一个视频），触发时显示提示
+          - 回弹效果使用 `OvershootInterpolator`，提供流畅的视觉反馈
+      - **支持所有来源**：
+          - 搜索、历史、收藏、点赞、作品都使用 `UserWorksViewerFragment`，通过 `source_tab` 参数区分
+          - 所有来源的视频列表在切换到横屏时都会传递视频列表，限制横屏显示范围
+          - 横屏模式下，固定视频列表在第一个和最后一个都显示提示，非固定模式只在最后一个显示提示
+  - 修改文件：
+      - `BeatUClient/shared/common/src/main/java/com/ucw/beatu/shared/common/navigation/LandscapeLaunchContract.kt`
+      - `BeatUClient/shared/router/src/main/java/com/ucw/beatu/shared/router/UserWorksViewerRouter.kt`
+      - `BeatUClient/business/user/presentation/src/main/java/com/ucw/beatu/business/user/presentation/ui/UserWorksViewerFragment.kt`
+      - `BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/ui/VideoItemFragment.kt`
+      - `BeatUClient/business/landscape/presentation/src/main/java/com/ucw/beatu/business/landscape/presentation/ui/LandscapeFragment.kt`
+      - `BeatUClient/business/landscape/presentation/src/main/java/com/ucw/beatu/business/landscape/presentation/viewmodel/LandscapeViewModel.kt`
+      - `BeatUClient/shared/designsystem/src/main/java/com/ucw/beatu/shared/designsystem/widget/NoMoreVideosToast.kt`
+  - 验证 & 指标：
+      - 横屏视频列表限制：从用户作品观看页面切换到横屏时，横屏页面只显示该用户的视频列表，不会加载其他视频
+      - 边界提示：在第一个和最后一个视频时，向外滑动会显示"没有更多视频"提示，提示2秒后自动消失
+      - 回弹效果：边界滑动时提供流畅的回弹动画，提升用户体验
+      - 所有来源支持：搜索、历史、收藏、点赞、作品等所有来源的视频列表都支持横屏切换和边界提示
+
+
 
 - [ ] 修改app不同情况下的数据拉取，同步远程,对客户端与后端的数据库重构，梳理业务逻辑
-    - 2025-12-06 - done by KJH
+    - 2025-12-07 - done by KJH
     - 内容：详情看 docs/datatable_reconstruction_design_document.md
-      - 开始对应数据库逻辑修改：
+      - 开始对应数据库逻辑修改
+      - 分步修改对应的逻辑
 
 
 - [ ] 解决点击评论与用户头像的视频不缩小放置到上面部分的问题

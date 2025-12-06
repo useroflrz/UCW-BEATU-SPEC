@@ -15,6 +15,10 @@ object LandscapeLaunchContract {
     const val EXTRA_VIDEO_COMMENT = "extra_landscape_video_comment"
     const val EXTRA_VIDEO_FAVORITE = "extra_landscape_video_favorite"
     const val EXTRA_VIDEO_SHARE = "extra_landscape_video_share"
+    
+    // 视频列表限制（用于用户作品观看页面切换到横屏时）
+    const val EXTRA_VIDEO_LIST = "extra_landscape_video_list"
+    const val EXTRA_CURRENT_INDEX = "extra_landscape_current_index"
 }
 
 

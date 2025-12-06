@@ -34,6 +34,24 @@ class LandscapeViewModel @Inject constructor(
     private var shouldReapplyExternalVideo = false
     private var isDefaultListLoading = false
     private var isLoadingMore = false
+    val isUsingFixedVideoList: Boolean // 标记是否使用固定的视频列表（来自用户作品观看页面）
+        get() = _isUsingFixedVideoList
+    private var _isUsingFixedVideoList = false
+
+    /**
+     * 设置固定的视频列表（用于用户作品观看页面切换到横屏时）
+     */
+    fun setVideoList(videoList: List<VideoItem>, currentIndex: Int) {
+        _isUsingFixedVideoList = true
+        // 直接设置视频列表，保持原有顺序
+        _uiState.value = _uiState.value.copy(
+            videoList = videoList,
+            isLoading = false,
+            error = null,
+            lastUpdated = System.currentTimeMillis()
+        )
+        AppLogger.d(TAG, "Set fixed video list size=${videoList.size}, currentIndex=$currentIndex")
+    }
 
     fun loadVideoList() {
         currentPage = 1
@@ -42,6 +60,11 @@ class LandscapeViewModel @Inject constructor(
     }
 
     fun loadMoreVideos() {
+        // 如果使用固定的视频列表，不允许加载更多
+        if (_isUsingFixedVideoList) {
+            AppLogger.d(TAG, "Using fixed video list, cannot load more")
+            return
+        }
         if (isLoadingMore || _uiState.value.isLoading) return
         isLoadingMore = true
         val nextPage = currentPage + 1

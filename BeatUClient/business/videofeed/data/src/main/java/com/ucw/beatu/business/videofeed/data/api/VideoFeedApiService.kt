@@ -90,5 +90,16 @@ interface VideoFeedApiService {
         @Path("id") videoId: String,
         @Body request: CommentRequest
     ): ApiResponse<CommentDto>
+
+    /**
+     * 搜索视频
+     * GET /api/search/videos?query=xxx&page=1&limit=20
+     */
+    @GET("api/search/videos")
+    suspend fun searchVideos(
+        @Query("query") query: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
+    ): ApiResponse<PageResponse<VideoDto>>
 }
 

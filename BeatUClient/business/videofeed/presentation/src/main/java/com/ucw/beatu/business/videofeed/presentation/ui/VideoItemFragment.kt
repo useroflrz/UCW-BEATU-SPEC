@@ -178,7 +178,8 @@ class VideoItemFragment : BaseFeedItemFragment() {
                 // 视频内容：显示播放器，隐藏图文容器
                 playerView?.visibility = View.VISIBLE
                 imagePager?.visibility = View.GONE
-                fullScreenButton?.visibility = if (isLandscapeVideo) View.VISIBLE else View.GONE
+                // 所有视频都显示横屏按钮，允许用户切换到横屏播放
+                fullScreenButton?.visibility = View.VISIBLE
             }
         }
 
@@ -534,10 +535,41 @@ class VideoItemFragment : BaseFeedItemFragment() {
             PlayerView.switchTargetView(player, playerView, null)
         }
 
-        val actionId = NavigationHelper.getResourceId(requireContext(), NavigationIds.ACTION_FEED_TO_LANDSCAPE)
+        // 根据当前导航目的地选择正确的action
+        val currentDestId = navController.currentDestination?.id
+        val userWorksViewerDestId = NavigationHelper.getResourceId(requireContext(), NavigationIds.USER_WORKS_VIEWER)
+        
+        val actionId = if (currentDestId == userWorksViewerDestId) {
+            // 从用户作品观看页面导航到横屏
+            NavigationHelper.getResourceId(requireContext(), NavigationIds.ACTION_USER_WORKS_VIEWER_TO_LANDSCAPE)
+        } else {
+            // 从Feed页面导航到横屏（默认）
+            NavigationHelper.getResourceId(requireContext(), NavigationIds.ACTION_FEED_TO_LANDSCAPE)
+        }
+        
         if (actionId == 0) {
-            Log.e(TAG, "Navigation action not found: ${NavigationIds.ACTION_FEED_TO_LANDSCAPE}")
+            Log.e(TAG, "Navigation action not found: currentDestId=$currentDestId, userWorksViewerDestId=$userWorksViewerDestId")
             return
+        }
+
+        // 如果从用户作品观看页面导航（包括搜索、历史、收藏、点赞等），获取视频列表并传递
+        val videoList = if (currentDestId == userWorksViewerDestId) {
+            val router = RouterRegistry.getUserWorksViewerRouter()
+            val list = router?.getCurrentVideoList()
+            Log.d(TAG, "openLandscapeMode: from userWorksViewer, videoListSize=${list?.size ?: 0}")
+            list
+        } else {
+            Log.d(TAG, "openLandscapeMode: from feed or other page, no video list restriction")
+            null
+        }
+        
+        val currentIndex = if (currentDestId == userWorksViewerDestId) {
+            val router = RouterRegistry.getUserWorksViewerRouter()
+            val index = router?.getCurrentVideoIndex() ?: 0
+            Log.d(TAG, "openLandscapeMode: from userWorksViewer, currentIndex=$index")
+            index
+        } else {
+            0
         }
 
         val args = bundleOf(
@@ -549,7 +581,13 @@ class VideoItemFragment : BaseFeedItemFragment() {
             LandscapeLaunchContract.EXTRA_VIDEO_COMMENT to item.commentCount,
             LandscapeLaunchContract.EXTRA_VIDEO_FAVORITE to item.favoriteCount,
             LandscapeLaunchContract.EXTRA_VIDEO_SHARE to item.shareCount
-        )
+        ).apply {
+            // 如果有视频列表，传递视频列表和当前索引
+            if (videoList != null) {
+                putParcelableArrayList(LandscapeLaunchContract.EXTRA_VIDEO_LIST, ArrayList(videoList))
+                putInt(LandscapeLaunchContract.EXTRA_CURRENT_INDEX, currentIndex)
+            }
+        }
 
         navigatingToLandscape = true
         runCatching { navController.navigate(actionId, args) }

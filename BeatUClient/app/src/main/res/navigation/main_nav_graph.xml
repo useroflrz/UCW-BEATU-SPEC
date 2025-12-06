@@ -100,6 +100,11 @@
             android:name="source_tab"
             app:argType="string"
             android:defaultValue="search" />
+        
+        <!-- 跳转到横屏页面 -->
+        <action
+            android:id="@+id/action_userWorksViewer_to_landscape"
+            app:destination="@id/landscape" />
     </fragment>
 
     <!-- 搜索页面 -->
