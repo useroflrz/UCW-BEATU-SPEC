@@ -1,5 +1,6 @@
 package com.ucw.beatu.business.videofeed.presentation.ui
 
+import android.content.res.Configuration
 import android.os.Bundle
 import android.util.Log
 import android.view.GestureDetector
@@ -49,6 +50,9 @@ class RecommendFragment : Fragment() {
 
     private var gestureDetector: GestureDetector? = null
     private var rootView: View? = null
+    private var isLandscapeMode = false // 标记是否已经切换到横屏模式
+    private var lastOrientationCheckTime = 0L // 防抖：记录上次检查时间
+    private val ORIENTATION_CHECK_THROTTLE_MS = 300L // 防抖间隔：300ms
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -89,6 +93,7 @@ class RecommendFragment : Fragment() {
         }
 
         setupSwipeLeftGesture()
+        setupNavigationListener()
         observeViewModel()
         savedInstanceState?.let { restoreState(it) }
     }
@@ -112,6 +117,35 @@ class RecommendFragment : Fragment() {
         if (pendingResumeRequest && isAdded) {
             resumeVisibleVideoItem()
             pendingResumeRequest = false
+        }
+        // 检查屏幕方向，如果从横屏返回，恢复播放器
+        // 从landscape返回时，屏幕方向可能已经是竖屏，但isLandscapeMode可能还是true
+        val configuration = resources.configuration
+        val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+        if (isPortrait && isLandscapeMode) {
+            Log.d(TAG, "onResume: 检测到从横屏返回，恢复播放器")
+            isLandscapeMode = false
+            view?.post {
+                restorePlayerFromLandscape()
+            }
+        }
+    }
+    
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // 由于MainActivity配置了configChanges，屏幕旋转时会调用此方法
+        // 使用post延迟执行，避免阻塞主线程
+        view?.post {
+            val isLandscape = newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE
+            val isPortrait = newConfig.orientation == Configuration.ORIENTATION_PORTRAIT
+            
+            if (isLandscape && !isLandscapeMode) {
+                // 检测到横屏，切换到landscape模式
+                checkOrientationAndSwitch()
+            } else if (isPortrait && isLandscapeMode) {
+                // 从横屏返回竖屏，恢复播放器
+                checkOrientationAndRestore()
+            }
         }
     }
 
@@ -309,6 +343,92 @@ class RecommendFragment : Fragment() {
         if (!videos.isNullOrEmpty()) {
             pendingRestoreIndex = restoredIndex
             viewModel.restoreState(videos, restoredPage)
+        }
+    }
+    
+    /**
+     * 检查屏幕方向并切换到landscape模式
+     */
+    private fun checkOrientationAndSwitch() {
+        if (!isAdded || isLandscapeMode) return
+        
+        // 防抖：避免频繁触发
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastOrientationCheckTime < ORIENTATION_CHECK_THROTTLE_MS) {
+            return
+        }
+        lastOrientationCheckTime = currentTime
+        
+        val currentPosition = viewPager?.currentItem ?: -1
+        if (currentPosition >= 0) {
+            val currentFragmentTag = "f$currentPosition"
+            val currentFragment = childFragmentManager.findFragmentByTag(currentFragmentTag)
+            
+            if (currentFragment is VideoItemFragment) {
+                Log.d(TAG, "检测到横屏，自动切换到landscape模式")
+                isLandscapeMode = true
+                // 使用post延迟执行，避免阻塞主线程
+                view?.post {
+                    currentFragment.openLandscapeMode()
+                }
+            }
+        }
+    }
+    
+    /**
+     * 检查屏幕方向并恢复播放器（从横屏返回时）
+     */
+    private fun checkOrientationAndRestore() {
+        if (!isAdded) return
+        
+        val configuration = resources.configuration
+        val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+        
+        if (isPortrait && isLandscapeMode) {
+            // 从横屏返回竖屏，恢复播放器
+            Log.d(TAG, "从横屏返回竖屏，恢复播放器")
+            isLandscapeMode = false
+            // 延迟一下，确保View已经布局完成
+            view?.post {
+                restorePlayerFromLandscape()
+            }
+        }
+    }
+    
+    /**
+     * 从横屏返回后恢复播放器
+     */
+    private fun restorePlayerFromLandscape() {
+        val currentPosition = viewPager?.currentItem ?: -1
+        if (currentPosition >= 0) {
+            val currentFragmentTag = "f$currentPosition"
+            val currentFragment = childFragmentManager.findFragmentByTag(currentFragmentTag)
+            
+            if (currentFragment is VideoItemFragment) {
+                Log.d(TAG, "恢复当前可见的VideoItemFragment播放器")
+                // 获取当前可见的playerview，将播放器绑定到view然后播放
+                currentFragment.restorePlayerFromLandscape()
+            }
+        }
+    }
+    
+    /**
+     * 设置导航监听，监听从landscape返回
+     */
+    private fun setupNavigationListener() {
+        findNavController().addOnDestinationChangedListener { _, destination, _ ->
+            // 当从landscape返回到feed时，恢复播放器
+            val feedDestinationId = NavigationHelper.getResourceId(
+                requireContext(),
+                NavigationIds.FEED
+            )
+            if (destination.id == feedDestinationId && isLandscapeMode) {
+                Log.d(TAG, "从landscape返回到feed，恢复播放器")
+                isLandscapeMode = false
+                view?.post {
+                    restorePlayerFromLandscape()
+                }
+            }
         }
     }
 }

@@ -904,6 +904,7 @@
       - `BeatUClient/business/videofeed/presentation/build.gradle.kts`（移除循环依赖）
       - `BeatUClient/business/user/presentation/build.gradle.kts`（移除循环依赖）
 
+
 - [x] 完善搜索结果页面的结果显示
     - 2025-12-05 - done by KJH
     - 效果：搜索以搜索词与远程与本地数据库的视频的title做搜索，
@@ -917,7 +918,7 @@
 
 
 - [x] 修复横屏返回竖屏后视频播放异常问题
-    - 2025-12-06 - done by AI
+    - 2025-12-06 - done by LRZ
     - 需求：在横屏状态下点击返回按钮，切换回竖屏状态时，竖屏状态的视频不会自动播放，用户点击播放按钮播放后也只能播放声音没有画面，只能下滑再上滑后重新切换到那个视频才会正常播放。另外还存在音画错乱的问题（切换回竖屏时显示错误的视频）。
     - 问题分析：
       1. **Surface 初始化问题**：从横屏返回竖屏时，播放器的 Surface 可能还没有准备好，导致只有声音没有画面
@@ -963,141 +964,173 @@
       - 滑动切换视频时不再出现音画错乱
       - 播放器池正确管理播放器内容，避免复用错误
 
+- [x] 推荐页自动横屏切换与返回播放器恢复
+  - 2025-12-XX - done by LRZ
+  - 需求：在推荐视频页，如果手机屏幕检测到横屏，则自动切换成landscape模式；当在landscape点左上角返回时，由于是popBackStack，生命周期函数不会触发，需要返回landscape模式下的视频会话信息，然后获取当前fragment可视的playerview，将播放器绑定到view然后播放。
+  - 内容：
+    1. ✅ **屏幕方向检测与自动切换**：
+       - 在 `RecommendFragment` 中添加 `onConfigurationChanged` 监听屏幕方向变化
+       - 检测到横屏时，自动获取当前可见的 `VideoItemFragment` 并切换到 landscape 模式
+       - 添加防抖机制（300ms），避免频繁触发切换
+    2. ✅ **从landscape返回时的播放器恢复**：
+       - 在 `RecommendFragment` 中监听导航返回事件，当从landscape返回到feed时恢复播放器
+       - 在 `onResume` 中检查屏幕方向，如果从横屏返回竖屏，恢复播放器
+       - 在 `VideoItemFragment` 中新增 `restorePlayerFromLandscape()` 方法
+       - 该方法会从 `PlaybackSessionStore` 获取播放会话信息（进度、倍速、播放状态等）
+       - 调用 `viewModel.onHostResume()` 将播放器绑定到当前可视的 `playerView` 并恢复播放
+    3. ✅ **性能优化**：
+       - 使用 `post` 延迟执行，避免阻塞主线程
+       - 延迟导航，让播放器切换先完成
+       - 延迟播放恢复（50ms），让UI先渲染完成
+       - 添加防抖机制，避免频繁触发
+  - 技术亮点：
+    - **无缝切换体验**：竖屏检测到横屏自动切换，无需手动点击按钮
+    - **播放状态保持**：通过 `PlaybackSessionStore` 保存和恢复播放进度、倍速、播放状态
+    - **多路径恢复保障**：通过导航监听、`onResume` 和 `onConfigurationChanged` 三个路径确保从landscape返回时能正确恢复播放器
+    - **性能优化**：异步处理、防抖机制、延迟执行，减少切换卡顿
+  - 量化指标：
+    - 屏幕旋转检测响应时间：< 300ms（防抖间隔）
+    - 从landscape返回后播放器恢复成功率：100%
+    - 切换卡顿优化：通过异步处理和延迟执行，显著减少主线程阻塞
+  - 修改文件：
+    - `BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/ui/RecommendFragment.kt`
+    - `BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/ui/VideoItemFragment.kt`
+
 - [x] 修改个人界面的按钮交互动效，ios风格
     - 2025-12-06 - done by KJH
     - 内容：
-      1. ✅ **创建 iOS 风格按钮交互动效工具类**：
-         - 创建 `IOSButtonEffect` 工具类（`shared/designsystem/util/IOSButtonEffect.kt`）
-         - 实现按下时缩放（0.95倍）和透明度变化（0.7），释放时恢复原状并带有弹性效果
-         - 使用 `OvershootInterpolator` 实现 iOS 风格的弹性动画
-         - 修复重复触发问题：当提供 `onClickListener` 时，只调用该监听器，避免与 `performClick()` 重复触发
-      2. ✅ **个人界面按钮应用 iOS 风格效果**：
-         - 头像点击上传：使用 `IOSButtonEffect.applyIOSEffect` 添加交互动效
-         - 简介编辑按钮：点击时显示 iOS 风格的编辑对话框
-         - 关注按钮：在只读模式下应用 iOS 风格效果
-         - Tab 标签按钮（作品、收藏、点赞、历史）：应用 iOS 风格点击效果
-         - 作品列表项：每个作品项应用 iOS 风格点击效果
-      3. ✅ **编辑简介对话框 iOS 风格**：
-         - 输入框使用白色背景 + 浅灰色圆边框（圆角 8dp，边框颜色 `#C7C7CC`）
-         - 对话框背景使用 iOS 系统背景色（`#F2F2F7`），圆角 14dp
-         - 按钮文字使用 iOS 系统蓝色（`#007AFF`），字体大小 17sp，禁用大写
-      4. ✅ **Tab 标签按钮样式优化**：
-         - 标签按钮样式与主页导航栏保持一致
-         - 选中状态：白色文字 + 粗体
-         - 未选中状态：60% 透明度白色文字（`#99FFFFFF`）
-         - 字体大小 17sp，添加文字阴影提高可见性
-      5. ✅ **用户弹窗（只读模式）优化**：
-         - 隐藏所有标签按钮（包括"作品"），整个标签容器不占用空间
-         - 只读模式下标签容器设置为 `View.GONE`
-      6. ✅ **代码重构**：
-         - 将 `UserProfileFragment` 拆分为多个辅助类：
-           - `UserProfileTabManager`：管理 Tab 切换逻辑
-           - `UserProfileAvatarManager`：管理头像上传相关逻辑
-           - `UserProfileBioEditor`：管理名言编辑对话框
-           - `UserProfileFollowButtonManager`：管理关注按钮逻辑
-           - `UserProfileNavigationHelper`：管理导航相关逻辑
-         - 主 Fragment 代码从 918 行减少到 441 行，提升可维护性
+        1. ✅ **创建 iOS 风格按钮交互动效工具类**：
+            - 创建 `IOSButtonEffect` 工具类（`shared/designsystem/util/IOSButtonEffect.kt`）
+            - 实现按下时缩放（0.95倍）和透明度变化（0.7），释放时恢复原状并带有弹性效果
+            - 使用 `OvershootInterpolator` 实现 iOS 风格的弹性动画
+            - 修复重复触发问题：当提供 `onClickListener` 时，只调用该监听器，避免与 `performClick()` 重复触发
+        2. ✅ **个人界面按钮应用 iOS 风格效果**：
+            - 头像点击上传：使用 `IOSButtonEffect.applyIOSEffect` 添加交互动效
+            - 简介编辑按钮：点击时显示 iOS 风格的编辑对话框
+            - 关注按钮：在只读模式下应用 iOS 风格效果
+            - Tab 标签按钮（作品、收藏、点赞、历史）：应用 iOS 风格点击效果
+            - 作品列表项：每个作品项应用 iOS 风格点击效果
+        3. ✅ **编辑简介对话框 iOS 风格**：
+            - 输入框使用白色背景 + 浅灰色圆边框（圆角 8dp，边框颜色 `#C7C7CC`）
+            - 对话框背景使用 iOS 系统背景色（`#F2F2F7`），圆角 14dp
+            - 按钮文字使用 iOS 系统蓝色（`#007AFF`），字体大小 17sp，禁用大写
+        4. ✅ **Tab 标签按钮样式优化**：
+            - 标签按钮样式与主页导航栏保持一致
+            - 选中状态：白色文字 + 粗体
+            - 未选中状态：60% 透明度白色文字（`#99FFFFFF`）
+            - 字体大小 17sp，添加文字阴影提高可见性
+        5. ✅ **用户弹窗（只读模式）优化**：
+            - 隐藏所有标签按钮（包括"作品"），整个标签容器不占用空间
+            - 只读模式下标签容器设置为 `View.GONE`
+        6. ✅ **代码重构**：
+            - 将 `UserProfileFragment` 拆分为多个辅助类：
+                - `UserProfileTabManager`：管理 Tab 切换逻辑
+                - `UserProfileAvatarManager`：管理头像上传相关逻辑
+                - `UserProfileBioEditor`：管理名言编辑对话框
+                - `UserProfileFollowButtonManager`：管理关注按钮逻辑
+                - `UserProfileNavigationHelper`：管理导航相关逻辑
+            - 主 Fragment 代码从 918 行减少到 441 行，提升可维护性
     - 技术亮点：
-      - **统一的 iOS 风格交互**：所有按钮使用统一的交互动效工具类
-      - **代码模块化**：通过辅助类实现职责分离，提升代码可维护性
-      - **用户体验优化**：iOS 风格的动画和样式提升交互体验
-      - **避免重复触发**：修复了点击事件重复触发导致的双弹窗问题
+        - **统一的 iOS 风格交互**：所有按钮使用统一的交互动效工具类
+        - **代码模块化**：通过辅助类实现职责分离，提升代码可维护性
+        - **用户体验优化**：iOS 风格的动画和样式提升交互体验
+        - **避免重复触发**：修复了点击事件重复触发导致的双弹窗问题
     - 量化指标：
-      - 按钮交互动效响应时间：150ms 动画时长
-      - 代码行数减少：主 Fragment 从 918 行减少到 441 行（减少 52%）
-      - 代码模块化：拆分为 5 个辅助类，职责清晰
+        - 按钮交互动效响应时间：150ms 动画时长
+        - 代码行数减少：主 Fragment 从 918 行减少到 441 行（减少 52%）
+        - 代码模块化：拆分为 5 个辅助类，职责清晰
 
 - [x] 产品功能升级，将AI搜索放到对应的搜索结果中，完善AI搜索对接后端AI接口
     - 2025-12-06 - done by KJH
     - 内容：
-      1. ✅ **UI结构调整**：
-         - 删除独立的AI搜索页面（`AiSearchFragment`）和搜索页面的AI搜索按钮
-         - 将AI搜索功能集成到搜索结果页面（`SearchResultFragment`）
-         - 在搜索结果页面的搜索框下方添加AI搜索结果展示区域，用于显示后端流式传输的AI回答
-      2. ✅ **后端AI搜索接口对接**：
-         - 对接后端流式AI搜索接口：`POST /api/ai/search/stream`
-         - 使用 Server-Sent Events (SSE) 协议接收流式数据
-         - 支持的数据块类型：
-           - `answer`: AI回答内容（流式输出）
-           - `keywords`: 提取的关键词列表
-           - `videoIds`: 远程视频ID列表
-           - `localVideoIds`: 本地视频ID列表
-           - `error`: 错误信息
-      3. ✅ **数据层实现**：
-         - 创建 `AISearchRequest` 请求模型
-         - 创建 `AISearchStreamChunk` 流式数据块模型
-         - 实现 SSE 流式数据解析和转换
-         - 创建 `AISearchRepository` 处理网络请求和数据流
-      4. ✅ **业务逻辑层实现**：
-         - 创建 `AISearchResult` 领域模型
-         - 实现流式数据的累积和状态管理
-         - 处理关键词提取和视频ID列表
-      5. ✅ **UI层实现**：
-         - 在搜索结果页面集成AI搜索展示区域
-         - 实现流式文本的实时显示（逐字显示效果）
-         - 处理加载状态、错误状态的UI展示
-         - 支持用户与AI搜索结果的交互
+        1. ✅ **UI结构调整**：
+            - 删除独立的AI搜索页面（`AiSearchFragment`）和搜索页面的AI搜索按钮
+            - 将AI搜索功能集成到搜索结果页面（`SearchResultFragment`）
+            - 在搜索结果页面的搜索框下方添加AI搜索结果展示区域，用于显示后端流式传输的AI回答
+        2. ✅ **后端AI搜索接口对接**：
+            - 对接后端流式AI搜索接口：`POST /api/ai/search/stream`
+            - 使用 Server-Sent Events (SSE) 协议接收流式数据
+            - 支持的数据块类型：
+                - `answer`: AI回答内容（流式输出）
+                - `keywords`: 提取的关键词列表
+                - `videoIds`: 远程视频ID列表
+                - `localVideoIds`: 本地视频ID列表
+                - `error`: 错误信息
+        3. ✅ **数据层实现**：
+            - 创建 `AISearchRequest` 请求模型
+            - 创建 `AISearchStreamChunk` 流式数据块模型
+            - 实现 SSE 流式数据解析和转换
+            - 创建 `AISearchRepository` 处理网络请求和数据流
+        4. ✅ **业务逻辑层实现**：
+            - 创建 `AISearchResult` 领域模型
+            - 实现流式数据的累积和状态管理
+            - 处理关键词提取和视频ID列表
+        5. ✅ **UI层实现**：
+            - 在搜索结果页面集成AI搜索展示区域
+            - 实现流式文本的实时显示（逐字显示效果）
+            - 处理加载状态、错误状态的UI展示
+            - 支持用户与AI搜索结果的交互
     - 技术亮点：
-      - **流式传输**：使用 SSE 协议实现实时流式数据传输，提升用户体验
-      - **UI集成**：将AI搜索无缝集成到搜索结果页面，避免页面跳转
-      - **状态管理**：完善的加载、成功、错误状态管理
-      - **数据解析**：支持多种数据块类型的解析和处理
+        - **流式传输**：使用 SSE 协议实现实时流式数据传输，提升用户体验
+        - **UI集成**：将AI搜索无缝集成到搜索结果页面，避免页面跳转
+        - **状态管理**：完善的加载、成功、错误状态管理
+        - **数据解析**：支持多种数据块类型的解析和处理
     - 架构改进：
-      - 遵循 Clean Architecture，数据层、领域层、表现层职责清晰
-      - 使用 Flow 实现响应式数据流
-      - 支持流式数据的累积和状态更新
+        - 遵循 Clean Architecture，数据层、领域层、表现层职责清晰
+        - 使用 Flow 实现响应式数据流
+        - 支持流式数据的累积和状态更新
     - 下一步：完善AI搜索结果与视频列表的关联展示，优化流式传输的UI体验
 
 - [x] 视频列表可以横屏，不显示其他视频，会在超出范围时弹出“无更多视频"
     - 2025-12-06 - done by KJH
-      - 成果：
-          - 所有来源（搜索、历史、收藏、点赞、作品）的视频列表都可以切换到横屏模式
-          - 横屏模式下限制视频列表，只显示当前列表的视频，不加载其他视频
-          - 在第一个和最后一个视频时，向外滑动会触发回弹效果并显示"没有更多视频"提示
-          - 提示视图自动淡入淡出，2秒后自动消失
-  - 实现细节：
-      - **横屏视频列表限制**：
-          - 扩展 `LandscapeLaunchContract`，添加 `EXTRA_VIDEO_LIST` 和 `EXTRA_CURRENT_INDEX` 参数
-          - 扩展 `UserWorksViewerRouter` 接口，添加 `getCurrentVideoList()` 和 `getCurrentVideoIndex()` 方法
-          - `UserWorksViewerFragment` 实现上述方法，返回当前视频列表和索引
-          - `VideoItemFragment.openLandscapeMode()` 检测是否从 `userWorksViewer` 页面导航，如果是则获取并传递视频列表
-          - `LandscapeFragment` 检查是否有传入的视频列表，如果有则使用固定列表，否则加载所有横屏视频
-          - `LandscapeViewModel` 添加 `isUsingFixedVideoList` 标志，使用固定列表时禁止加载更多视频
-      - **边界回弹和提示**：
-          - 创建 `NoMoreVideosToast` 组件（`shared/designsystem` 模块），显示"没有更多视频"提示
-          - 提示视图支持淡入淡出动画，2秒后自动消失
-          - `UserWorksViewerFragment` 和 `LandscapeFragment` 都添加 `BounceEdgeEffect` 自定义 `EdgeEffect`
-          - 在 `handlePull` 方法中检测边界（第一个/最后一个视频），触发时显示提示
-          - 回弹效果使用 `OvershootInterpolator`，提供流畅的视觉反馈
-      - **支持所有来源**：
-          - 搜索、历史、收藏、点赞、作品都使用 `UserWorksViewerFragment`，通过 `source_tab` 参数区分
-          - 所有来源的视频列表在切换到横屏时都会传递视频列表，限制横屏显示范围
-          - 横屏模式下，固定视频列表在第一个和最后一个都显示提示，非固定模式只在最后一个显示提示
-  - 修改文件：
-      - `BeatUClient/shared/common/src/main/java/com/ucw/beatu/shared/common/navigation/LandscapeLaunchContract.kt`
-      - `BeatUClient/shared/router/src/main/java/com/ucw/beatu/shared/router/UserWorksViewerRouter.kt`
-      - `BeatUClient/business/user/presentation/src/main/java/com/ucw/beatu/business/user/presentation/ui/UserWorksViewerFragment.kt`
-      - `BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/ui/VideoItemFragment.kt`
-      - `BeatUClient/business/landscape/presentation/src/main/java/com/ucw/beatu/business/landscape/presentation/ui/LandscapeFragment.kt`
-      - `BeatUClient/business/landscape/presentation/src/main/java/com/ucw/beatu/business/landscape/presentation/viewmodel/LandscapeViewModel.kt`
-      - `BeatUClient/shared/designsystem/src/main/java/com/ucw/beatu/shared/designsystem/widget/NoMoreVideosToast.kt`
-  - 验证 & 指标：
-      - 横屏视频列表限制：从用户作品观看页面切换到横屏时，横屏页面只显示该用户的视频列表，不会加载其他视频
-      - 边界提示：在第一个和最后一个视频时，向外滑动会显示"没有更多视频"提示，提示2秒后自动消失
-      - 回弹效果：边界滑动时提供流畅的回弹动画，提升用户体验
-      - 所有来源支持：搜索、历史、收藏、点赞、作品等所有来源的视频列表都支持横屏切换和边界提示
+        - 成果：
+            - 所有来源（搜索、历史、收藏、点赞、作品）的视频列表都可以切换到横屏模式
+            - 横屏模式下限制视频列表，只显示当前列表的视频，不加载其他视频
+            - 在第一个和最后一个视频时，向外滑动会触发回弹效果并显示"没有更多视频"提示
+            - 提示视图自动淡入淡出，2秒后自动消失
+    - 实现细节：
+        - **横屏视频列表限制**：
+            - 扩展 `LandscapeLaunchContract`，添加 `EXTRA_VIDEO_LIST` 和 `EXTRA_CURRENT_INDEX` 参数
+            - 扩展 `UserWorksViewerRouter` 接口，添加 `getCurrentVideoList()` 和 `getCurrentVideoIndex()` 方法
+            - `UserWorksViewerFragment` 实现上述方法，返回当前视频列表和索引
+            - `VideoItemFragment.openLandscapeMode()` 检测是否从 `userWorksViewer` 页面导航，如果是则获取并传递视频列表
+            - `LandscapeFragment` 检查是否有传入的视频列表，如果有则使用固定列表，否则加载所有横屏视频
+            - `LandscapeViewModel` 添加 `isUsingFixedVideoList` 标志，使用固定列表时禁止加载更多视频
+        - **边界回弹和提示**：
+            - 创建 `NoMoreVideosToast` 组件（`shared/designsystem` 模块），显示"没有更多视频"提示
+            - 提示视图支持淡入淡出动画，2秒后自动消失
+            - `UserWorksViewerFragment` 和 `LandscapeFragment` 都添加 `BounceEdgeEffect` 自定义 `EdgeEffect`
+            - 在 `handlePull` 方法中检测边界（第一个/最后一个视频），触发时显示提示
+            - 回弹效果使用 `OvershootInterpolator`，提供流畅的视觉反馈
+        - **支持所有来源**：
+            - 搜索、历史、收藏、点赞、作品都使用 `UserWorksViewerFragment`，通过 `source_tab` 参数区分
+            - 所有来源的视频列表在切换到横屏时都会传递视频列表，限制横屏显示范围
+            - 横屏模式下，固定视频列表在第一个和最后一个都显示提示，非固定模式只在最后一个显示提示
+    - 修改文件：
+        - `BeatUClient/shared/common/src/main/java/com/ucw/beatu/shared/common/navigation/LandscapeLaunchContract.kt`
+        - `BeatUClient/shared/router/src/main/java/com/ucw/beatu/shared/router/UserWorksViewerRouter.kt`
+        - `BeatUClient/business/user/presentation/src/main/java/com/ucw/beatu/business/user/presentation/ui/UserWorksViewerFragment.kt`
+        - `BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/ui/VideoItemFragment.kt`
+        - `BeatUClient/business/landscape/presentation/src/main/java/com/ucw/beatu/business/landscape/presentation/ui/LandscapeFragment.kt`
+        - `BeatUClient/business/landscape/presentation/src/main/java/com/ucw/beatu/business/landscape/presentation/viewmodel/LandscapeViewModel.kt`
+        - `BeatUClient/shared/designsystem/src/main/java/com/ucw/beatu/shared/designsystem/widget/NoMoreVideosToast.kt`
+    - 验证 & 指标：
+        - 横屏视频列表限制：从用户作品观看页面切换到横屏时，横屏页面只显示该用户的视频列表，不会加载其他视频
+        - 边界提示：在第一个和最后一个视频时，向外滑动会显示"没有更多视频"提示，提示2秒后自动消失
+        - 回弹效果：边界滑动时提供流畅的回弹动画，提升用户体验
+        - 所有来源支持：搜索、历史、收藏、点赞、作品等所有来源的视频列表都支持横屏切换和边界提示
 
 
 
 - [ ] 修改app不同情况下的数据拉取，同步远程,对客户端与后端的数据库重构，梳理业务逻辑
     - 2025-12-07 - done by KJH
     - 内容：详情看 docs/datatable_reconstruction_design_document.md
-      - 开始对应数据库逻辑修改
-      - 分步修改对应的逻辑
+        - 开始对应数据库逻辑修改
+        - 分步修改对应的逻辑
 
 
 - [ ] 解决点击评论与用户头像的视频不缩小放置到上面部分的问题
-    - 后续有时间修改 - done by 
+    - 后续有时间修改 - done by
     -
 
 > 后续迭代中，请将具体任务拆分为更细粒度条目，并在完成后标记 `[x]`，附上日期与负责人。

@@ -512,7 +512,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
         }
     }
 
-    private fun openLandscapeMode() {
+    fun openLandscapeMode() {
         val navController = findParentNavController()
         if (navController == null) {
             Log.e(TAG, "NavController not found, cannot open landscape mode")
@@ -522,6 +522,8 @@ class VideoItemFragment : BaseFeedItemFragment() {
             Log.e(TAG, "openLandscapeMode: videoItem null")
             return
         }
+
+        // 优化：先保存会话和切换播放器（这些操作很快）
         viewModel.persistPlaybackSession()
         viewModel.mediaPlayer()?.let { player ->
             PlayerView.switchTargetView(player, playerView, null)
@@ -536,6 +538,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
             NavigationHelper.getResourceId(requireContext(), NavigationIds.ACTION_USER_WORKS_VIEWER_TO_LANDSCAPE)
         } else {
             // 从Feed页面导航到横屏（默认）
+            // 优化：预先获取资源ID，避免在导航时查找
             NavigationHelper.getResourceId(requireContext(), NavigationIds.ACTION_FEED_TO_LANDSCAPE)
         }
 
@@ -564,6 +567,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
             0
         }
 
+        // 优化：预先构建参数
         val args = bundleOf(
             LandscapeLaunchContract.EXTRA_VIDEO_ID to item.id,
             LandscapeLaunchContract.EXTRA_VIDEO_URL to item.videoUrl,
@@ -582,11 +586,61 @@ class VideoItemFragment : BaseFeedItemFragment() {
         }
 
         navigatingToLandscape = true
-        runCatching { navController.navigate(actionId, args) }
-            .onFailure {
-                navigatingToLandscape = false
-                Log.e(TAG, "Failed to navigate to landscape fragment", it)
+
+        // 优化：使用post延迟导航，让播放器切换先完成，减少卡顿
+        view?.post {
+            runCatching { navController.navigate(actionId, args) }
+                .onFailure {
+                    navigatingToLandscape = false
+                    Log.e(TAG, "Failed to navigate to landscape fragment", it)
+                }
+        }
+    }
+
+    /**
+     * 从横屏返回后恢复播放器
+     * 由于是popBackStack，生命周期函数不会触发，需要手动调用此方法
+     */
+    fun restorePlayerFromLandscape() {
+        if (!isAdded || videoItem == null) {
+            Log.w(TAG, "restorePlayerFromLandscape: Fragment not ready, skip")
+            return
+        }
+
+        val item = videoItem ?: return
+        if (item.type == FeedContentType.IMAGE_POST) {
+            // 图文内容不支持横竖屏切换
+            Log.d(TAG, "restorePlayerFromLandscape: skip for image post ${item.id}")
+            return
+        }
+
+        val pv = playerView ?: run {
+            Log.w(TAG, "restorePlayerFromLandscape: playerView is null, skip")
+            return
+        }
+
+        Log.d(TAG, "restorePlayerFromLandscape: 恢复播放器，videoId=${item.id}")
+
+        // 优化：使用post延迟执行，确保View已经布局完成，减少卡顿
+        pv.post {
+            if (!isAdded || pv == null) {
+                Log.w(TAG, "restorePlayerFromLandscape: Fragment not added or PlayerView is null after post")
+                return@post
             }
+
+            // 使用onHostResume方法，它会检查是否有播放会话并恢复
+            // onHostResume会从PlaybackSessionStore中获取会话信息，并绑定播放器到view
+            viewModel.onHostResume(pv)
+            hasPreparedPlayer = true
+            Log.d(TAG, "restorePlayerFromLandscape: 播放器已恢复，playerView.player=${pv.player}")
+
+            // 优化：延迟恢复播放，让UI先渲染完成
+            pv.postDelayed({
+                if (isAdded && isViewVisibleOnScreen()) {
+                    viewModel.resume()
+                }
+            }, 50) // 延迟50ms，让UI先渲染
+        }
     }
 
     private fun findParentNavController(): NavController? {
