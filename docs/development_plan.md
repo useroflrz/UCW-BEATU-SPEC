@@ -904,7 +904,6 @@
       - `BeatUClient/business/videofeed/presentation/build.gradle.kts`（移除循环依赖）
       - `BeatUClient/business/user/presentation/build.gradle.kts`（移除循环依赖）
 
-
 - [x] 完善搜索结果页面的结果显示
     - 2025-12-05 - done by KJH
     - 效果：搜索以搜索词与远程与本地数据库的视频的title做搜索，
@@ -914,6 +913,28 @@
       - 搜索结果点击后复用个人主页的 UserWorksViewer 播放器（传递 video_list + initial_index + search_title + source_tab=search），保持返回键先回到搜索结果视频页
       - 新增导航 action searchResult_to_userWorksViewer（并继续保留 searchResult_to_videoViewer），按当前 destination 精确选择可用 action，避免 "action not found" 崩溃
       - 依赖接入 videofeed:domain + data + presentation，保证 GetFeedUseCase 与 VideoRepository Hilt 绑定可用
+      - 搜索页 AI 按钮：若输入框有内容，点击 AI 会将当前输入作为首条提问传入 AI 搜索页（ai_query）；输入为空则按默认进入 AI 页
+
+- [x] 对客户端与后端的数据库重构，梳理业务逻辑
+    - 2025-12-06 - done by KJH
+    - 内容：详情看 docs/datatable_reconstruction_design_document.md
+
+
+- [] 产品功能升级，将ai搜索放到对应的搜索结果中，完善ai搜索对接后端ai接口
+    - 2025-12-06 - done by KJH
+
+
+
+- [ ] 实现竖屏的倍速播放
+    - 2025-12-06 - done by
+    -
+
+- [ ] 解决点击评论与用户头像的视频不缩小放置到上面部分的问题
+    - 2025-12-06 - done by 
+    - 
+
+
+
 
 - [x] 修复横屏返回竖屏后视频播放异常问题
     - 2025-12-06 - done by AI

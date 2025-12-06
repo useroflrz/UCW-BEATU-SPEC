@@ -277,15 +277,8 @@ class SearchFragment : Fragment() {
         rvSearchSuggestions.isVisible = state == SearchState.TYPING
     }
 
-    /**
-     * 获取假数据
-     */
-    private fun getMockSearchHistory(): List<String> {
-        return listOf("搞笑视频", "美食", "旅行", "音乐")
-    }
-
     private fun getMockHotSearch(): List<String> {
-        return listOf("热门话题1", "热门话题2", "热门话题3", "热门话题4", "热门话题5")
+        return listOf("高清", "横屏", "奇幻冒险", "视频")
     }
 
     private fun getMockSearchSuggestions(query: String): List<String> {
