@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -168,6 +169,8 @@ class SearchResultFragment : Fragment() {
         }
     }
 
+    private var lastErrorShown: String? = null // 记录上次显示的错误，避免重复提示
+    
     private fun updateAISearchUI(state: AISearchUiState) {
         when {
             state.isLoading -> {
@@ -176,6 +179,7 @@ class SearchResultFragment : Fragment() {
                 aiLoadingProgress.isVisible = true
                 aiAnswerText.isVisible = false
                 aiErrorText.isVisible = false
+                lastErrorShown = null // 重置错误记录
             }
             state.error != null -> {
                 // 显示错误
@@ -184,6 +188,16 @@ class SearchResultFragment : Fragment() {
                 aiAnswerText.isVisible = false
                 aiErrorText.isVisible = true
                 aiErrorText.text = state.error
+                
+                // ✅ 当 AI 搜索功能不可用时，显示 Toast 提醒用户
+                if (state.error != lastErrorShown) {
+                    lastErrorShown = state.error
+                    Toast.makeText(
+                        requireContext(),
+                        state.error,
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             }
             state.aiAnswer.isNotEmpty() -> {
                 // 显示AI回答（流式文本）
@@ -192,10 +206,12 @@ class SearchResultFragment : Fragment() {
                 aiAnswerText.isVisible = true
                 aiErrorText.isVisible = false
                 aiAnswerText.text = state.aiAnswer
+                lastErrorShown = null // 重置错误记录
             }
             else -> {
                 // 隐藏AI搜索区域
                 aiSearchContainer.isVisible = false
+                lastErrorShown = null // 重置错误记录
             }
         }
     }

@@ -7,6 +7,7 @@ import com.ucw.beatu.business.search.data.api.dto.AISearchStreamChunk
 import com.ucw.beatu.shared.network.config.NetworkConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import okhttp3.MediaType.Companion.toMediaType
@@ -14,7 +15,9 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.BufferedReader
+import java.io.IOException
 import java.io.InputStreamReader
+import java.net.UnknownHostException
 import javax.inject.Inject
 
 /**
@@ -58,10 +61,19 @@ class AISearchApiService @Inject constructor(
         
         okHttpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
+                // ✅ 改进错误消息，使其更用户友好
+                val errorMessage = when (response.code) {
+                    500 -> "AI 搜索服务暂时不可用，请稍后重试"
+                    503 -> "AI 搜索服务暂时不可用，请稍后重试"
+                    404 -> "AI 搜索功能暂时不可用"
+                    403 -> "AI 搜索功能暂时不可用"
+                    401 -> "AI 搜索功能暂时不可用"
+                    else -> "AI 搜索功能暂时不可用，请稍后重试"
+                }
                 emit(
                     AISearchStreamChunk(
                         chunkType = "error",
-                        content = "请求失败: ${response.code} ${response.message}",
+                        content = errorMessage,
                         isFinal = true
                     )
                 )
@@ -82,11 +94,11 @@ class AISearchApiService @Inject constructor(
                                         val chunk = chunkAdapter.fromJson(data)
                                         chunk?.let { emit(it) }
                                     } catch (e: Exception) {
-                                        // 解析失败，发送错误块
+                                        // ✅ 解析失败，发送用户友好的错误消息
                                         emit(
                                             AISearchStreamChunk(
                                                 chunkType = "error",
-                                                content = "解析数据失败: ${e.message}",
+                                                content = "AI 搜索功能暂时不可用，请稍后重试",
                                                 isFinal = true
                                             )
                                         )
@@ -101,6 +113,26 @@ class AISearchApiService @Inject constructor(
                 }
             }
         }
+    }.catch { e ->
+        // ✅ 处理网络异常，提供用户友好的错误消息
+        val errorMessage = when (e) {
+            is UnknownHostException -> "网络连接失败，请检查网络设置"
+            is IOException -> {
+                if (e.message?.contains("timeout", ignoreCase = true) == true) {
+                    "请求超时，请稍后重试"
+                } else {
+                    "网络连接失败，请检查网络设置"
+                }
+            }
+            else -> "AI 搜索功能暂时不可用，请稍后重试"
+        }
+        emit(
+            AISearchStreamChunk(
+                chunkType = "error",
+                content = errorMessage,
+                isFinal = true
+            )
+        )
     }.flowOn(Dispatchers.IO)
 }
 
