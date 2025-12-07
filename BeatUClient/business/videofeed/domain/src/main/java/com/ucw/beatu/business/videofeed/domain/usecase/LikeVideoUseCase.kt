@@ -16,7 +16,7 @@ class LikeVideoUseCase @Inject constructor(
      * @param videoId 视频ID
      * @return AppResult<Unit>
      */
-    suspend operator fun invoke(videoId: String): AppResult<Unit> {
+    suspend operator fun invoke(videoId: Long): AppResult<Unit> {  // ✅ 修改：从 String 改为 Long
         return repository.likeVideo(videoId)
     }
 }

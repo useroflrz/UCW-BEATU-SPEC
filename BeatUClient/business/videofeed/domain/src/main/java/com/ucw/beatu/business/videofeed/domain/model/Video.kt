@@ -5,7 +5,7 @@ package com.ucw.beatu.business.videofeed.domain.model
  * 业务层的核心数据模型，不依赖具体实现
  */
 data class Video(
-    val id: String,
+    val id: Long,  // ✅ 修改：从 String 改为 Long
     val playUrl: String,
     val coverUrl: String,
     val title: String,

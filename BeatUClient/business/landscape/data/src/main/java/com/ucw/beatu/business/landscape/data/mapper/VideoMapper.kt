@@ -14,7 +14,7 @@ import com.ucw.beatu.business.videofeed.domain.model.Video
  */
 fun Video.toLandscapeVideoItem(): VideoItem {
     return VideoItem(
-        id = id,
+        id = id,  // ✅ 修改：Video.id 和 VideoItem.id 都是 Long，直接传递
         videoUrl = playUrl,
         title = title,
         authorName = authorName,

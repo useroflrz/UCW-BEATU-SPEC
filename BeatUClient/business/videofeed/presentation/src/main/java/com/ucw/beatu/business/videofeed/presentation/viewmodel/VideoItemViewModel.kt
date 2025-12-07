@@ -30,7 +30,7 @@ import javax.inject.Inject
  * 管理单个视频的播放器生命周期和状态
  */
 data class VideoItemUiState(
-    val currentVideoId: String? = null,
+    val currentVideoId: Long? = null,  // ✅ 修改：从 String? 改为 Long?
     val isPlaying: Boolean = false,
     val isLoading: Boolean = false,
     val showPlaceholder: Boolean = true,
@@ -62,7 +62,7 @@ class VideoItemViewModel @Inject constructor(
     val uiState: StateFlow<VideoItemUiState> = _uiState.asStateFlow()
 
     private var currentPlayer: VideoPlayer? = null
-    private var currentVideoId: String? = null
+    private var currentVideoId: Long? = null  // ✅ 修改：从 String? 改为 Long?
     private var currentVideoUrl: String? = null
     private var progressJob: Job? = null
     private var playerListener: VideoPlayer.Listener? = null
@@ -73,7 +73,7 @@ class VideoItemViewModel @Inject constructor(
     /**
      * 播放视频
      */
-    fun playVideo(videoId: String, videoUrl: String) {
+    fun playVideo(videoId: Long, videoUrl: String) {  // ✅ 修改：从 String 改为 Long
         viewModelScope.launch {
             // 如果已经在播放同一个视频，不重复播放
             if (currentVideoId == videoId && currentPlayer != null) {
@@ -106,12 +106,12 @@ class VideoItemViewModel @Inject constructor(
     /**
      * 准备播放器（由 Fragment 调用，传入 PlayerView）
      */
-    fun preparePlayer(videoId: String, videoUrl: String, playerView: PlayerView) {
+    fun preparePlayer(videoId: Long, videoUrl: String, playerView: PlayerView) {  // ✅ 修改：从 String 改为 Long
         viewModelScope.launch {
             try {
                 android.util.Log.d("VideoItemViewModel", "preparePlayer: 视频ID=$videoId，视频URL=$videoUrl")
                 // 检查参数有效性
-                if (videoId.isBlank() || videoUrl.isBlank()) {
+                if (videoId <= 0 || videoUrl.isBlank()) {  // ✅ 修改：videoId 现在是 Long，检查 <= 0 而不是 isBlank()
                     android.util.Log.e("VideoItemViewModel", "preparePlayer: 视频ID或URL为空，视频ID=$videoId，视频URL=$videoUrl")
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -138,7 +138,7 @@ class VideoItemViewModel @Inject constructor(
                 // 检查播放器当前的内容是否匹配新的 videoId
                 // 如果从 availablePlayers 中获取的播放器可能还在播放其他视频
                 val currentMediaItem = player.player.currentMediaItem
-                val currentTag = currentMediaItem?.localConfiguration?.tag as? String
+                val currentTag = currentMediaItem?.localConfiguration?.tag as? Long  // ✅ 修改：tag 现在是 Long
                 if (currentTag != null && currentTag != videoId) {
                     android.util.Log.w("VideoItemViewModel", "preparePlayer: 播放器当前播放的视频ID=$currentTag 与目标视频ID=$videoId 不匹配，需要重新准备")
                     // 停止当前播放并清除内容
@@ -152,7 +152,7 @@ class VideoItemViewModel @Inject constructor(
                 // 添加监听器
                 playerListener?.let { player.removeListener(it) }
                 val listener = object : VideoPlayer.Listener {
-                    override fun onReady(videoId: String) {
+                    override fun onReady(videoId: Long) {  // ✅ 修改：从 String 改为 Long
                         android.util.Log.d("VideoItemViewModel", "onReady: 视频ID=$videoId，播放状态=${player.player.playbackState}，是否准备播放=${player.player.playWhenReady}，当前位置=${player.player.currentPosition}ms")
                         
                         // ✅ 修复：如果是从横屏返回的，再次确认位置（因为可能在 prepare 过程中位置发生了变化）
@@ -160,12 +160,29 @@ class VideoItemViewModel @Inject constructor(
                             val session = pendingSession!!
                             val currentPosition = player.player.currentPosition
                             val targetPosition = session.positionMs
-                            // 如果位置差异超过500ms，重新跳转
-                            if (kotlin.math.abs(currentPosition - targetPosition) > 500) {
-                                android.util.Log.d("VideoItemViewModel", "onReady: 从横屏返回，位置不匹配（当前=${currentPosition}ms，目标=${targetPosition}ms），重新跳转")
+                            // ✅ 修复：降低位置差异阈值，从500ms改为50ms，确保更精确的时间同步
+                            val positionDiff = kotlin.math.abs(currentPosition - targetPosition)
+                            if (positionDiff > 50) {
+                                android.util.Log.d("VideoItemViewModel", "onReady: 从横屏返回，位置不匹配（当前=${currentPosition}ms，目标=${targetPosition}ms，差异=${positionDiff}ms），重新跳转")
                                 player.seekTo(targetPosition)
+                                // ✅ 修复：确保跳转后立即更新UI状态
+                                _uiState.value = _uiState.value.copy(currentPositionMs = targetPosition)
+                                
+                                // ✅ 修复：等待一小段时间后再次检查位置，确保跳转成功
+                                viewModelScope.launch {
+                                    kotlinx.coroutines.delay(50)
+                                    val newPosition = player.player.currentPosition
+                                    val newDiff = kotlin.math.abs(newPosition - targetPosition)
+                                    if (newDiff > 50) {
+                                        android.util.Log.w("VideoItemViewModel", "onReady: 跳转后位置仍不匹配（当前=${newPosition}ms，目标=${targetPosition}ms，差异=${newDiff}ms），再次跳转")
+                                        player.seekTo(targetPosition)
+                                        _uiState.value = _uiState.value.copy(currentPositionMs = targetPosition)
+                                    } else {
+                                        android.util.Log.d("VideoItemViewModel", "onReady: 跳转成功，位置已匹配（当前=${newPosition}ms，目标=${targetPosition}ms）")
+                                    }
+                                }
                             } else {
-                                android.util.Log.d("VideoItemViewModel", "onReady: 从横屏返回，位置匹配（当前=${currentPosition}ms，目标=${targetPosition}ms）")
+                                android.util.Log.d("VideoItemViewModel", "onReady: 从横屏返回，位置匹配（当前=${currentPosition}ms，目标=${targetPosition}ms，差异=${positionDiff}ms）")
                             }
                             // 清除会话信息（已经使用完毕）
                             pendingSession = null
@@ -183,7 +200,7 @@ class VideoItemViewModel @Inject constructor(
                         android.util.Log.d("VideoItemViewModel", "onReady: 已更新 isPlaying=$isActuallyPlaying，当前位置=${player.player.currentPosition}ms")
                     }
 
-                    override fun onError(videoId: String, throwable: Throwable) {
+                    override fun onError(videoId: Long, throwable: Throwable) {  // ✅ 修改：从 String 改为 Long
                         android.util.Log.e("VideoItemViewModel", "播放器错误，视频ID=$videoId", throwable)
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -192,7 +209,7 @@ class VideoItemViewModel @Inject constructor(
                         )
                     }
 
-                    override fun onPlaybackEnded(videoId: String) {
+                    override fun onPlaybackEnded(videoId: Long) {  // ✅ 修改：从 String 改为 Long
                         android.util.Log.d("VideoItemViewModel", "onPlaybackEnded: 视频ID=$videoId")
                         _uiState.value = _uiState.value.copy(
                             isPlaying = false
@@ -238,19 +255,28 @@ class VideoItemViewModel @Inject constructor(
                 player.attach(playerView)
                 android.util.Log.d("VideoItemViewModel", "preparePlayer: 播放器已绑定到 PlayerView，playerView.player=${playerView.player}")
 
-                val pendingSession = playbackSessionStore.consume(videoId)
-                handoffInProgress = pendingSession != null
-                if (pendingSession != null) {
-                    android.util.Log.d("VideoItemViewModel", "preparePlayer: 正在应用待处理的会话，视频ID=$videoId")
-                    applyPlaybackSession(player, pendingSession)
+                // ✅ 修复：检查播放会话，如果存在则恢复，否则正常准备
+                // ✅ 修复：先 peek 检查会话是否存在，添加详细日志
+                val sessionBeforeConsume = playbackSessionStore.peek(videoId)
+                android.util.Log.d("VideoItemViewModel", "preparePlayer: 检查播放会话，videoId=$videoId，会话存在=${sessionBeforeConsume != null}，会话位置=${sessionBeforeConsume?.positionMs ?: 0}ms")
+                
+                val session = playbackSessionStore.consume(videoId)
+                handoffInProgress = session != null
+                if (session != null) {
+                    android.util.Log.d("VideoItemViewModel", "preparePlayer: ✅ 找到播放会话，正在应用，视频ID=$videoId，位置=${session.positionMs}ms，是否准备播放=${session.playWhenReady}，倍速=${session.speed}")
+                    // ✅ 修复：保存会话信息，以便在 onReady 中使用（因为会话已经被 consume 了）
+                    pendingSession = session
+                    applyPlaybackSession(player, session)
                 } else {
-                    android.util.Log.d("VideoItemViewModel", "preparePlayer: 正在准备视频，视频ID=$videoId，URL=$videoUrl（等待可见性）")
+                    android.util.Log.w("VideoItemViewModel", "preparePlayer: ❌ 未找到播放会话，videoId=$videoId，可能原因：1)会话未保存 2)videoId不匹配 3)会话已被消费")
+                    android.util.Log.d("VideoItemViewModel", "preparePlayer: 无播放会话，正常准备视频，视频ID=$videoId，URL=$videoUrl（等待可见性）")
+                    pendingSession = null
                     player.prepare(source)
                 }
 
                 _uiState.value = _uiState.value.copy(
                     currentVideoId = videoId,
-                    isPlaying = handoffInProgress && pendingSession?.playWhenReady == true
+                    isPlaying = handoffInProgress && session?.playWhenReady == true
                 )
                 startProgressUpdates()
 
@@ -269,10 +295,10 @@ class VideoItemViewModel @Inject constructor(
      * 为图文内容准备仅音频播放的 BGM
      * 不绑定 PlayerView，只使用现有的 VideoPlayerPool 与 ExoPlayer 播放音频。
      */
-    fun prepareAudioOnly(videoId: String, audioUrl: String) {
+    fun prepareAudioOnly(videoId: Long, audioUrl: String) {  // ✅ 修改：从 String 改为 Long
         viewModelScope.launch {
             try {
-                if (videoId.isBlank() || audioUrl.isBlank()) {
+                if (videoId <= 0 || audioUrl.isBlank()) {  // ✅ 修改：videoId 现在是 Long，检查 <= 0 而不是 isBlank()
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         error = "音频ID或URL为空",
@@ -293,7 +319,7 @@ class VideoItemViewModel @Inject constructor(
 
                 playerListener?.let { player.removeListener(it) }
                 val listener = object : VideoPlayer.Listener {
-                    override fun onReady(videoId: String) {
+                    override fun onReady(videoId: Long) {  // ✅ 修改：从 String 改为 Long
                         // 仅音频场景下，依然使用 READY 状态更新 UI（此时没有画面，但有时长信息）
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -304,7 +330,7 @@ class VideoItemViewModel @Inject constructor(
                         )
                     }
 
-                    override fun onError(videoId: String, throwable: Throwable) {
+                    override fun onError(videoId: Long, throwable: Throwable) {  // ✅ 修改：从 String 改为 Long
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             error = throwable.message ?: "BGM 播放失败",
@@ -312,7 +338,7 @@ class VideoItemViewModel @Inject constructor(
                         )
                     }
 
-                    override fun onPlaybackEnded(videoId: String) {
+                    override fun onPlaybackEnded(videoId: Long) {  // ✅ 修改：从 String 改为 Long
                         _uiState.value = _uiState.value.copy(
                             isPlaying = false
                         )
@@ -551,6 +577,13 @@ class VideoItemViewModel @Inject constructor(
         handoffInProgress = true
         return session
     }
+    
+    /**
+     * 查看播放会话（不消费），用于调试和检查
+     */
+    fun peekPlaybackSession(videoId: Long): PlaybackSession? {
+        return playbackSessionStore.peek(videoId)
+    }
 
     fun snapshotPlayback(): PlaybackSession? {
         val videoId = currentVideoId ?: return null
@@ -585,7 +618,7 @@ class VideoItemViewModel @Inject constructor(
         
         // 检查播放器当前的内容是否匹配会话的视频ID
         val currentMediaItem = player.player.currentMediaItem
-        val currentTag = currentMediaItem?.localConfiguration?.tag as? String
+        val currentTag = currentMediaItem?.localConfiguration?.tag as? Long  // ✅ 修改：tag 现在是 Long
         val needsPrepare = if (currentTag != null && currentTag != session.videoId) {
             android.util.Log.w("VideoItemViewModel", "applyPlaybackSession: 播放器当前播放的视频ID=$currentTag 与会话视频ID=${session.videoId} 不匹配，需要重新准备")
             // 停止当前播放并清除内容
@@ -603,18 +636,36 @@ class VideoItemViewModel @Inject constructor(
             player.pause()
         }
         
+        // ✅ 修复：设置倍速（在 prepare 和 seekTo 之前设置，确保跳转时使用正确的倍速）
+        player.setSpeed(session.speed)
+        
         if (needsPrepare) {
             android.util.Log.d("VideoItemViewModel", "applyPlaybackSession: 正在准备新的媒体项")
             player.prepare(VideoSource(session.videoId, session.videoUrl))
         }
         
-        // ✅ 修复：设置倍速（在 seekTo 之前设置，确保跳转时使用正确的倍速）
-        player.setSpeed(session.speed)
-        
         // ✅ 修复：确保在应用会话时，先 seek 到正确的位置
         // ExoPlayer 的 seekTo 可以在 prepare 之前调用，会在准备好后自动跳转
-        android.util.Log.d("VideoItemViewModel", "applyPlaybackSession: 跳转到位置=${session.positionMs}ms")
-        player.seekTo(session.positionMs)
+        // 如果播放器已经准备好，立即跳转；否则等待 onReady 时再跳转
+        val currentPosition = player.player.currentPosition
+        val targetPosition = session.positionMs
+        val positionDiff = kotlin.math.abs(currentPosition - targetPosition)
+        
+        android.util.Log.d("VideoItemViewModel", "applyPlaybackSession: 当前位置=${currentPosition}ms，目标位置=${targetPosition}ms，差异=${positionDiff}ms，播放状态=${player.player.playbackState}")
+        
+        // ✅ 修复：无论位置差异大小，都执行 seekTo，确保位置正确恢复
+        // 因为从横屏返回时，播放器可能还在播放其他视频，位置可能不准确
+        if (positionDiff > 50) {  // 降低阈值，从100ms改为50ms，确保更精确的时间同步
+            android.util.Log.d("VideoItemViewModel", "applyPlaybackSession: 位置差异较大，跳转到位置=${targetPosition}ms")
+            player.seekTo(targetPosition)
+            // ✅ 修复：立即更新UI状态，确保进度条显示正确
+            _uiState.value = _uiState.value.copy(currentPositionMs = targetPosition)
+        } else {
+            android.util.Log.d("VideoItemViewModel", "applyPlaybackSession: 位置差异较小（${positionDiff}ms），但仍执行 seekTo 确保位置准确")
+            // ✅ 修复：即使位置差异较小，也执行 seekTo，确保位置准确
+            player.seekTo(targetPosition)
+            _uiState.value = _uiState.value.copy(currentPositionMs = targetPosition)
+        }
         
         // ✅ 修复：优化 Surface 准备检测，减少延迟
         // 如果播放器已经准备好了，但 Surface 可能还没准备好（从横屏返回竖屏时）
@@ -732,7 +783,7 @@ class VideoItemViewModel @Inject constructor(
      * 同时记录当前 videoId，保证在播放器尚未准备时也能执行点赞/收藏操作。
      */
     fun initInteractionState(
-        videoId: String,
+        videoId: Long,  // ✅ 修改：从 String 改为 Long
         isLiked: Boolean,
         isFavorited: Boolean,
         likeCount: Long,

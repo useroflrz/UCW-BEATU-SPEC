@@ -2,16 +2,16 @@
   "formatVersion": 1,
   "database": {
     "version": 6,
-    "identityHash": "285dab17a6fab240b9d05af6e69a1270",
+    "identityHash": "d18e916e938e58de3f3b0628da65cc34",
     "entities": [
       {
         "tableName": "videos",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `playUrl` TEXT NOT NULL, `coverUrl` TEXT NOT NULL, `title` TEXT NOT NULL, `tags` TEXT NOT NULL, `durationMs` INTEGER NOT NULL, `orientation` TEXT NOT NULL, `authorId` TEXT NOT NULL, `authorName` TEXT NOT NULL, `likeCount` INTEGER NOT NULL, `commentCount` INTEGER NOT NULL, `favoriteCount` INTEGER NOT NULL, `shareCount` INTEGER NOT NULL, `viewCount` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `playUrl` TEXT NOT NULL, `coverUrl` TEXT NOT NULL, `title` TEXT NOT NULL, `tags` TEXT NOT NULL, `durationMs` INTEGER NOT NULL, `orientation` TEXT NOT NULL, `authorId` TEXT NOT NULL, `authorName` TEXT NOT NULL, `likeCount` INTEGER NOT NULL, `commentCount` INTEGER NOT NULL, `favoriteCount` INTEGER NOT NULL, `shareCount` INTEGER NOT NULL, `viewCount` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
             "columnName": "id",
-            "affinity": "TEXT",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
@@ -640,7 +640,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '285dab17a6fab240b9d05af6e69a1270')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd18e916e938e58de3f3b0628da65cc34')"
     ]
   }
 }

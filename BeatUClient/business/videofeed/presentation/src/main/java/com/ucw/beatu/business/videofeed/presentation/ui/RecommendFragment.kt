@@ -52,10 +52,10 @@ class RecommendFragment : Fragment() {
 
     private var gestureDetector: GestureDetector? = null
     private var rootView: View? = null
-    private var isLandscapeMode = false // 标记是否已经切换到横屏模式
-    private var lastOrientationCheckTime = 0L // 防抖：记录上次检查时间
-    private val ORIENTATION_CHECK_THROTTLE_MS = 300L // 防抖间隔：300ms
+    // ✅ 修复严重问题3：移除手动维护的 isLandscapeMode，改用系统配置实时获取
+    // 不再手动维护状态，避免与系统不同步
     private var previousDestinationId: Int? = null // 记录之前的导航目标，用于检测返回
+    private var navigationListener: androidx.navigation.NavController.OnDestinationChangedListener? = null // ✅ 修复中度问题7：保存 listener 引用以便清理
 
     // MainActivity 引用（用于控制加载动画）
     private var mainActivity: MainActivityBridge? = null
@@ -144,31 +144,27 @@ class RecommendFragment : Fragment() {
             resumeVisibleVideoItem()
             pendingResumeRequest = false
         }
-        // 检查屏幕方向，如果从横屏返回，恢复播放器
-        // 从landscape返回时，屏幕方向可能已经是竖屏，但isLandscapeMode可能还是true
-        val configuration = resources.configuration
-        val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-        if (isPortrait && isLandscapeMode) {
-            Log.d(TAG, "onResume: 检测到从横屏返回，恢复播放器")
-            // 使用统一的退出横屏逻辑
-            notifyExitLandscapeMode()
-        }
+        // ✅ 修复严重问题2：移除 onResume 中的横屏恢复逻辑，统一由 notifyExitLandscapeMode() 处理
+        // 避免重复调用恢复播放器
     }
     
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        // ✅ 修复严重问题3：使用系统配置实时判断，不再依赖手动维护的状态
         // 由于MainActivity配置了configChanges，屏幕旋转时会调用此方法
         // 使用post延迟执行，避免阻塞主线程
         view?.post {
             val isLandscape = newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE
             val isPortrait = newConfig.orientation == Configuration.ORIENTATION_PORTRAIT
             
-            if (isLandscape && !isLandscapeMode) {
+            // ✅ 修复严重问题2：统一恢复逻辑，只在一个地方处理
+            if (isLandscape) {
                 // 检测到横屏，切换到landscape模式
                 checkOrientationAndSwitch()
-            } else if (isPortrait && isLandscapeMode) {
-                // 从横屏返回竖屏，恢复播放器
-                checkOrientationAndRestore()
+            } else if (isPortrait) {
+                // 从横屏返回竖屏，恢复播放器（统一入口）
+                Log.d(TAG, "onConfigurationChanged: 检测到竖屏，准备恢复播放器")
+                restorePlayerSafely()
             }
         }
     }
@@ -530,6 +526,16 @@ class RecommendFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        // ✅ 修复中度问题7：清理 navigation listener，避免 fragment 销毁后仍被回调
+        navigationListener?.let {
+            try {
+                findNavController().removeOnDestinationChangedListener(it)
+            } catch (e: Exception) {
+                // NavController 可能已经销毁，忽略异常
+                Log.w(TAG, "Failed to remove navigation listener", e)
+            }
+            navigationListener = null
+        }
         viewPager = null
         adapter = null
         gestureDetector = null
@@ -720,16 +726,10 @@ class RecommendFragment : Fragment() {
     /**
      * 检查屏幕方向并切换到landscape模式
      * 只有当前视频的 orientation 为 LANDSCAPE 时才自动切换
+     * ✅ 修复严重问题3：不再维护 isLandscapeMode，直接检查系统配置
      */
     private fun checkOrientationAndSwitch() {
-        if (!isAdded || isLandscapeMode) return
-        
-        // 防抖：避免频繁触发
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastOrientationCheckTime < ORIENTATION_CHECK_THROTTLE_MS) {
-            return
-        }
-        lastOrientationCheckTime = currentTime
+        if (!isAdded) return
         
         val currentPosition = viewPager?.currentItem ?: -1
         if (currentPosition >= 0) {
@@ -740,104 +740,180 @@ class RecommendFragment : Fragment() {
                 return
             }
             
-            val currentFragmentTag = "f${adapter?.getItemId(currentPosition)}"
+            // ✅ 修复严重问题1和4：使用 getItemId 获取正确的 tag，并检查 Fragment 是否准备好
+            val itemId = adapter?.getItemId(currentPosition) ?: currentPosition.toLong()
+            val currentFragmentTag = "f$itemId"
             val currentFragment = childFragmentManager.findFragmentByTag(currentFragmentTag)
             
-            if (currentFragment is VideoItemFragment) {
+            if (currentFragment is VideoItemFragment && isFragmentReady(currentFragment)) {
                 Log.d(TAG, "检测到横屏，当前视频为 LANDSCAPE，自动切换到landscape模式")
-                isLandscapeMode = true
                 // 使用post延迟执行，避免阻塞主线程
                 view?.post {
                     currentFragment.openLandscapeMode()
                 }
-            }
-        }
-    }
-    
-    /**
-     * 检查屏幕方向并恢复播放器（从横屏返回时）
-     */
-    private fun checkOrientationAndRestore() {
-        if (!isAdded) return
-        
-        val configuration = resources.configuration
-        val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-        
-        if (isPortrait && isLandscapeMode) {
-            // 从横屏返回竖屏，恢复播放器
-            Log.d(TAG, "从横屏返回竖屏，恢复播放器")
-            // 使用统一的退出横屏逻辑
-            notifyExitLandscapeMode()
-        }
-    }
-    
-    /**
-     * 从横屏返回后恢复播放器
-     */
-    private fun restorePlayerFromLandscape() {
-        val currentPosition = viewPager?.currentItem ?: -1
-        if (currentPosition >= 0) {
-            val currentFragmentTag = "f$currentPosition"
-            val currentFragment = childFragmentManager.findFragmentByTag(currentFragmentTag)
-            
-            // 确保获取的是真正可见的Fragment
-            if (currentFragment is VideoItemFragment && currentFragment.isVisible) {
-                Log.d(TAG, "恢复当前可见的VideoItemFragment播放器，position=$currentPosition")
-                // 获取当前可见的playerview，将播放器绑定到view然后播放
-                currentFragment.restorePlayerFromLandscape()
             } else {
-                Log.w(TAG, "restorePlayerFromLandscape: 未找到可见的VideoItemFragment，currentPosition=$currentPosition, fragment=$currentFragment, isVisible=${currentFragment?.isVisible}")
+                Log.w(TAG, "checkOrientationAndSwitch: Fragment 未准备好，tag=$currentFragmentTag, fragment=$currentFragment")
             }
         }
+    }
+    
+    /**
+     * ✅ 修复严重问题1和4：统一的、可靠的恢复播放器方法
+     * 使用 getItemId 获取正确的 tag，并确保 Fragment 准备好后再恢复
+     * 支持延迟重试机制，解决横屏返回时 Fragment 还未 attach 的问题
+     */
+    private fun restorePlayerSafely(
+        sourceVideoId: Long? = null,
+        maxRetries: Int = 3,
+        retryDelay: Long = 200L,
+        currentRetry: Int = 0
+    ) {
+        if (!isAdded || viewPager == null || adapter == null) {
+            Log.w(TAG, "restorePlayerSafely: Fragment 未准备好，跳过恢复")
+            return
+        }
+        
+        val currentPosition = viewPager?.currentItem ?: -1
+        if (currentPosition < 0) {
+            Log.w(TAG, "restorePlayerSafely: currentPosition 无效")
+            return
+        }
+        
+        // ✅ 修复：如果提供了 sourceVideoId，验证当前位置的视频是否匹配
+        if (sourceVideoId != null) {
+            val currentVideo = adapter?.getVideoAt(currentPosition)
+            if (currentVideo?.id != sourceVideoId) {
+                Log.w(TAG, "restorePlayerSafely: 当前位置的视频ID (${currentVideo?.id}) 与 sourceVideoId ($sourceVideoId) 不匹配，可能需要等待滚动完成")
+                // 如果位置不匹配，延迟重试，等待滚动完成
+                if (currentRetry < maxRetries) {
+                    view?.postDelayed({
+                        restorePlayerSafely(sourceVideoId, maxRetries, retryDelay, currentRetry + 1)
+                    }, retryDelay)
+                    return
+                }
+            }
+        }
+        
+        // ✅ 修复严重问题1：使用 getItemId 获取正确的 tag，支持无限循环模式
+        val itemId = adapter?.getItemId(currentPosition) ?: currentPosition.toLong()
+        val currentFragmentTag = "f$itemId"
+        val currentFragment = childFragmentManager.findFragmentByTag(currentFragmentTag)
+        
+        // ✅ 修复严重问题4：检查 Fragment 是否准备好（view 已创建且已 attach）
+        if (currentFragment is VideoItemFragment && isFragmentReady(currentFragment)) {
+            Log.d(TAG, "restorePlayerSafely: 恢复播放器，position=$currentPosition, tag=$currentFragmentTag, videoId=${sourceVideoId ?: "unknown"}, retry=$currentRetry")
+            currentFragment.restorePlayerFromLandscape()
+        } else {
+            // ✅ 修复严重问题4：Fragment 还未准备好，延迟重试
+            if (currentRetry < maxRetries) {
+                Log.d(TAG, "restorePlayerSafely: Fragment 未准备好，延迟重试 (${currentRetry + 1}/$maxRetries), tag=$currentFragmentTag")
+                view?.postDelayed({
+                    restorePlayerSafely(sourceVideoId, maxRetries, retryDelay, currentRetry + 1)
+                }, retryDelay)
+            } else {
+                Log.w(TAG, "restorePlayerSafely: 重试次数用尽，无法恢复播放器，tag=$currentFragmentTag, fragment=$currentFragment")
+            }
+        }
+    }
+    
+    /**
+     * ✅ 修复严重问题4：检查 Fragment 是否准备好（view 已创建且已 attach）
+     */
+    private fun isFragmentReady(fragment: Fragment): Boolean {
+        return fragment.isAdded && fragment.view != null && fragment.isVisible
     }
     
     /**
      * 从用户弹窗返回后恢复播放器
-     * 使用与 restorePlayerFromLandscape() 相同的逻辑
+     * ✅ 修复严重问题2：统一使用 restorePlayerSafely()，避免重复逻辑
      */
     private fun restorePlayerFromUserWorksViewer() {
-        val currentPosition = viewPager?.currentItem ?: -1
-        if (currentPosition >= 0) {
-            val currentFragmentTag = "f$currentPosition"
-            val currentFragment = childFragmentManager.findFragmentByTag(currentFragmentTag)
-
-            // 确保获取的是真正可见的Fragment
-            if (currentFragment is VideoItemFragment && currentFragment.isVisible) {
-                Log.d(TAG, "从用户弹窗返回，恢复当前可见的VideoItemFragment播放器，position=$currentPosition")
-                // 获取当前可见的playerview，将播放器绑定到view然后播放
-                currentFragment.restorePlayerFromUserWorksViewer()
-            } else {
-                Log.w(TAG, "restorePlayerFromUserWorksViewer: 未找到可见的VideoItemFragment，currentPosition=$currentPosition, fragment=$currentFragment, isVisible=${currentFragment?.isVisible}")
-            }
-        }
+        Log.d(TAG, "restorePlayerFromUserWorksViewer: 从用户弹窗返回，恢复播放器")
+        restorePlayerSafely()
     }
 
     /**
-     * 通知进入横屏模式（供 VideoItemFragment 调用，确保按钮横屏和自然横屏逻辑一致）
+     * 通知进入横屏模式（供 VideoItemFragment 调用）
+     * ✅ 修复严重问题3：不再维护 isLandscapeMode 状态，此方法保留用于兼容性
      */
     fun notifyEnterLandscapeMode() {
-        if (!isLandscapeMode) {
-            Log.d(TAG, "notifyEnterLandscapeMode: 按钮横屏进入，设置 isLandscapeMode=true")
-            isLandscapeMode = true
-        }
+        Log.d(TAG, "notifyEnterLandscapeMode: 进入横屏模式")
+        // 不再维护状态，直接由系统配置判断
     }
     
     /**
-     * 通知退出横屏模式（供 VideoItemFragment 或导航监听器调用，确保按钮退出和自然横屏退出逻辑一致）
+     * 通知退出横屏模式（供 VideoItemFragment 或导航监听器调用）
+     * ✅ 修复严重问题2：统一使用 restorePlayerSafely() 恢复播放器
+     * ✅ 修复：支持根据 sourceVideoId 定位到正确的视频项
      */
-    fun notifyExitLandscapeMode() {
-        if (isLandscapeMode) {
-            Log.d(TAG, "notifyExitLandscapeMode: 退出横屏模式，设置 isLandscapeMode=false")
-            isLandscapeMode = false
-            // 统一通过 restorePlayerFromLandscape 恢复播放器
-            view?.post {
-                restorePlayerFromLandscape()
+    fun notifyExitLandscapeMode(sourceVideoId: Long? = null) {
+        Log.d(TAG, "notifyExitLandscapeMode: 退出横屏模式，恢复播放器，sourceVideoId=$sourceVideoId")
+        // ✅ 修复严重问题2和4：统一恢复逻辑，使用延迟确保 Fragment 准备好
+        view?.postDelayed({
+            if (sourceVideoId != null) {
+                // ✅ 修复：如果提供了 sourceVideoId，先滚动到对应的视频项
+                scrollToVideoById(sourceVideoId)
             }
+            restorePlayerSafely(sourceVideoId)
+        }, 200) // ✅ 修复方案2：延迟恢复，确保 ViewPager2 已更新
+    }
+    
+    /**
+     * ✅ 修复：根据 videoId 滚动到对应的视频项
+     */
+    private fun scrollToVideoById(videoId: Long) {
+        if (viewPager == null || adapter == null) {
+            Log.w(TAG, "scrollToVideoById: ViewPager 或 Adapter 为空，跳过滚动")
+            return
+        }
+        
+        val currentPosition = viewPager?.currentItem ?: -1
+        if (currentPosition < 0) {
+            Log.w(TAG, "scrollToVideoById: currentPosition 无效，跳过滚动")
+            return
+        }
+        
+        // 查找包含该 videoId 的位置
+        val itemCount = adapter?.itemCount ?: 0
+        if (itemCount == 0) {
+            Log.w(TAG, "scrollToVideoById: itemCount 为 0，跳过滚动")
+            return
+        }
+        
+        // 在无限循环模式下，同一个视频可能出现在多个位置
+        // 我们需要找到最接近当前位置的位置
+        var targetPosition = -1
+        var minDistance = Int.MAX_VALUE
+        
+        // 检查当前位置附近的视频（最多检查前后各 50 个位置）
+        val searchRange = 50
+        for (offset in -searchRange..searchRange) {
+            val checkPosition = currentPosition + offset
+            if (checkPosition >= 0 && checkPosition < itemCount) {
+                val video = adapter?.getVideoAt(checkPosition)
+                if (video?.id == videoId) {
+                    val distance = kotlin.math.abs(offset)
+                    if (distance < minDistance) {
+                        minDistance = distance
+                        targetPosition = checkPosition
+                    }
+                }
+            }
+        }
+        
+        if (targetPosition >= 0 && targetPosition != currentPosition) {
+            Log.d(TAG, "scrollToVideoById: 滚动到位置 $targetPosition (当前=$currentPosition, videoId=$videoId)")
+            viewPager?.setCurrentItem(targetPosition, false)
+        } else if (targetPosition >= 0) {
+            Log.d(TAG, "scrollToVideoById: 已经在正确的位置 $targetPosition (videoId=$videoId)")
+        } else {
+            Log.w(TAG, "scrollToVideoById: 未找到 videoId=$videoId 的视频项，保持当前位置")
         }
     }
     
     /**
      * 设置导航监听，监听从landscape返回和从用户弹窗返回
+     * ✅ 修复严重问题2、3、5、7：统一恢复逻辑，移除 isLandscapeMode 依赖，延迟恢复，保存 listener 引用
      */
     private fun setupNavigationListener() {
         val navController = findNavController()
@@ -845,7 +921,8 @@ class RecommendFragment : Fragment() {
         // 初始化 previousDestinationId 为当前的目标
         previousDestinationId = navController.currentDestination?.id
 
-        navController.addOnDestinationChangedListener { _, destination, _ ->
+        // ✅ 修复中度问题7：保存 listener 引用以便清理
+        navigationListener = androidx.navigation.NavController.OnDestinationChangedListener { _, destination, _ ->
             val feedDestinationId = NavigationHelper.getResourceId(
                 requireContext(),
                 NavigationIds.FEED
@@ -855,24 +932,67 @@ class RecommendFragment : Fragment() {
                 NavigationIds.USER_WORKS_VIEWER
             )
 
+            // ✅ 修复严重问题3：使用系统配置判断是否从横屏返回，不再依赖 isLandscapeMode
+            val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+            
+            val landscapeDestinationId = NavigationHelper.getResourceId(
+                requireContext(),
+                NavigationIds.LANDSCAPE
+            )
+            
+            // ✅ 修复：添加详细日志，调试导航状态
+            Log.d(TAG, "导航监听器: destination.id=${destination.id}, feedDestinationId=$feedDestinationId, isPortrait=$isPortrait, previousDestinationId=$previousDestinationId, landscapeDestinationId=$landscapeDestinationId")
+            
             // 当从landscape返回到feed时，恢复播放器
-            if (destination.id == feedDestinationId && isLandscapeMode) {
-                Log.d(TAG, "从landscape返回到feed，恢复播放器")
-                // 使用统一的退出横屏逻辑
-                notifyExitLandscapeMode()
+            if (destination.id == feedDestinationId && isPortrait) {
+                // ✅ 修复：如果是从横屏返回（previousDestinationId == landscapeDestinationId），从 SharedPreferences 读取 sourceVideoId
+                // 注意：previousDestinationId 可能为 null，需要检查
+                if (previousDestinationId == landscapeDestinationId) {
+                    Log.d(TAG, "从landscape返回到feed，恢复播放器，previousDestinationId=$previousDestinationId")
+                    // ✅ 修复：从 SharedPreferences 读取 sourceVideoId
+                    val prefs = requireContext().getSharedPreferences("landscape_exit", android.content.Context.MODE_PRIVATE)
+                    val sourceVideoId = prefs.getLong("source_video_id", -1L)
+                    if (sourceVideoId != -1L) {
+                        Log.d(TAG, "从 SharedPreferences 读取 sourceVideoId=$sourceVideoId")
+                        // 清除 SharedPreferences，避免下次误用
+                        prefs.edit().remove("source_video_id").apply()
+                        notifyExitLandscapeMode(sourceVideoId)
+                    } else {
+                        Log.w(TAG, "未找到 sourceVideoId，使用当前位置恢复")
+                        notifyExitLandscapeMode()
+                    }
+                } else {
+                    // ✅ 修复：即使 previousDestinationId 不匹配，也尝试读取 sourceVideoId（可能是导航栈的问题）
+                    // 因为从横屏返回时，previousDestinationId 可能还没有更新
+                    Log.d(TAG, "previousDestinationId ($previousDestinationId) 与 landscapeDestinationId ($landscapeDestinationId) 不匹配，但仍尝试读取 sourceVideoId")
+                    val prefs = requireContext().getSharedPreferences("landscape_exit", android.content.Context.MODE_PRIVATE)
+                    val sourceVideoId = prefs.getLong("source_video_id", -1L)
+                    if (sourceVideoId != -1L) {
+                        Log.d(TAG, "从 SharedPreferences 读取 sourceVideoId=$sourceVideoId（previousDestinationId 不匹配但找到了 sourceVideoId）")
+                        // 清除 SharedPreferences，避免下次误用
+                        prefs.edit().remove("source_video_id").apply()
+                        notifyExitLandscapeMode(sourceVideoId)
+                    } else {
+                        Log.d(TAG, "未找到 sourceVideoId，使用当前位置恢复")
+                        notifyExitLandscapeMode()
+                    }
+                }
             }
 
-            // ✅ 修复：当从用户弹窗（USER_WORKS_VIEWER）返回到feed时，恢复播放器
+            // ✅ 修复严重问题2和5：当从用户弹窗（USER_WORKS_VIEWER）返回到feed时，恢复播放器
+            // 使用延迟恢复，确保 Fragment 已经 attach
             if (destination.id == feedDestinationId && previousDestinationId == userWorksViewerDestinationId) {
                 Log.d(TAG, "从用户弹窗返回到feed，恢复播放器，previousDestinationId=$previousDestinationId")
-                // 使用延迟执行，确保 Fragment 已经恢复
-                view?.post {
+                // ✅ 修复中度问题5：延迟恢复，确保 ViewPager2 已更新
+                view?.postDelayed({
                     restorePlayerFromUserWorksViewer()
-                }
+                }, 200)
             }
 
             // 记录当前的导航目标，作为下次的前一个目标
             previousDestinationId = destination.id
         }
+        
+        navController.addOnDestinationChangedListener(navigationListener!!)
     }
 }

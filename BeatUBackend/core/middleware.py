@@ -57,4 +57,3 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 exc_info=True
             )
             raise
-

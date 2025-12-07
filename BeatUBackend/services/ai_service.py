@@ -52,7 +52,7 @@ class AIService:
             )
             for video in records
         ]
-        reason = "结合播放完成度与兴趣标签，为你准备的下一支好片"
+        reason = "结合播放完成度与兴趣标签，为你准备的下一支好视频"
         return AIRecommendResponse(next_videos=videos, reason=reason)
 
     def quality(self, payload: AIQualityRequest) -> AIQualityResponse:
@@ -68,8 +68,4 @@ class AIService:
         return AIQualityResponse(quality=quality, reason=reason)
 
     def comment_qa(self, payload: AICommentQARequest) -> str:
-        return f"关于《{payload.video_id}》：{payload.question}。建议继续关注剧情发展，更多彩蛋等你发现。"
-
-
-
-
+        return f"关于《{payload.video_id}》：{payload.question}。建议继续关注剧情发展，更多彩蛋等你发现！"

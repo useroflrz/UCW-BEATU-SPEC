@@ -7,7 +7,7 @@ import javax.inject.Inject
 class ShareVideoUseCase @Inject constructor(
     private val repository: VideoRepository
 ) {
-    suspend operator fun invoke(videoId: String): AppResult<Unit> {
+    suspend operator fun invoke(videoId: Long): AppResult<Unit> {  // ✅ 修改：从 String 改为 Long
         return repository.shareVideo(videoId)
     }
 }

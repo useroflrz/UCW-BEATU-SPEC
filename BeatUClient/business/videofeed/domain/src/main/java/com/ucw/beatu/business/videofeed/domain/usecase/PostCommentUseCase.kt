@@ -18,7 +18,7 @@ class PostCommentUseCase @Inject constructor(
      * @param content 评论内容
      * @return AppResult<Comment> 返回新创建的评论
      */
-    suspend operator fun invoke(videoId: String, content: String): AppResult<Comment> {
+    suspend operator fun invoke(videoId: Long, content: String): AppResult<Comment> {  // ✅ 修改：从 String 改为 Long
         if (content.isBlank()) {
             return AppResult.Error(IllegalArgumentException("评论内容不能为空"))
         }

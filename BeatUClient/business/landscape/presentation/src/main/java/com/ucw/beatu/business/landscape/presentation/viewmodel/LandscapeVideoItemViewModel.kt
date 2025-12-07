@@ -51,7 +51,7 @@ class LandscapeVideoItemViewModel @Inject constructor(
     val controlsState: StateFlow<LandscapeControlsState> = _controlsState.asStateFlow()
 
     private var currentPlayer: VideoPlayer? = null
-    private var currentVideoId: String? = null
+    private var currentVideoId: Long? = null  // ✅ 修改：从 String? 改为 Long?
     private var currentVideoUrl: String? = null
 
     private val startUpStopwatch = Stopwatch()
@@ -76,7 +76,7 @@ class LandscapeVideoItemViewModel @Inject constructor(
         }
     }
 
-    fun playVideo(videoId: String, videoUrl: String) {
+    fun playVideo(videoId: Long, videoUrl: String) {  // ✅ 修改：从 String 改为 Long
         viewModelScope.launch {
             if (currentVideoId == videoId && currentPlayer != null) {
                 return@launch
@@ -93,10 +93,10 @@ class LandscapeVideoItemViewModel @Inject constructor(
         }
     }
 
-    fun preparePlayer(videoId: String, videoUrl: String, playerView: PlayerView) {
+    fun preparePlayer(videoId: Long, videoUrl: String, playerView: PlayerView) {  // ✅ 修改：从 String 改为 Long
         viewModelScope.launch {
             try {
-                if (videoId.isBlank() || videoUrl.isBlank()) {
+                if (videoId <= 0 || videoUrl.isBlank()) {  // ✅ 修改：videoId 现在是 Long，检查 <= 0 而不是 isBlank()
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         error = "视频ID或URL为空",
@@ -114,7 +114,7 @@ class LandscapeVideoItemViewModel @Inject constructor(
                 
                 // ✅ 添加：检查播放器当前的内容是否匹配新的 videoId
                 val currentMediaItem = player.player.currentMediaItem
-                val currentTag = currentMediaItem?.localConfiguration?.tag as? String
+                val currentTag = currentMediaItem?.localConfiguration?.tag as? Long  // ✅ 修改：tag 现在是 Long
                 if (currentTag != null && currentTag != videoId) {
                     AppLogger.w(TAG, "preparePlayer: 播放器当前播放的视频ID=$currentTag 与目标视频ID=$videoId 不匹配，需要重新准备")
                     // 停止当前播放并清除内容
@@ -129,7 +129,7 @@ class LandscapeVideoItemViewModel @Inject constructor(
 
                 playerListener?.let { player.removeListener(it) }
                 val listener = object : VideoPlayer.Listener {
-                    override fun onReady(videoId: String) {
+                    override fun onReady(videoId: Long) {  // ✅ 修改：从 String 改为 Long
                         val startUp = startUpStopwatch.elapsedMillis()
                         
                         // ✅ 修复：如果是从竖屏切换过来的，需要确保位置和播放状态正确
@@ -164,7 +164,7 @@ class LandscapeVideoItemViewModel @Inject constructor(
                         startProgressUpdates()
                     }
 
-                    override fun onError(videoId: String, throwable: Throwable) {
+                    override fun onError(videoId: Long, throwable: Throwable) {  // ✅ 修改：从 String 改为 Long
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             error = throwable.message ?: "播放失败",
@@ -173,7 +173,7 @@ class LandscapeVideoItemViewModel @Inject constructor(
                         stopProgressUpdates()
                     }
 
-                    override fun onPlaybackEnded(videoId: String) {
+                    override fun onPlaybackEnded(videoId: Long) {  // ✅ 修改：从 String 改为 Long
                         _uiState.value = _uiState.value.copy(isPlaying = false)
                         stopProgressUpdates()
                     }
@@ -410,7 +410,7 @@ class LandscapeVideoItemViewModel @Inject constructor(
         
         // ✅ 添加：检查播放器当前的内容是否匹配会话的视频ID
         val currentMediaItem = player.player.currentMediaItem
-        val currentTag = currentMediaItem?.localConfiguration?.tag as? String
+        val currentTag = currentMediaItem?.localConfiguration?.tag as? Long  // ✅ 修改：tag 现在是 Long
         val needsPrepare = if (currentTag != null && currentTag != session.videoId) {
             AppLogger.w(TAG, "applyPlaybackSession: 播放器当前播放的视频ID=$currentTag 与会话视频ID=${session.videoId} 不匹配，需要重新准备")
             // 停止当前播放并清除内容
@@ -476,7 +476,7 @@ class LandscapeVideoItemViewModel @Inject constructor(
 }
 
 data class LandscapeVideoItemUiState(
-    val currentVideoId: String? = null,
+    val currentVideoId: Long? = null,  // ✅ 修改：从 String? 改为 Long?
     val isPlaying: Boolean = false,
     val isLoading: Boolean = false,
     val showPlaceholder: Boolean = true,

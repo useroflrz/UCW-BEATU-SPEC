@@ -15,9 +15,9 @@ class VideoPlayerPool(
 ) {
 
     private val availablePlayers = ArrayDeque<VideoPlayer>()
-    private val inUsePlayers = mutableMapOf<String, VideoPlayer>()
+    private val inUsePlayers = mutableMapOf<Long, VideoPlayer>()  // ✅ 修改：从 String 改为 Long
 
-    fun acquire(videoId: String): VideoPlayer {
+    fun acquire(videoId: Long): VideoPlayer {  // ✅ 修改：从 String 改为 Long
         val player = inUsePlayers[videoId] ?: availablePlayers.removeFirstOrNull()
         val target = player ?: ExoVideoPlayer(context, config)
         val isFromPool = player != null && player === target && player !in inUsePlayers.values
@@ -26,7 +26,7 @@ class VideoPlayerPool(
         if (isFromPool) {
             // 这是从 availablePlayers 中获取的播放器，需要检查内容
             val currentMediaItem = target.player.currentMediaItem
-            val currentTag = currentMediaItem?.localConfiguration?.tag as? String
+            val currentTag = currentMediaItem?.localConfiguration?.tag as? Long  // ✅ 修改：tag 现在是 Long
             if (currentTag != null && currentTag != videoId) {
                 AppLogger.w(TAG, "acquire: 从池中获取的播放器内容不匹配 (当前=$currentTag, 目标=$videoId)，需要清理")
                 // 播放器内容不匹配，需要清理
@@ -46,14 +46,14 @@ class VideoPlayerPool(
         return target
     }
 
-    fun attach(videoId: String, playerView: PlayerView, source: VideoSource) {
+    fun attach(videoId: Long, playerView: PlayerView, source: VideoSource) {  // ✅ 修改：从 String 改为 Long
         val player = acquire(videoId)
         player.attach(playerView)
         player.prepare(source)
         player.play()
     }
 
-    fun release(videoId: String) {
+    fun release(videoId: Long) {  // ✅ 修改：从 String 改为 Long
         val player = inUsePlayers.remove(videoId) ?: return
         player.pause()
         availablePlayers.addLast(player)

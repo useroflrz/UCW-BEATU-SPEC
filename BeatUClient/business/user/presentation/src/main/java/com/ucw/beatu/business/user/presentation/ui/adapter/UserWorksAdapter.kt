@@ -88,7 +88,7 @@ class UserWorksAdapter(
 }
 
 data class UserWorkUiModel(
-    val id: String,
+    val id: Long,  // ✅ 修改：从 String 改为 Long
     val thumbnailUrl: String?,
     val playCount: Long,
     val playUrl: String,

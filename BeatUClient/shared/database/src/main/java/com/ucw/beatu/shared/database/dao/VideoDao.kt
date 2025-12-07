@@ -71,10 +71,10 @@ interface VideoDao {
     fun observeHistoryVideos(userId: String, limit: Int): Flow<List<VideoEntity>>
 
     @Query("SELECT * FROM videos WHERE id = :id LIMIT 1")
-    suspend fun getVideoById(id: String): VideoEntity?
+    suspend fun getVideoById(id: Long): VideoEntity?  // ✅ 修改：从 String 改为 Long
 
     @Query("SELECT * FROM videos WHERE id = :id LIMIT 1")
-    fun observeVideoById(id: String): Flow<VideoEntity?>
+    fun observeVideoById(id: Long): Flow<VideoEntity?>  // ✅ 修改：从 String 改为 Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(items: List<VideoEntity>)
@@ -83,13 +83,13 @@ interface VideoDao {
     suspend fun insert(item: VideoEntity)
 
     @Query("UPDATE videos SET coverUrl = :coverUrl WHERE id = :id")
-    suspend fun updateCoverUrl(id: String, coverUrl: String)
+    suspend fun updateCoverUrl(id: Long, coverUrl: String)  // ✅ 修改：从 String 改为 Long
 
     @Query("DELETE FROM videos")
     suspend fun clear()
 
     @Query("DELETE FROM videos WHERE id = :id")
-    suspend fun deleteById(id: String)
+    suspend fun deleteById(id: Long)  // ✅ 修改：从 String 改为 Long
 
     /**
      * 根据关键词搜索视频（标题匹配）

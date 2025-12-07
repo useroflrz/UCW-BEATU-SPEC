@@ -122,7 +122,7 @@ class ImagePostFragment : BaseFeedItemFragment() {
 
         // 初始化互动状态到 ViewModel（使用后端返回的真实状态）
         viewModel.initInteractionState(
-            videoId = item.id,
+            videoId = item.id,  // ✅ 修改：initInteractionState 现在接受 Long，直接传递 item.id
             isLiked = item.isLiked,
             isFavorited = item.isFavorited,
             likeCount = item.likeCount.toLong(),
@@ -213,7 +213,7 @@ class ImagePostFragment : BaseFeedItemFragment() {
         if (bgmUrl.isNullOrBlank()) return
         // 图文+BGM 场景：确保始终使用 audio-only 播放，并允许无限循环
         if (viewModel.uiState.value.currentVideoId == null) {
-            viewModel.prepareAudioOnly(item.id, bgmUrl)
+            viewModel.prepareAudioOnly(item.id, bgmUrl)  // ✅ 修改：prepareAudioOnly 现在接受 Long
         }
     }
 

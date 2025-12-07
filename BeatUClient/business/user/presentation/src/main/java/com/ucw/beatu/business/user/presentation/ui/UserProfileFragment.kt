@@ -405,7 +405,7 @@ class UserProfileFragment : Fragment() {
     )
 
 
-    private fun navigateToUserWorksViewer(selectedWorkId: String) {
+    private fun navigateToUserWorksViewer(selectedWorkId: Long) {  // ✅ 修改：从 String 改为 Long
         navigationHelper.navigateToUserWorksViewer(selectedWorkId)
     }
 

@@ -9,14 +9,3 @@ private val specialAuthorIds = mapOf(
     "BEATU" to "current_user"
 )
 
-fun mockAuthorIdFor(authorName: String): String {
-    specialAuthorIds[authorName]?.let { return it }
-
-    val sanitized = authorName
-        .lowercase()
-        .filter { it.isLetterOrDigit() }
-        .ifEmpty { "author" }
-
-    return "mock_author_$sanitized"
-}
-

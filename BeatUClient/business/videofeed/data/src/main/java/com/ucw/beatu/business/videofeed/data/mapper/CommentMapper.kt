@@ -77,7 +77,7 @@ private fun parseIso8601ToTimestamp(iso8601: String): Long {
 fun CommentEntity.toDomain(): Comment {
     return Comment(
         id = id,
-        videoId = videoId,
+        videoId = videoId.toLongOrNull() ?: 0L,  // ✅ 修改：将 String 转换为 Long
         authorId = authorId,
         authorName = authorName,
         authorAvatar = null,
@@ -94,7 +94,7 @@ fun CommentEntity.toDomain(): Comment {
 fun Comment.toEntity(): CommentEntity {
     return CommentEntity(
         id = id,
-        videoId = videoId,
+        videoId = videoId.toString(),  // ✅ 修改：将 Long 转换为 String（因为 CommentEntity.videoId 是 String）
         authorId = authorId,
         authorName = authorName,
         content = content,

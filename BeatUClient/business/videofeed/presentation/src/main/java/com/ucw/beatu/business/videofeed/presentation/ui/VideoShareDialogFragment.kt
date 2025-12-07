@@ -21,10 +21,10 @@ class VideoShareDialogFragment : DialogFragment() {
         private const val ARG_TITLE = "title"
         private const val ARG_PLAY_URL = "play_url"
 
-        fun newInstance(videoId: String, title: String, playUrl: String): VideoShareDialogFragment {
+        fun newInstance(videoId: Long, title: String, playUrl: String): VideoShareDialogFragment {  // ✅ 修改：从 String 改为 Long
             return VideoShareDialogFragment().apply {
                 arguments = Bundle().apply {
-                    putString(ARG_VIDEO_ID, videoId)
+                    putLong(ARG_VIDEO_ID, videoId)  // ✅ 修改：使用 putLong 而不是 putString
                     putString(ARG_TITLE, title)
                     putString(ARG_PLAY_URL, playUrl)
                 }

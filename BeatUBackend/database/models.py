@@ -59,7 +59,7 @@ class User(Base):
 class Video(Base):
     __tablename__ = "beatu_videos"
 
-    id = Column(String(64), primary_key=True)
+    id = Column(BigInteger, primary_key=True)  # ✅ 修改：从 String(64) 改为 BigInteger (Long)
     play_url = Column(String(500), nullable=False)
     cover_url = Column(String(500), nullable=False)
     title = Column(String(200), nullable=False)
@@ -87,7 +87,7 @@ class Comment(Base):
     __tablename__ = "beatu_comments"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    video_id = Column(String(64), ForeignKey("beatu_videos.id"), nullable=False)
+    video_id = Column(BigInteger, ForeignKey("beatu_videos.id"), nullable=False)  # ✅ 修改：从 String(64) 改为 BigInteger
     author_id = Column(String(64), nullable=False)
     author_name = Column(String(100), nullable=False)
     author_avatar = Column(String(500))
@@ -109,7 +109,7 @@ class Interaction(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String(64), ForeignKey("beatu_users.id"), nullable=False, index=True)
-    video_id = Column(String(64), ForeignKey("beatu_videos.id"))
+    video_id = Column(BigInteger, ForeignKey("beatu_videos.id"))  # ✅ 修改：从 String(64) 改为 BigInteger
     author_id = Column(String(64), ForeignKey("beatu_users.id"))
     type = Column(
         Enum("LIKE", "FAVORITE", "FOLLOW_AUTHOR", name="interaction_type"),
@@ -131,7 +131,7 @@ class PlaybackMetric(Base):
     __tablename__ = "beatu_metrics_playback"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    video_id = Column(String(64), nullable=False)
+    video_id = Column(BigInteger, nullable=False)  # ✅ 修改：从 String(64) 改为 BigInteger
     fps = Column(Float)
     start_up_ms = Column(BigInteger)
     rebuffer_count = Column(Integer)
@@ -145,7 +145,7 @@ class InteractionMetric(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     event = Column(String(64), nullable=False)
-    video_id = Column(String(64))
+    video_id = Column(BigInteger)  # ✅ 修改：从 String(64) 改为 BigInteger
     latency_ms = Column(BigInteger)
     success = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -170,7 +170,7 @@ class WatchHistory(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String(64), ForeignKey("beatu_users.id"), nullable=False, index=True)
-    video_id = Column(String(64), ForeignKey("beatu_videos.id"), nullable=False, index=True)
+    video_id = Column(BigInteger, ForeignKey("beatu_videos.id"), nullable=False, index=True)  # ✅ 修改：从 String(64) 改为 BigInteger
     last_watch_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     watch_count = Column(Integer, default=1, nullable=False)
     last_seek_ms = Column(BigInteger, default=0, nullable=False)
@@ -186,6 +186,3 @@ class WatchHistory(Base):
 
 def serialize_json_field(value: Optional[list | dict], fallback):
     return value if value is not None else fallback
-
-
-

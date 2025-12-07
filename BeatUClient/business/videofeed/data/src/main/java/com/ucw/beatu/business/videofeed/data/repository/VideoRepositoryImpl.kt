@@ -155,7 +155,7 @@ class VideoRepositoryImpl @Inject constructor(
     }
 
 
-    override suspend fun getVideoDetail(videoId: String): AppResult<Video> {
+    override suspend fun getVideoDetail(videoId: Long): AppResult<Video> {  // ✅ 修改：从 String 改为 Long
         // 先检查本地缓存
         localDataSource.getVideoById(videoId)?.let {
             // 异步获取最新数据并更新缓存
@@ -182,7 +182,7 @@ class VideoRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getComments(videoId: String, page: Int, limit: Int): Flow<AppResult<List<Comment>>> = flow {
+    override fun getComments(videoId: Long, page: Int, limit: Int): Flow<AppResult<List<Comment>>> = flow {  // ✅ 修改：从 String 改为 Long
         // 如果是第一页，先尝试从本地获取并发送
         if (page == 1) {
             val localComments = localDataSource.observeComments(videoId).firstOrNull() ?: emptyList()
@@ -202,7 +202,7 @@ class VideoRepositoryImpl @Inject constructor(
             }
             is AppResult.Error -> {
                 // 如果远程失败且是第一页，且已发送本地数据，不再发送错误
-                if (page != 1 || localDataSource.observeComments(videoId).firstOrNull()?.isEmpty() != false) {
+                if (page != 1 || localDataSource.observeComments(videoId).firstOrNull()?.isEmpty() != false) {  // ✅ 修改：videoId 已经是 Long
                     emit(remoteResult)
                 }
             }
@@ -211,27 +211,27 @@ class VideoRepositoryImpl @Inject constructor(
     }.onStart { emit(AppResult.Loading) }
         .catch { emit(AppResult.Error(it)) }
 
-    override suspend fun likeVideo(videoId: String): AppResult<Unit> {
+    override suspend fun likeVideo(videoId: Long): AppResult<Unit> {  // ✅ 修改：从 String 改为 Long
         return remoteDataSource.likeVideo(videoId)
     }
 
-    override suspend fun unlikeVideo(videoId: String): AppResult<Unit> {
+    override suspend fun unlikeVideo(videoId: Long): AppResult<Unit> {  // ✅ 修改：从 String 改为 Long
         return remoteDataSource.unlikeVideo(videoId)
     }
 
-    override suspend fun favoriteVideo(videoId: String): AppResult<Unit> {
+    override suspend fun favoriteVideo(videoId: Long): AppResult<Unit> {  // ✅ 修改：从 String 改为 Long
         return remoteDataSource.favoriteVideo(videoId)
     }
 
-    override suspend fun unfavoriteVideo(videoId: String): AppResult<Unit> {
+    override suspend fun unfavoriteVideo(videoId: Long): AppResult<Unit> {  // ✅ 修改：从 String 改为 Long
         return remoteDataSource.unfavoriteVideo(videoId)
     }
 
-    override suspend fun shareVideo(videoId: String): AppResult<Unit> {
+    override suspend fun shareVideo(videoId: Long): AppResult<Unit> {  // ✅ 修改：从 String 改为 Long
         return remoteDataSource.shareVideo(videoId)
     }
 
-    override suspend fun postComment(videoId: String, content: String): AppResult<Comment> {
+    override suspend fun postComment(videoId: Long, content: String): AppResult<Comment> {  // ✅ 修改：从 String 改为 Long
         return when (val result = remoteDataSource.postComment(videoId, content)) {
             is AppResult.Success -> {
                 // 保存新评论到本地
@@ -270,7 +270,7 @@ class VideoRepositoryImpl @Inject constructor(
                 MockVideoCatalog.Orientation.PORTRAIT -> "portrait"
             }
             Video(
-                id = mock.id,
+                id = mock.id.toLongOrNull() ?: 0L,  // ✅ 修改：mock.id 是 String，Video.id 是 Long，需要转换
                 playUrl = mock.url,
                 coverUrl = "", // Mock 数据暂不提供封面，可后续扩展
                 title = mock.title,

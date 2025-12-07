@@ -16,14 +16,14 @@ import javax.inject.Inject
  */
 interface VideoRemoteDataSource {
     suspend fun getVideoFeed(page: Int, limit: Int, orientation: String? = null): AppResult<List<Video>>
-    suspend fun getVideoDetail(videoId: String): AppResult<Video>
-    suspend fun getComments(videoId: String, page: Int, limit: Int): AppResult<List<Comment>>
-    suspend fun likeVideo(videoId: String): AppResult<Unit>
-    suspend fun unlikeVideo(videoId: String): AppResult<Unit>
-    suspend fun favoriteVideo(videoId: String): AppResult<Unit>
-    suspend fun unfavoriteVideo(videoId: String): AppResult<Unit>
-    suspend fun shareVideo(videoId: String): AppResult<Unit>
-    suspend fun postComment(videoId: String, content: String): AppResult<Comment>
+    suspend fun getVideoDetail(videoId: Long): AppResult<Video>  // ✅ 修改：从 String 改为 Long
+    suspend fun getComments(videoId: Long, page: Int, limit: Int): AppResult<List<Comment>>  // ✅ 修改：从 String 改为 Long
+    suspend fun likeVideo(videoId: Long): AppResult<Unit>  // ✅ 修改：从 String 改为 Long
+    suspend fun unlikeVideo(videoId: Long): AppResult<Unit>  // ✅ 修改：从 String 改为 Long
+    suspend fun favoriteVideo(videoId: Long): AppResult<Unit>  // ✅ 修改：从 String 改为 Long
+    suspend fun unfavoriteVideo(videoId: Long): AppResult<Unit>  // ✅ 修改：从 String 改为 Long
+    suspend fun shareVideo(videoId: Long): AppResult<Unit>  // ✅ 修改：从 String 改为 Long
+    suspend fun postComment(videoId: Long, content: String): AppResult<Comment>  // ✅ 修改：从 String 改为 Long
 }
 
 /**
@@ -90,13 +90,13 @@ class VideoRemoteDataSourceImpl @Inject constructor(
         }
     }
 
-    override suspend fun getVideoDetail(videoId: String): AppResult<Video> {
+    override suspend fun getVideoDetail(videoId: Long): AppResult<Video> {  // ✅ 修改：从 String 改为 Long
         return runAppResult {
             if (!connectivityObserver.isConnected()) {
                 throw DataException.NetworkException("No internet connection")
             }
 
-            val response = apiService.getVideoDetail(videoId)
+            val response = apiService.getVideoDetail(videoId.toString())  // ✅ 修改：转换为 String 传递给 Retrofit
             val data = response.data
             when {
                 response.isSuccess && data != null -> {
@@ -121,13 +121,13 @@ class VideoRemoteDataSourceImpl @Inject constructor(
         }
     }
 
-    override suspend fun getComments(videoId: String, page: Int, limit: Int): AppResult<List<Comment>> {
+    override suspend fun getComments(videoId: Long, page: Int, limit: Int): AppResult<List<Comment>> {  // ✅ 修改：从 String 改为 Long
         return runAppResult {
             if (!connectivityObserver.isConnected()) {
                 throw DataException.NetworkException("No internet connection")
             }
 
-            val response = apiService.getComments(videoId, page, limit)
+            val response = apiService.getComments(videoId.toString(), page, limit)  // ✅ 修改：转换为 String 传递给 Retrofit
             val data = response.data
             when {
                 response.isSuccess && data != null -> {
@@ -152,13 +152,13 @@ class VideoRemoteDataSourceImpl @Inject constructor(
         }
     }
 
-    override suspend fun likeVideo(videoId: String): AppResult<Unit> {
+    override suspend fun likeVideo(videoId: Long): AppResult<Unit> {  // ✅ 修改：从 String 改为 Long
         return runAppResult {
             if (!connectivityObserver.isConnected()) {
                 throw DataException.NetworkException("No internet connection")
             }
 
-            val response = apiService.likeVideo(videoId)
+            val response = apiService.likeVideo(videoId.toString())  // ✅ 修改：转换为 String 传递给 Retrofit
             when {
                 response.isSuccess -> Unit
                 response.isUnauthorized -> {
@@ -177,13 +177,13 @@ class VideoRemoteDataSourceImpl @Inject constructor(
         }
     }
 
-    override suspend fun unlikeVideo(videoId: String): AppResult<Unit> {
+    override suspend fun unlikeVideo(videoId: Long): AppResult<Unit> {  // ✅ 修改：从 String 改为 Long
         return runAppResult {
             if (!connectivityObserver.isConnected()) {
                 throw DataException.NetworkException("No internet connection")
             }
 
-            val response = apiService.unlikeVideo(videoId)
+            val response = apiService.unlikeVideo(videoId.toString())  // ✅ 修改：转换为 String 传递给 Retrofit
             when {
                 response.isSuccess -> Unit
                 response.isUnauthorized -> {
@@ -202,13 +202,13 @@ class VideoRemoteDataSourceImpl @Inject constructor(
         }
     }
 
-    override suspend fun favoriteVideo(videoId: String): AppResult<Unit> {
+    override suspend fun favoriteVideo(videoId: Long): AppResult<Unit> {  // ✅ 修改：从 String 改为 Long
         return runAppResult {
             if (!connectivityObserver.isConnected()) {
                 throw DataException.NetworkException("No internet connection")
             }
 
-            val response = apiService.favoriteVideo(videoId)
+            val response = apiService.favoriteVideo(videoId.toString())  // ✅ 修改：转换为 String 传递给 Retrofit
             when {
                 response.isSuccess -> Unit
                 response.isUnauthorized -> {
@@ -227,13 +227,13 @@ class VideoRemoteDataSourceImpl @Inject constructor(
         }
     }
 
-    override suspend fun unfavoriteVideo(videoId: String): AppResult<Unit> {
+    override suspend fun unfavoriteVideo(videoId: Long): AppResult<Unit> {  // ✅ 修改：从 String 改为 Long
         return runAppResult {
             if (!connectivityObserver.isConnected()) {
                 throw DataException.NetworkException("No internet connection")
             }
 
-            val response = apiService.unfavoriteVideo(videoId)
+            val response = apiService.unfavoriteVideo(videoId.toString())  // ✅ 修改：转换为 String 传递给 Retrofit
             when {
                 response.isSuccess -> Unit
                 response.isUnauthorized -> {
@@ -252,13 +252,13 @@ class VideoRemoteDataSourceImpl @Inject constructor(
         }
     }
 
-    override suspend fun shareVideo(videoId: String): AppResult<Unit> {
+    override suspend fun shareVideo(videoId: Long): AppResult<Unit> {  // ✅ 修改：从 String 改为 Long
         return runAppResult {
             if (!connectivityObserver.isConnected()) {
                 throw DataException.NetworkException("No internet connection")
             }
 
-            val response = apiService.shareVideo(videoId)
+            val response = apiService.shareVideo(videoId.toString())  // ✅ 修改：转换为 String 传递给 Retrofit
             when {
                 response.isSuccess -> Unit
                 response.isUnauthorized -> {
@@ -277,13 +277,13 @@ class VideoRemoteDataSourceImpl @Inject constructor(
         }
     }
 
-    override suspend fun postComment(videoId: String, content: String): AppResult<Comment> {
+    override suspend fun postComment(videoId: Long, content: String): AppResult<Comment> {  // ✅ 修改：从 String 改为 Long
         return runAppResult {
             if (!connectivityObserver.isConnected()) {
                 throw DataException.NetworkException("No internet connection")
             }
 
-            val response = apiService.postComment(videoId, CommentRequest(content))
+            val response = apiService.postComment(videoId.toString(), CommentRequest(content))  // ✅ 修改：转换为 String 传递给 Retrofit
             val data = response.data
             when {
                 response.isSuccess && data != null -> {

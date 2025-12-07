@@ -31,7 +31,7 @@ import com.ucw.beatu.shared.database.entity.WatchHistoryEntity
         UserInteractionEntity::class,
         WatchHistoryEntity::class
     ],
-    version = 5,
+    version = 6,  // ✅ 修改：数据库版本从 5 升级到 6（video.id 从 String 改为 Long）
     exportSchema = true
 )
 @TypeConverters(Converters::class)

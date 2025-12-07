@@ -27,8 +27,8 @@ import kotlin.collections.List
  */
 interface VideoLocalDataSource {
     fun observeVideos(limit: Int = 50): Flow<List<Video>>
-    suspend fun getVideoById(id: String): Video?
-    fun observeVideoById(id: String): Flow<Video?>
+    suspend fun getVideoById(id: Long): Video?  // ✅ 修改：从 String 改为 Long
+    fun observeVideoById(id: Long): Flow<Video?>  // ✅ 修改：从 String 改为 Long
     suspend fun saveVideos(videos: List<Video>)
     suspend fun saveVideo(video: Video)
     suspend fun clearVideos()
@@ -38,11 +38,11 @@ interface VideoLocalDataSource {
      */
     fun enqueueThumbnailGeneration(videos: List<Video>)
 
-    fun observeComments(videoId: String): Flow<List<Comment>>
+    fun observeComments(videoId: Long): Flow<List<Comment>>  // ✅ 修改：从 String 改为 Long
     suspend fun getCommentById(commentId: String): Comment?
     suspend fun saveComments(comments: List<Comment>)
     suspend fun saveComment(comment: Comment)
-    suspend fun clearComments(videoId: String)
+    suspend fun clearComments(videoId: Long)  // ✅ 修改：从 String 改为 Long
 }
 
 /**
@@ -65,12 +65,12 @@ class VideoLocalDataSourceImpl @Inject constructor(
         }
     }
 
-    override suspend fun getVideoById(id: String): Video? {
+    override suspend fun getVideoById(id: Long): Video? {  // ✅ 修改：从 String 改为 Long
         return videoDao.getVideoById(id)?.toDomain()
     }
 
-    override fun observeVideoById(id: String): Flow<Video?> {
-        return videoDao.observeVideoById(id).map { entity ->
+    override fun observeVideoById(id: Long): Flow<Video?> {  // ✅ 修改：从 String 改为 Long
+        return videoDao.observeVideoById(id).map { entity ->  // ✅ 修改：VideoDao 已更新为 Long
             entity?.toDomain()
         }
     }
@@ -90,8 +90,8 @@ class VideoLocalDataSourceImpl @Inject constructor(
         videoDao.clear()
     }
 
-    override fun observeComments(videoId: String): Flow<List<Comment>> {
-        return commentDao.observeComments(videoId).map { entities ->
+    override fun observeComments(videoId: Long): Flow<List<Comment>> {  // ✅ 修改：从 String 改为 Long
+        return commentDao.observeComments(videoId.toString()).map { entities ->  // ✅ 修改：CommentDao 需要 String，所以转换
             entities.map { it.toDomain() }
         }
     }
@@ -108,8 +108,8 @@ class VideoLocalDataSourceImpl @Inject constructor(
         commentDao.insert(comment.toEntity())
     }
 
-    override suspend fun clearComments(videoId: String) {
-        commentDao.clear(videoId)
+    override suspend fun clearComments(videoId: Long) {  // ✅ 修改：从 String 改为 Long
+        commentDao.clear(videoId.toString())  // ✅ 修改：CommentDao 需要 String，所以转换
     }
     override fun enqueueThumbnailGeneration(videos: List<Video>) {
         // 后台懒生成：仅针对当前批次中 coverUrl 为空的条目生成缩略图并更新 DB
@@ -145,7 +145,7 @@ class VideoLocalDataSourceImpl @Inject constructor(
     /**
      * 使用 MediaMetadataRetriever 抽取首帧并保存到本地文件，返回文件绝对路径。
      */
-    private fun extractFirstFrameToFile(videoId: String, url: String): String? {
+    private fun extractFirstFrameToFile(videoId: Long, url: String): String? {  // ✅ 修改：从 String 改为 Long
         val retriever = MediaMetadataRetriever()
         return try {
             android.util.Log.d("VideoLocalDataSource", "Extracting frame from: $url")

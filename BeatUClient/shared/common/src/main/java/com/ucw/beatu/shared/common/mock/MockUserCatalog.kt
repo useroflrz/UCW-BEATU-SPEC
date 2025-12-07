@@ -30,32 +30,6 @@ object MockUserCatalog {
      * - 加上从 MockVideoCatalog 中提取出的唯一作者列表
      */
     fun buildMockUsers(currentUserId: String = "current_user"): List<User> {
-        // 直接使用 MockVideoCatalog 的 portraitVideos 列表来生成用户
-        val videos = MockVideoCatalog.getPortraitVideos()
-        
-        android.util.Log.d("MockUserCatalog", "buildMockUsers: got ${videos.size} videos from MockVideoCatalog.getPortraitVideos()")
-        if (videos.isEmpty()) {
-            android.util.Log.w("MockUserCatalog", "buildMockUsers: WARNING - MockVideoCatalog.getPortraitVideos() returned empty list!")
-        }
-
-        val uniqueAuthors = videos.map { it.author }.distinct()
-        android.util.Log.d("MockUserCatalog", "buildMockUsers: extracted ${uniqueAuthors.size} unique authors: $uniqueAuthors")
-
-        val authorUsers = uniqueAuthors
-            .mapIndexed { index, name ->
-                User(
-                    id = "mock_author_${index + 1}",
-                    avatarUrl = null,
-                    name = name,
-                    bio = "这是来自 MockVideoCatalog 的作者：$name",
-                    likesCount = 10_000L + index * 123,
-                    followingCount = 100L + index * 3,
-                    followersCount = 5_000L + index * 77
-                )
-            }
-        
-        android.util.Log.d("MockUserCatalog", "buildMockUsers: created ${authorUsers.size} author users")
-
         val currentUser = User(
             id = currentUserId,
             avatarUrl = null,
@@ -66,7 +40,7 @@ object MockUserCatalog {
             followersCount = 12_000L
         )
 
-        return listOf(currentUser) + authorUsers
+        return listOf(currentUser)
     }
 }
 
