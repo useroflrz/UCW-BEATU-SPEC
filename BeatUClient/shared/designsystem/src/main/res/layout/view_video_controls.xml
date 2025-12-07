@@ -142,7 +142,8 @@
                             android:layout_height="32dp"
                             android:src="@drawable/ic_avatar_placeholder"
                             android:scaleType="centerCrop"
-                            android:background="@drawable/bg_avatar_circle" />
+                            android:background="@drawable/bg_avatar_circle"
+                            android:clipToOutline="true" />
                     </FrameLayout>
 
                     <TextView

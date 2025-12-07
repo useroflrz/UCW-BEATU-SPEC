@@ -50,6 +50,8 @@ class RecommendViewModel @Inject constructor(
     private var currentPlayer: VideoPlayer? = null
     private var currentVideoId: String? = null
     private var currentPage = 1
+    // 记录每个视频的数据来源（"local"、"remote" 或 "mock"）
+    private val videoSourceMap = mutableMapOf<String, String>()
     // 从资源或默认值读取页面大小配置（避免直接依赖 app 的 R）
     private val pageSize = getIntegerResource(
         application,
@@ -92,9 +94,17 @@ class RecommendViewModel @Inject constructor(
                         }
                         is AppResult.Success -> {
                             val videos = result.data.map { it.toVideoItem() }
+                            // 记录数据来源
+                            val source = result.metadata["source"] as? String ?: "unknown"
+                            videos.forEach { video ->
+                                videoSourceMap[video.id] = source
+                                android.util.Log.d("RecommendViewModel", 
+                                    "loadVideoList: 视频 ${video.id} 数据来源=$source, authorAvatar=${video.authorAvatar ?: "null"}"
+                                )
+                            }
                             // 如果第一页数量不足 pageSize，可以直接认为后端数据已经加载完
                             val hasLoadedAll = videos.size < pageSize
-                            android.util.Log.d("RecommendViewModel", "loadVideoList: Success, loaded ${videos.size} videos")
+                            android.util.Log.d("RecommendViewModel", "loadVideoList: Success, loaded ${videos.size} videos, source=$source")
                             _uiState.value = _uiState.value.copy(
                                 videoList = videos,
                                 isLoading = false,
@@ -140,7 +150,16 @@ class RecommendViewModel @Inject constructor(
                         }
                         is AppResult.Success -> {
                             val videos = result.data.map { it.toVideoItem() }
+                            // 记录数据来源
+                            val source = result.metadata["source"] as? String ?: "unknown"
+                            videos.forEach { video ->
+                                videoSourceMap[video.id] = source
+                                android.util.Log.d("RecommendViewModel", 
+                                    "refreshVideoList: 视频 ${video.id} 数据来源=$source, authorAvatar=${video.authorAvatar ?: "null"}"
+                                )
+                            }
                             val hasLoadedAll = videos.size < pageSize
+                            android.util.Log.d("RecommendViewModel", "refreshVideoList: Success, loaded ${videos.size} videos, source=$source")
                             _uiState.value = _uiState.value.copy(
                                 videoList = videos,
                                 isRefreshing = false,
@@ -192,6 +211,15 @@ class RecommendViewModel @Inject constructor(
                             val moreVideos = result.data.map { it.toVideoItem() }
                             val currentList = _uiState.value.videoList.toMutableList()
 
+                            // 记录数据来源
+                            val source = result.metadata["source"] as? String ?: "unknown"
+                            moreVideos.forEach { video ->
+                                videoSourceMap[video.id] = source
+                                android.util.Log.d("RecommendViewModel", 
+                                    "loadMoreVideos: 视频 ${video.id} 数据来源=$source, authorAvatar=${video.authorAvatar ?: "null"}"
+                                )
+                            }
+
                             // 如果此次没有再返回新数据，说明后端所有页已经加载完
                             if (moreVideos.isEmpty()) {
                                 _uiState.value = _uiState.value.copy(
@@ -202,8 +230,22 @@ class RecommendViewModel @Inject constructor(
                                 return@collect
                             } else {
                                 currentPage = nextPage // 更新页码
-                                currentList.addAll(moreVideos)
+                                
+                                // 基于 videoId 去重，避免重复加载
+                                val existingIds = currentList.map { it.id }.toSet()
+                                val uniqueNewVideos = moreVideos.filter { it.id !in existingIds }
+                                
+                                if (uniqueNewVideos.isEmpty()) {
+                                    // 没有新视频，标记为已加载完
+                                    _uiState.value = _uiState.value.copy(
+                                        hasLoadedAllFromBackend = true
+                                    )
+                                    return@collect
+                                }
+                                
+                                currentList.addAll(uniqueNewVideos)
                                 val hasLoadedAll = moreVideos.size < pageSize
+                                android.util.Log.d("RecommendViewModel", "loadMoreVideos: Success, loaded ${uniqueNewVideos.size} new videos, source=$source")
                                 _uiState.value = _uiState.value.copy(
                                     videoList = currentList,
                                     error = null,
@@ -246,6 +288,13 @@ class RecommendViewModel @Inject constructor(
             isRefreshing = false,
             error = null
         )
+    }
+    
+    /**
+     * 获取视频的数据来源（用于日志）
+     */
+    fun getVideoSource(videoId: String): String {
+        return videoSourceMap[videoId] ?: "unknown"
     }
 
     fun getCurrentPage(): Int = currentPage

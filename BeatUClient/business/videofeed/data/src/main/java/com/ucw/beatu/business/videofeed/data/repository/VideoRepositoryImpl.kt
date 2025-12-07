@@ -77,7 +77,11 @@ class VideoRepositoryImpl @Inject constructor(
 
             val localVideos = localDeferred.await()
             if (localVideos.isNotEmpty()) {
-                emit(AppResult.Success(localVideos)) // 先显示本地缓存
+                android.util.Log.d("VideoRepository", 
+                    "返回本地缓存数据: page=$page, limit=$limit, orientation=$orientation, " +
+                    "视频数量=${localVideos.size}"
+                )
+                emit(AppResult.Success(localVideos, metadata = mapOf("source" to "local"))) // 先显示本地缓存
             }
 
             // 尝试获取远程数据，如果失败则快速fallback到mock数据
@@ -98,7 +102,8 @@ class VideoRepositoryImpl @Inject constructor(
                     localDataSource.saveVideos(remoteResult.data)
                     // 异步为没有封面的视频生成缩略图
                     localDataSource.enqueueThumbnailGeneration(remoteResult.data)
-                    emit(remoteResult) // 用远程最新数据刷新
+                    // 标记数据来源为远程
+                    emit(AppResult.Success(remoteResult.data, metadata = mapOf("source" to "remote"))) // 用远程最新数据刷新
                 }
                 is AppResult.Error -> {
                     // 记录远程请求失败的详细信息
@@ -118,7 +123,7 @@ class VideoRepositoryImpl @Inject constructor(
                             localDataSource.saveVideos(fallbackVideos)
                             // 异步为没有封面的视频生成缩略图
                             localDataSource.enqueueThumbnailGeneration(fallbackVideos)
-                            emit(AppResult.Success(fallbackVideos))
+                            emit(AppResult.Success(fallbackVideos, metadata = mapOf("source" to "mock")))
                         } else {
                             // 如果mock数据也没有，才发送错误
                             android.util.Log.e("VideoRepository", "mock数据也为空，发送错误响应")
@@ -128,7 +133,7 @@ class VideoRepositoryImpl @Inject constructor(
                         // 本地已有数据时，静默失败，不发送错误，保持UI流畅
                         // 使用本地缓存数据，确保用户可以继续滑动
                         android.util.Log.d("VideoRepository", "使用本地缓存数据，忽略远程错误")
-                        emit(AppResult.Success(localVideos))
+                        emit(AppResult.Success(localVideos, metadata = mapOf("source" to "local")))
                     }
                 }
                 is AppResult.Loading -> emit(remoteResult)
@@ -143,7 +148,7 @@ class VideoRepositoryImpl @Inject constructor(
             localDataSource.saveVideos(fallbackVideos)
             // 异步为没有封面的视频生成缩略图
             localDataSource.enqueueThumbnailGeneration(fallbackVideos)
-            emit(AppResult.Success(fallbackVideos))
+            emit(AppResult.Success(fallbackVideos, metadata = mapOf("source" to "mock")))
         } else {
             emit(AppResult.Error(it))
         }

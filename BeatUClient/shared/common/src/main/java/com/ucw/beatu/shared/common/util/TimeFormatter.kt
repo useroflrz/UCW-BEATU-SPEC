@@ -58,4 +58,23 @@ object TimeFormatter {
     fun formatSimpleRelativeTime(timestamp: Long): String {
         return formatRelativeTime(timestamp, null)
     }
+
+    /**
+     * 将时间戳（毫秒）转换为评论日期格式
+     * 格式：今天显示相对时间（刚刚/X分钟前/X小时前），其他显示 MM-dd
+     */
+    fun formatCommentDate(timestamp: Long): String {
+        val now = System.currentTimeMillis()
+        val diff = now - timestamp
+        
+        return when {
+            diff < 60000 -> "刚刚" // 1 分钟内
+            diff < 3600000 -> "${diff / 60000}分钟前" // 1 小时内
+            diff < 86400000 -> "${diff / 3600000}小时前" // 24 小时内
+            else -> {
+                // 超过 24 小时，显示月-日格式
+                SimpleDateFormat("MM-dd", Locale.getDefault()).format(Date(timestamp))
+            }
+        }
+    }
 }

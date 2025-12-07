@@ -15,7 +15,8 @@
         android:layout_height="36dp"
         android:src="@drawable/ic_avatar_placeholder"
         android:scaleType="centerCrop"
-        android:background="@drawable/bg_avatar_circle" />
+        android:background="@drawable/bg_avatar_circle"
+        android:clipToOutline="true" />
 
     <!-- 右侧评论内容 -->
     <LinearLayout
@@ -25,37 +26,14 @@
         android:orientation="vertical"
         android:layout_marginStart="8dp">
 
-        <!-- 昵称 + 作者标识 -->
-        <LinearLayout
+        <!-- 昵称 -->
+        <TextView
+            android:id="@+id/tv_user_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:id="@+id/tv_user_name"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="用户名"
-                android:textColor="#FF222222"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tv_author_tag"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:paddingStart="4dp"
-                android:paddingEnd="4dp"
-                android:paddingTop="2dp"
-                android:paddingBottom="2dp"
-                android:text="作者"
-                android:textSize="10sp"
-                android:textColor="#FFFFFFFF"
-                android:background="@android:color/holo_red_light"
-                android:visibility="gone" />
-        </LinearLayout>
+            android:text="用户名"
+            android:textColor="#FF999999"
+            android:textSize="14sp" />
 
         <!-- 评论正文 -->
         <TextView
@@ -64,43 +42,54 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="评论内容"
-            android:textColor="#FF333333"
-            android:textSize="14sp" />
+            android:textColor="#FF000000"
+            android:textSize="14sp"
+            android:lineSpacingExtra="2dp" />
 
-        <!-- 时间 / 地点 / 回复 / 点赞 -->
-        <LinearLayout
+        <!-- 日期和点赞 -->
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:layout_marginTop="4dp">
 
+            <!-- 日期 -->
             <TextView
                 android:id="@+id/tv_time_location"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="3天前 · 河北"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:text="11-27"
                 android:textColor="#FF999999"
                 android:textSize="12sp" />
 
-            <TextView
-                android:id="@+id/tv_reply"
+            <!-- 点赞数（带心形图标） -->
+            <LinearLayout
+                android:id="@+id/layout_like"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="回复"
-                android:textColor="#FF999999"
-                android:textSize="12sp"
-                android:layout_marginEnd="12dp" />
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-            <TextView
-                android:id="@+id/tv_like_count"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="536"
-                android:textColor="#FF999999"
-                android:textSize="12sp" />
-        </LinearLayout>
+                <ImageView
+                    android:id="@+id/iv_like_icon"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_like"
+                    android:tint="#FF999999"
+                    android:layout_marginEnd="4dp" />
+
+                <TextView
+                    android:id="@+id/tv_like_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="9929"
+                    android:textColor="#FF999999"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </RelativeLayout>
     </LinearLayout>
 
 </LinearLayout>

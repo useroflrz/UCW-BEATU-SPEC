@@ -11,6 +11,7 @@ import androidx.core.os.BundleCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.ui.PlayerView
@@ -120,11 +121,38 @@ class VideoItemFragment : BaseFeedItemFragment() {
             val channelAvatarView = sharedControlsRoot?.findViewById<android.widget.ImageView>(
                 com.ucw.beatu.shared.designsystem.R.id.iv_channel_avatar
             )
+            // 设置圆形裁剪
+            channelAvatarView?.apply {
+                outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+                clipToOutline = true
+            }
             val placeholderRes = com.ucw.beatu.shared.designsystem.R.drawable.ic_avatar_placeholder
             val authorAvatarUrl = item.authorAvatar
+            
+            // 尝试获取数据来源（通过 parentFragment 获取 RecommendViewModel）
+            val videoSource = try {
+                val parent = parentFragment
+                if (parent is com.ucw.beatu.business.videofeed.presentation.ui.RecommendFragment) {
+                    val recommendViewModel = ViewModelProvider(parent)[
+                        com.ucw.beatu.business.videofeed.presentation.viewmodel.RecommendViewModel::class.java
+                    ]
+                    recommendViewModel.getVideoSource(item.id)
+                } else {
+                    "unknown"
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "onViewCreated: 无法获取数据来源，${e.message}")
+                "unknown"
+            }
+            
+            // 打印作者头像和数据来源信息
+            Log.d(TAG, "onViewCreated: 视频ID=${item.id}, 标题=${item.title}, 数据来源=$videoSource, authorAvatar=${authorAvatarUrl ?: "null"}, authorName=${item.authorName}")
+            
             if (authorAvatarUrl.isNullOrBlank()) {
+                Log.w(TAG, "onViewCreated: 作者头像为空，使用占位图，视频ID=${item.id}, 数据来源=$videoSource")
                 channelAvatarView?.setImageResource(placeholderRes)
             } else {
+                Log.d(TAG, "onViewCreated: 加载作者头像，视频ID=${item.id}, authorAvatar=$authorAvatarUrl, 数据来源=$videoSource")
                 channelAvatarView?.load(authorAvatarUrl) {
                     crossfade(true)
                     placeholder(placeholderRes)
@@ -485,7 +513,23 @@ class VideoItemFragment : BaseFeedItemFragment() {
             Log.d(TAG, "preparePlayerForFirstTime: skip for image post ${item.id}")
             return
         }
-        Log.d(TAG, "Preparing video for playback: ${item.id}")
+        
+        // 获取数据来源
+        val videoSource = try {
+            val parent = parentFragment
+            if (parent is com.ucw.beatu.business.videofeed.presentation.ui.RecommendFragment) {
+                val recommendViewModel = ViewModelProvider(parent)[
+                    com.ucw.beatu.business.videofeed.presentation.viewmodel.RecommendViewModel::class.java
+                ]
+                recommendViewModel.getVideoSource(item.id)
+            } else {
+                "unknown"
+            }
+        } catch (e: Exception) {
+            "unknown"
+        }
+        
+        Log.d(TAG, "preparePlayerForFirstTime: 准备播放视频，视频ID=${item.id}, 视频URL=${item.videoUrl}, 数据来源=$videoSource, authorAvatar=${item.authorAvatar ?: "null"}")
         viewModel.playVideo(item.id, item.videoUrl)
         viewModel.preparePlayer(item.id, item.videoUrl, pv)
         hasPreparedPlayer = true

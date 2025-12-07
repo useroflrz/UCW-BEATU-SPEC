@@ -20,6 +20,7 @@ import com.ucw.beatu.business.videofeed.domain.usecase.PostCommentUseCase
 import com.ucw.beatu.business.videofeed.presentation.R
 import com.ucw.beatu.shared.common.result.AppResult
 import com.ucw.beatu.shared.common.util.TimeFormatter
+import com.ucw.beatu.shared.designsystem.R as DesignSystemR
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -48,6 +49,7 @@ class VideoCommentsDialogFragment : DialogFragment() {
     private var sendButton: TextView? = null
     private var closeButton: ImageView? = null
     private var commentTitleView: TextView? = null
+    private var commentPanel: View? = null
 
     private var adapter: CommentsAdapter? = null
     private var isPosting = false
@@ -63,6 +65,7 @@ class VideoCommentsDialogFragment : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        commentPanel = view.findViewById(R.id.layout_comment_panel)
         commentsRecyclerView = view.findViewById(R.id.rv_comments)
         inputEditText = view.findViewById(R.id.et_comment)
         sendButton = view.findViewById(R.id.btn_send)
@@ -121,6 +124,20 @@ class VideoCommentsDialogFragment : DialogFragment() {
                         WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
                 )
             }
+        }
+        
+        // 设置评论面板内容左右间距，对称
+        commentPanel?.let { panel ->
+            val metrics = DisplayMetrics()
+            requireActivity().windowManager.defaultDisplay.getMetrics(metrics)
+            val horizontalPadding = (metrics.widthPixels * 0.0125f).toInt() // 2.5% 的间距
+            
+            panel.setPadding(
+                horizontalPadding,
+                panel.paddingTop,
+                horizontalPadding,
+                panel.paddingBottom
+            )
         }
     }
 
@@ -235,14 +252,21 @@ private class CommentViewHolder(itemView: View) : RecyclerView.ViewHolder(itemVi
 
     private val avatarView: ImageView = itemView.findViewById(R.id.iv_avatar)
     private val userNameView: TextView = itemView.findViewById(R.id.tv_user_name)
-    private val authorTagView: TextView = itemView.findViewById(R.id.tv_author_tag)
     private val contentView: TextView = itemView.findViewById(R.id.tv_content)
     private val timeLocationView: TextView = itemView.findViewById(R.id.tv_time_location)
-    private val replyView: TextView = itemView.findViewById(R.id.tv_reply)
+    private val likeIconView: ImageView = itemView.findViewById(R.id.iv_like_icon)
     private val likeCountView: TextView = itemView.findViewById(R.id.tv_like_count)
 
+    init {
+        // 设置圆形裁剪
+        avatarView.apply {
+            outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+            clipToOutline = true
+        }
+    }
+
     fun bind(comment: Comment) {
-        val placeholderRes = R.drawable.ic_avatar_placeholder
+        val placeholderRes = DesignSystemR.drawable.ic_avatar_placeholder
 
         val avatarUrl = comment.authorAvatar
         if (avatarUrl.isNullOrBlank()) {
@@ -258,20 +282,12 @@ private class CommentViewHolder(itemView: View) : RecyclerView.ViewHolder(itemVi
         }
 
         userNameView.text = comment.authorName
-        
-        // 判断是否为作者（这里暂时简化，可以通过 videoId 查找视频作者来比较）
-        // TODO: 需要从视频信息中获取作者 ID 来判断
-        authorTagView.visibility = View.GONE
-
         contentView.text = comment.content
 
-        // 使用时间格式化工具格式化时间显示
-        // 注意：后端没有返回 location 信息，所以暂时不显示位置
-        timeLocationView.text = TimeFormatter.formatSimpleRelativeTime(comment.createdAt)
+        // 使用评论日期格式化工具格式化时间显示
+        timeLocationView.text = TimeFormatter.formatCommentDate(comment.createdAt)
 
-        // 回复按钮暂时不做交互，只展示文字
-        replyView.text = "回复"
-
+        // 显示点赞数
         likeCountView.text = comment.likeCount.toString()
     }
 }

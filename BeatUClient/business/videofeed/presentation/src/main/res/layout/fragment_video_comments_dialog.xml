@@ -10,42 +10,34 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:background="@drawable/bg_video_comments_panel"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp">
+        android:background="@drawable/bg_video_comments_panel">
 
-        <!-- 顶部拖拽条 + 标题 -->
-        <LinearLayout
+        <!-- 顶部标题栏 -->
+        <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp">
+            android:layout_height="48dp">
 
-            <View
-                android:layout_width="40dp"
-                android:layout_height="4dp"
-                android:layout_gravity="center_vertical"
-                android:background="@android:color/darker_gray"
-                android:layout_marginEnd="8dp" />
-
+            <!-- 评论数量标题，居中显示 -->
             <TextView
                 android:id="@+id/tv_comment_title"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:layout_centerInParent="true"
                 android:text="评论区"
                 android:textColor="#000000"
                 android:textSize="14sp" />
 
+            <!-- 关闭按钮，位于右侧 -->
             <ImageView
                 android:id="@+id/btn_close"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:layout_marginEnd="10dp"
                 android:src="@android:drawable/ic_menu_close_clear_cancel"
                 android:tint="#808080" />
-        </LinearLayout>
+        </RelativeLayout>
 
         <!-- 评论列表 -->
         <androidx.recyclerview.widget.RecyclerView
@@ -53,8 +45,6 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
             android:clipToPadding="false" />
 
         <!-- 底部输入框 -->
@@ -64,26 +54,26 @@
             android:layout_height="56dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:background="#FFF5F5F5">
+            android:background="@android:color/white">
 
             <EditText
                 android:id="@+id/et_comment"
                 android:layout_width="0dp"
                 android:layout_height="36dp"
                 android:layout_weight="1"
-                android:background="@android:color/white"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_comment_input"
                 android:hint="善语结善缘，恶语伤人心。"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
                 android:textSize="13sp" />
 
             <TextView
                 android:id="@+id/btn_send"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginEnd="12dp"
                 android:text="发送"
                 android:textColor="#FF333333"
                 android:textSize="14sp" />
