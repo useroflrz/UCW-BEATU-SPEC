@@ -298,7 +298,7 @@ class RecommendFragment : Fragment() {
      * 完成刷新（由 observeViewModel 调用）
      */
     private fun completeRefresh() {
-        if (pullToRefreshState == PullToRefreshState.REFRESHING) {
+        if (isRefreshing) {
             pullToRefreshState = PullToRefreshState.COMPLETED
             isRefreshing = false
 

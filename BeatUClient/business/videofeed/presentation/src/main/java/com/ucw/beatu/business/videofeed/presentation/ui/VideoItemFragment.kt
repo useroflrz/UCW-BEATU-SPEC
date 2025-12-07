@@ -567,8 +567,6 @@ class VideoItemFragment : BaseFeedItemFragment() {
             Log.w(TAG, "reattachPlayer: playerView is null, skip")
             return
         }
-        val item = videoItem ?: return
-        val pv = playerView ?: return
         if (item.type == FeedContentType.IMAGE_POST) {
             // 图文内容目前不支持横竖屏热切换，忽略重绑定
             Log.d(TAG, "reattachPlayer: skip for image post ${item.id}")
