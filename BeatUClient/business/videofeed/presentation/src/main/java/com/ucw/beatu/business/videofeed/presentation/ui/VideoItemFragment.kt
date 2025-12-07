@@ -208,12 +208,13 @@ class VideoItemFragment : BaseFeedItemFragment() {
                 // 视频内容：显示播放器，隐藏图文容器
                 playerView?.visibility = View.VISIBLE
                 imagePager?.visibility = View.GONE
-                // 所有视频内容都显示横屏按钮
-                fullScreenButton?.visibility = View.VISIBLE
+                // 在竖屏状态下，只有横屏视频才显示全屏按钮
+                val isPortraitMode = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT
+                fullScreenButton?.visibility = if (isPortraitMode && isLandscapeVideo) View.VISIBLE else View.GONE
             }
         }
         
-        // 设置横屏按钮点击监听（所有视频内容都支持横屏）
+        // 设置横屏按钮点击监听（只有横屏视频在竖屏状态下才显示）
         fullScreenButton?.setOnClickListener {
             handleFullScreenButtonClick()
         }
@@ -607,7 +608,13 @@ class VideoItemFragment : BaseFeedItemFragment() {
             return
         }
 
-        // 执行横屏切换（所有视频内容都支持横屏）
+        // 检查视频方向：只有横屏视频才支持切换到横屏模式
+        if (item.orientation != VideoOrientation.LANDSCAPE) {
+            Log.d(TAG, "handleFullScreenButtonClick: 竖屏视频不支持横屏模式")
+            return
+        }
+
+        // 执行横屏切换
         openLandscapeMode()
     }
 
