@@ -19,6 +19,9 @@ object LandscapeLaunchContract {
     // 视频列表限制（用于用户作品观看页面切换到横屏时）
     const val EXTRA_VIDEO_LIST = "extra_landscape_video_list"
     const val EXTRA_CURRENT_INDEX = "extra_landscape_current_index"
+    
+    // ✅ 新增：记录来源页面，用于退出时返回到正确的页面
+    const val EXTRA_SOURCE_DESTINATION = "extra_landscape_source_destination"
 }
 
 

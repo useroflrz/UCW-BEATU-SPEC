@@ -3,6 +3,7 @@ package com.ucw.beatu.business.search.presentation.ui
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -278,6 +279,7 @@ class SearchResultFragment : Fragment() {
     }
 
     companion object {
+        private const val TAG = "SearchResultFragment"
         private const val ARG_QUERY = "search_query"
         private const val ARG_RESULT_TITLE = "result_title"
         private const val ARG_SEARCH_TITLE = "search_title"
@@ -304,16 +306,20 @@ class SearchResultFragment : Fragment() {
             else -> ""
         }
 
+        val navController = findNavController()
+        val context = requireContext()
+        // ✅ 修复：记录来源页面 ID，用于返回时决定返回到哪里
+        val currentDestinationId = navController.currentDestination?.id ?: 0
         val args = bundleOf(
             "user_id" to userId,
             "initial_index" to targetIndex,
             "video_list" to ArrayList(videos),
             "search_title" to "“$searchQuery” 的搜索结果",
-            "source_tab" to "search"
+            "source_tab" to "search",
+            "source_destination" to currentDestinationId // ✅ 修复：传递来源页面 ID
         )
-
-        val navController = findNavController()
-        val context = requireContext()
+        Log.d(TAG, "navigateToVideoViewer: 传递来源页面 ID=$currentDestinationId")
+        
         val actionId = NavigationHelper.getResourceId(
             context,
             NavigationIds.ACTION_SEARCH_RESULT_TO_USER_WORKS_VIEWER

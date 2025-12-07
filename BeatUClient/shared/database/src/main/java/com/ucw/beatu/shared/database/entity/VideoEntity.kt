@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "videos")
 data class VideoEntity(
-    @PrimaryKey val id: String,
+    @PrimaryKey val id: Long,  // ✅ 修改：从 String 改为 Long
     val playUrl: String,
     val coverUrl: String,
     val title: String,

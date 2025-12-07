@@ -31,7 +31,7 @@ class UserService:
                 followers_count=0,
             )
         
-        # 计算用户的统计数据
+        # 计算用户的统计数量
         likes_count = self.db.scalar(
             select(func.sum(Video.like_count)).where(Video.author_id == user_id)
         ) or 0
@@ -102,4 +102,3 @@ class UserService:
             return {"success": True, "message": "已取消关注"}
         
         return {"success": True, "message": "未关注"}
-

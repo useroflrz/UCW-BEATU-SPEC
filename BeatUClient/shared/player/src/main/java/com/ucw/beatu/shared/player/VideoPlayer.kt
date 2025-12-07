@@ -19,9 +19,9 @@ interface VideoPlayer {
     fun removeListener(listener: Listener)
 
     interface Listener {
-        fun onReady(videoId: String) {}
-        fun onError(videoId: String, throwable: Throwable) {}
-        fun onPlaybackEnded(videoId: String) {}
+        fun onReady(videoId: Long) {}  // ✅ 修改：从 String 改为 Long
+        fun onError(videoId: Long, throwable: Throwable) {}  // ✅ 修改：从 String 改为 Long
+        fun onPlaybackEnded(videoId: Long) {}  // ✅ 修改：从 String 改为 Long
     }
 }
 

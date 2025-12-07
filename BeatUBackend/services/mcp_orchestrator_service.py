@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 # 从本地 mcp 模块导入（已迁移到 BeatUBackend/mcp/）
-from mcp.core.orchestrator import AgentOrchestrator
+from agent_mcp.core.orchestrator import AgentOrchestrator
 
 # 导入配置以设置环境变量
 from core.config import settings
@@ -75,4 +75,3 @@ def get_mcp_service() -> MCPOrchestratorService:
     if _mcp_service is None:
         _mcp_service = MCPOrchestratorService()
     return _mcp_service
-

@@ -43,7 +43,7 @@ def resolve_user_name(x_user_name: str | None = Header(default=None)) -> str:
 def list_videos(
     page: int = Query(1, ge=1),
     limit: int = Query(settings.default_page_size, ge=1, le=settings.max_page_size),
-    orientation: str | None = Query(default=None, regex="^(portrait|landscape)$"),
+    orientation: str | None = Query(default=None, pattern="^(portrait|landscape)$"),  # ✅ 修复：Pydantic V2 使用 pattern 替代 regex
     channel: str | None = Query(default=None),
     service: VideoService = Depends(get_video_service),
     user_id: str = Depends(resolve_user),
@@ -55,7 +55,7 @@ def list_videos(
         channel=channel,
         user_id=user_id,
     )
-    # 后端统一负责对推荐流做“图文+视频”混编
+    # 后端统一负责对推荐流做"图文+视频"混编
     mixed_items = service.build_mixed_feed(page=data.page, items=data.items)
     # 使用新的create方法生成包含pageSize等字段的响应
     response_data = VideoList.create(
@@ -69,7 +69,7 @@ def list_videos(
 
 @router.get("/videos/{video_id}")
 def get_video(
-    video_id: str,
+    video_id: int,  # ✅ 修改：从 str 改为 int (Long)
     service: VideoService = Depends(get_video_service),
     user_id: str = Depends(resolve_user),
 ):
@@ -79,7 +79,7 @@ def get_video(
 
 @router.post("/videos/{video_id}/like")
 def like_video(
-    video_id: str,
+    video_id: int,  # ✅ 修改：从 str 改为 int (Long)
     service: VideoService = Depends(get_video_service),
     user_id: str = Depends(resolve_user),
 ):
@@ -91,7 +91,7 @@ def like_video(
 
 @router.post("/videos/{video_id}/unlike")
 def unlike_video(
-    video_id: str,
+    video_id: int,  # ✅ 修改：从 str 改为 int (Long)
     service: VideoService = Depends(get_video_service),
     user_id: str = Depends(resolve_user),
 ):
@@ -103,7 +103,7 @@ def unlike_video(
 
 @router.post("/videos/{video_id}/favorite")
 def favorite_video(
-    video_id: str,
+    video_id: int,  # ✅ 修改：从 str 改为 int (Long)
     service: VideoService = Depends(get_video_service),
     user_id: str = Depends(resolve_user),
 ):
@@ -115,7 +115,7 @@ def favorite_video(
 
 @router.post("/videos/{video_id}/unfavorite")
 def unfavorite_video(
-    video_id: str,
+    video_id: int,  # ✅ 修改：从 str 改为 int (Long)
     service: VideoService = Depends(get_video_service),
     user_id: str = Depends(resolve_user),
 ):
@@ -127,11 +127,11 @@ def unfavorite_video(
 
 @router.post("/videos/{video_id}/share")
 def share_video(
-    video_id: str,
+    video_id: int,  # ✅ 修改：从 str 改为 int (Long)
     service: VideoService = Depends(get_video_service),
 ):
     """
-    分享视频：
+    分享视频。
     - 客户端点击分享并成功调起系统分享后调用
     - 后端只做 share_count 统计，返回统一的成功响应
     """
@@ -152,7 +152,7 @@ def follow_author(
 
 @router.get("/videos/{video_id}/comments")
 def list_comments(
-    video_id: str = Path(...),
+    video_id: int = Path(...),  # ✅ 修改：从 str 改为 int (Long)
     page: int = Query(1, ge=1),
     limit: int = Query(settings.default_comment_page_size, ge=1, le=settings.max_comment_page_size),
     service: CommentService = Depends(get_comment_service),
@@ -163,7 +163,7 @@ def list_comments(
 
 @router.post("/videos/{video_id}/comments")
 def create_comment(
-    video_id: str,
+    video_id: int,  # ✅ 修改：从 str 改为 int (Long)
     payload: CommentCreate,
     service: CommentService = Depends(get_comment_service),
     user_id: str = Depends(resolve_user),
@@ -175,13 +175,10 @@ def create_comment(
 
 @router.post("/videos/{video_id}/comments/ai")
 def create_ai_comment(
-    video_id: str,
+    video_id: int,  # ✅ 修改：从 str 改为 int (Long)
     payload: CommentAIRequest,
     service: CommentService = Depends(get_comment_service),
     user_name: str = Depends(resolve_user_name),
 ):
     item = service.create_ai_comment(video_id, payload, user_name=user_name)
     return success_response(item.dict(by_alias=True))
-
-
-

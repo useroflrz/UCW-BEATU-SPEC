@@ -46,25 +46,25 @@ class VideoService:
         items = self._build_video_items(records, user_id=user_id, channel=channel)
         return VideoList.create(items=items, total=total, page=page, limit=limit)
 
-    def get_video(self, video_id: str, user_id: str) -> VideoItem:
+    def get_video(self, video_id: int, user_id: str) -> VideoItem:  # ✅ 修改：video_id 从 str 改为 int
         video = self.db.get(Video, video_id)
         if not video:
             raise ValueError("视频不存在")
 
         return self._build_video_items([video], user_id=user_id)[0]
 
-    def like_video(self, video_id: str, payload: InteractionRequest, user_id: str) -> OperationResult:
+    def like_video(self, video_id: int, payload: InteractionRequest, user_id: str) -> OperationResult:  # ✅ 修改：video_id 从 str 改为 int
         if payload.action not in ("LIKE", "UNLIKE"):
             raise ValueError("action 必须是 LIKE/UNLIKE")
         return self._handle_interaction(video_id, user_id, payload.action, "LIKE")
 
-    def favorite_video(self, video_id: str, payload: InteractionRequest, user_id: str) -> OperationResult:
+    def favorite_video(self, video_id: int, payload: InteractionRequest, user_id: str) -> OperationResult:  # ✅ 修改：video_id 从 str 改为 int
         if payload.action not in ("SAVE", "REMOVE"):
             raise ValueError("action 必须是 SAVE/REMOVE")
         action = "LIKE" if payload.action == "SAVE" else "UNLIKE"
         return self._handle_interaction(video_id, user_id, action, "FAVORITE")
 
-    def share_video(self, video_id: str) -> OperationResult:
+    def share_video(self, video_id: int) -> OperationResult:  # ✅ 修改：video_id 从 str 改为 int
         """
         记录一次分享行为：将对应视频的 share_count 自增 1。
         客户端负责实际的系统分享逻辑，这里只做统计。
@@ -108,7 +108,7 @@ class VideoService:
 
     def _handle_interaction(
         self,
-        video_id: str,
+        video_id: int,  # ✅ 修改：video_id 从 str 改为 int
         user_id: str,
         action: str,
         interaction_type: str,
@@ -185,13 +185,13 @@ class VideoService:
                 key=lambda it: it.author_id,
             )
 
-        interaction_map = parse_bool_map(interactions, key=lambda it: f"{it.video_id}:{it.type}")
+        interaction_map = parse_bool_map(interactions, key=lambda it: f"{it.video_id}:{it.type}")  # ✅ video_id 现在是 int，但 f-string 会自动转换
 
         items: List[VideoItem] = []
         for video in videos:
             items.append(
                 VideoItem(
-                    id=video.id,
+                    id=video.id,  # ✅ video.id 现在是 BigInteger (int)
                     play_url=video.play_url,
                     cover_url=video.cover_url,
                     title=video.title,
@@ -206,8 +206,8 @@ class VideoService:
                     favorite_count=video.favorite_count,
                     share_count=video.share_count,
                     view_count=video.view_count,
-                    is_liked=interaction_map.get(f"{video.id}:LIKE", False),
-                    is_favorited=interaction_map.get(f"{video.id}:FAVORITE", False),
+                    is_liked=interaction_map.get(f"{video.id}:LIKE", False),  # ✅ video.id 现在是 int，f-string 会自动转换
+                    is_favorited=interaction_map.get(f"{video.id}:FAVORITE", False),  # ✅ video.id 现在是 int，f-string 会自动转换
                     is_followed_author=follow_map.get(video.author_id, False),
                     qualities=parse_quality_list(video.qualities) or [],
                     # 现有表中仅存储视频内容，统一标记为 VIDEO；图文卡片在后续注入时单独构造
@@ -220,17 +220,17 @@ class VideoService:
 
     def build_mixed_feed(self, *, page: int, items: List[VideoItem]) -> List[VideoItem]:
         """
-        根据页码对视频流做“图文+视频”混编：
-        - 当前实现：在每一页的开头插入一条静态图文+BGM 卡片，便于前端体验图文页。
-        - 后续如接入真实图文数据，可改为从数据库/推荐系统读取。
+        根据页码对视频流做"图文+视频"混编：
+        - 当前实现：在每一页的开头插入一条静态图文+BGM 卡片，便于前端体验图文页面
+        - 后续如接入真实图文数据，可改为从数据库/推荐系统读取
         """
         if not items:
             return items
 
-        # 当前实现：将数据库中的视频列表视为一个“块”，并为每一页构造一条图文+BGM，
-        # 然后在当前页范围内随机插入这条图文，以达到“随机混编”的效果。
+        # 当前实现：将数据库中的视频列表视为一个"块"，并为每一页构造一条图文+BGM
+        # 然后在当前页范围内随机插入这条图文，以达到"随机混编"的效果
         #
-        # 后续如果有真实图文数据，可以扩展为针对多条图文做随机插入/洗牌。
+        # 后续如果有真实图文数据，可以扩展为针对多条图文做随机插入/洗牌
         from random import Random
 
         rng = Random()
@@ -246,13 +246,13 @@ class VideoService:
 
     def _create_mock_image_post(self, index: int) -> VideoItem:
         """
-        构造一条示例“图文+音乐”内容，由后端统一注入到推荐流中。
+        构造一条示例"图文+音乐"内容，由后端统一注入到推荐流中。
         说明：
-        - id 以 image_post_mock_{index} 区分不同页的示例卡片
+        - id 使用 900000 + index 作为整数 ID，区分不同页的示例卡片
         - play_url 虽然必填，但在 IMAGE_POST 下前端不会使用，只要是合法 URL 即可
         """
         return VideoItem(
-            id=f"image_post_mock_{index}",
+            id=900000 + index,  # ✅ 修改：从字符串改为整数 ID（使用 900000+ 范围避免与真实视频 ID 冲突）
             play_url="https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
             cover_url="https://images.pexels.com/photos/572897/pexels-photo-572897.jpeg",
             title=f"这是一个图文+BGM 示例（第 {index} 段，由后端注入）",
@@ -279,6 +279,3 @@ class VideoService:
             ],
             bgmUrl="https://samplelib.com/lib/preview/mp3/sample-6s.mp3",
         )
-
-
-

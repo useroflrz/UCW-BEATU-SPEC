@@ -105,4 +105,3 @@ async def process_mcp_request_stream(
             "X-Accel-Buffering": "no",
         }
     )
-

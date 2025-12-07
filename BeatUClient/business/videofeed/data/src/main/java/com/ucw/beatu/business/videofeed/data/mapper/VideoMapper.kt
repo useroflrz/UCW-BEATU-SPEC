@@ -45,7 +45,7 @@ fun VideoDto.toDomain(): Video {
  */
 fun VideoEntity.toDomain(): Video {
     return Video(
-        id = id,
+        id = id, // ✅ 修改：直接使用 Long，无需转换
         playUrl = playUrl,
         coverUrl = coverUrl,
         title = title,
@@ -77,7 +77,7 @@ fun VideoEntity.toDomain(): Video {
  */
 fun Video.toEntity(): VideoEntity {
     return VideoEntity(
-        id = id,
+        id = id, // ✅ 修改：直接使用 Long，无需转换
         playUrl = playUrl,
         coverUrl = coverUrl,
         title = title,

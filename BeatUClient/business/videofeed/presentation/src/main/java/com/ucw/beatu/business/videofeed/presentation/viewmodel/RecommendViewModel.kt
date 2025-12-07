@@ -49,10 +49,10 @@ class RecommendViewModel @Inject constructor(
     val uiState: StateFlow<RecommendUiState> = _uiState.asStateFlow()
 
     private var currentPlayer: VideoPlayer? = null
-    private var currentVideoId: String? = null
+    private var currentVideoId: Long? = null  // ✅ 修改：从 String? 改为 Long?（视频 ID 现在是 Long 类型）
     private var currentPage = 1
     // 记录每个视频的数据来源（"local"、"remote" 或 "mock"）
-    private val videoSourceMap = mutableMapOf<String, String>()
+    private val videoSourceMap = mutableMapOf<Long, String>()  // ✅ 修改：key 从 String 改为 Long
     // 从资源或默认值读取页面大小配置（避免直接依赖 app 的 R）
     private val pageSize = getIntegerResource(
         application,
@@ -394,20 +394,25 @@ class RecommendViewModel @Inject constructor(
     
     /**
      * 获取视频的数据来源（用于日志）
+     * ✅ 修改：参数类型从 String 改为 Long
      */
-    fun getVideoSource(videoId: String): String {
+    fun getVideoSource(videoId: Long): String {
         return videoSourceMap[videoId] ?: "unknown"
     }
 
     fun getCurrentPage(): Int = currentPage
 
     /**
-     * 推荐页中的静态图文+BGM，用于体验“图文+音乐”效果
+     * 推荐页中的静态图文+BGM，用于体验"图文+音乐"效果
      * index 用于区分出现在不同页的示例卡片，方便后续接入真实后端数据时替换
+     * ✅ 修改：id 从 String 改为 Long（使用字符串哈希值转换为 Long）
      */
     private fun createMockImagePost(index: Int): VideoItem {
+        val mockIdString = "image_post_mock_$index"
+        // 使用字符串的哈希值转换为 Long，确保唯一性
+        val mockId = mockIdString.hashCode().toLong()
         return VideoItem(
-            id = "image_post_mock_$index",
+            id = mockId,
             videoUrl = "",
             title = "这是一个图文+BGM 示例（第 $index 段）",
             authorName = "BeatU 官方",

@@ -47,7 +47,7 @@ class ExoVideoPlayer(
         .setMediaSourceFactory(mediaSourceFactory)
         .build()
 
-    private var currentVideoId: String? = null
+    private var currentVideoId: Long? = null  // ✅ 修改：从 String? 改为 Long?
     private val listeners = mutableSetOf<VideoPlayer.Listener>()
 
     init {

@@ -25,7 +25,7 @@ enum class FeedContentType {
  */
 @Parcelize
 data class VideoItem(
-    val id: String,
+    val id: Long, //唯一，用视频id
     val videoUrl: String,
     val title: String,
     val authorName: String,

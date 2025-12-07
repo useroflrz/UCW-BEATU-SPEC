@@ -1,12 +1,13 @@
 package com.ucw.beatu.business.videofeed.presentation.ui
 
+import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentActivity
+import androidx.fragment.app.FragmentManager
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.ucw.beatu.business.videofeed.presentation.R
@@ -25,6 +26,7 @@ class FeedFragment : Fragment(), FeedFragmentCallback {
     private lateinit var viewPager: ViewPager2
     private var currentPage = 1 // 默认显示推荐页面（索引1）
     private var recommendFragment: RecommendFragment? = null
+    private var fragmentLifecycleCallback: FragmentManager.FragmentLifecycleCallbacks? = null
     
     // MainActivity 引用（用于更新指示器）
     private var mainActivity: MainActivityBridge? = null
@@ -45,11 +47,20 @@ class FeedFragment : Fragment(), FeedFragmentCallback {
         
         // 初始化ViewPager2
         viewPager = view.findViewById(R.id.viewpager)
-        viewPager.adapter = TabPagerAdapter(requireActivity())
+        // ✅ 修复：使用 this@FeedFragment 作为 adapter 的宿主，而不是 requireActivity()
+        // 这样 Fragment 生命周期会和 FeedFragment 绑定，而不是 Activity
+        viewPager.adapter = TabPagerAdapter(this@FeedFragment)
         viewPager.setCurrentItem(currentPage, false) // 默认显示推荐页面
         
         // 设置ViewPager2的监听器
         setupViewPagerListener()
+        
+        // ✅ 使用 FragmentLifecycleCallbacks 监听 Fragment attach 事件（最可靠的方案）
+        setupFragmentLifecycleCallback()
+        
+        // ✅ 修复：初始化时主动修复找不到 fragment 的问题
+        // 防止在 callback 注册之前 Fragment 已经 attach 的情况
+        fixRecommendFragmentIfNeeded()
     }
     
     override fun onResume() {
@@ -62,6 +73,15 @@ class FeedFragment : Fragment(), FeedFragmentCallback {
         super.onPause()
         // 当 FeedFragment 暂停时（比如切换到其他页面），暂停所有视频
         pauseAllVideos()
+    }
+    
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // 取消注册 Fragment 生命周期回调
+        fragmentLifecycleCallback?.let {
+            childFragmentManager.unregisterFragmentLifecycleCallbacks(it)
+            fragmentLifecycleCallback = null
+        }
     }
     
     /**
@@ -96,11 +116,8 @@ class FeedFragment : Fragment(), FeedFragmentCallback {
     }
 
     private fun notifyRecommendVisibility(isVisible: Boolean) {
-        val target = recommendFragment ?: childFragmentManager.fragments
-            .filterIsInstance<RecommendFragment>()
-            .firstOrNull()
-            ?.also { recommendFragment = it }
-        target?.onParentTabVisibilityChanged(isVisible)
+        // ✅ 现在可以安全地使用缓存的 recommendFragment，因为它是在 Fragment attach 时设置的
+        recommendFragment?.onParentTabVisibilityChanged(isVisible)
     }
     
     /**
@@ -155,16 +172,54 @@ class FeedFragment : Fragment(), FeedFragmentCallback {
     }
     
     /**
+     * 设置 Fragment 生命周期回调，在 Fragment attach 时捕获 RecommendFragment
+     * 这是最可靠的方案，确保 100% 捕获 Fragment 的真实实例
+     */
+    private fun setupFragmentLifecycleCallback() {
+        fragmentLifecycleCallback = object : FragmentManager.FragmentLifecycleCallbacks() {
+            override fun onFragmentAttached(
+                fm: FragmentManager,
+                f: Fragment,
+                context: Context
+            ) {
+                super.onFragmentAttached(fm, f, context)
+                // ✅ 修复：验证 Fragment 属于当前 FeedFragment，避免捕获到旧的 Fragment
+                // 在屏幕旋转时，可能先 attach 新 Fragment，再逐步 detach 旧 Fragment
+                // 必须验证 parentFragment 确保是当前 FeedFragment 的子 Fragment
+                if (f is RecommendFragment && f.parentFragment == this@FeedFragment) {
+                    Log.d(TAG, "onFragmentAttached: RecommendFragment attached: $f")
+                    recommendFragment = f
+                }
+            }
+        }
+        // 注册 Fragment 生命周期回调，递归监听子 Fragment
+        childFragmentManager.registerFragmentLifecycleCallbacks(fragmentLifecycleCallback!!, true)
+    }
+    
+    /**
+     * 修复找不到 RecommendFragment 的问题
+     * 在初始化时主动查找一次，防止在 callback 注册之前 Fragment 已经 attach 的情况
+     */
+    private fun fixRecommendFragmentIfNeeded() {
+        if (recommendFragment == null) {
+            val fragment = childFragmentManager.fragments
+                .filterIsInstance<RecommendFragment>()
+                .firstOrNull { it.isAdded && it.parentFragment == this@FeedFragment }
+            if (fragment != null) {
+                recommendFragment = fragment
+                Log.d(TAG, "fixRecommendFragmentIfNeeded: restored recommendFragment")
+            }
+        }
+    }
+    
+    /**
      * 刷新推荐页面
+     * 现在可以安全地使用缓存的 recommendFragment，因为它是在 Fragment attach 时设置的
      */
     fun refreshRecommendFragment() {
-        val fragment = recommendFragment ?: childFragmentManager.fragments
-            .filterIsInstance<RecommendFragment>()
-            .firstOrNull()
-            ?.also { recommendFragment = it }
-        if (fragment != null) {
+        if (recommendFragment != null) {
             Log.d(TAG, "refreshRecommendFragment: calling refreshVideoList")
-            fragment.refreshVideoList()
+            recommendFragment?.refreshVideoList()
         } else {
             Log.w(TAG, "refreshRecommendFragment: RecommendFragment not found")
         }
@@ -172,14 +227,17 @@ class FeedFragment : Fragment(), FeedFragmentCallback {
     
     /**
      * ViewPager2的适配器
+     * ✅ 修复：使用 FeedFragment 作为宿主，而不是 FragmentActivity
+     * 这样 Fragment 生命周期会和 FeedFragment 绑定，确保在 onDestroyView 时 adapter 也会销毁
      */
-    private inner class TabPagerAdapter(fragmentActivity: FragmentActivity) : FragmentStateAdapter(fragmentActivity) {
+    private inner class TabPagerAdapter(parentFragment: Fragment) : FragmentStateAdapter(parentFragment) {
         override fun getItemCount(): Int = 2 // 关注和推荐两个页面
         
         override fun createFragment(position: Int): Fragment {
             return when (position) {
                 0 -> FollowFragment()
-                1 -> RecommendFragment().also { recommendFragment = it }
+                1 -> RecommendFragment()
+                // ✅ 注意：不再在这里设置 recommendFragment，而是通过 FragmentLifecycleCallbacks 在 attach 时设置
                 else -> throw IllegalArgumentException("Invalid position: $position")
             }
         }

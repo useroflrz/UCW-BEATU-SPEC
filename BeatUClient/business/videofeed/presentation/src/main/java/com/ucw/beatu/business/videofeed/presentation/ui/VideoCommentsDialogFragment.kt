@@ -41,7 +41,7 @@ class VideoCommentsDialogFragment : DialogFragment() {
     @Inject
     lateinit var postCommentUseCase: PostCommentUseCase
 
-    private val videoId: String? get() = arguments?.getString(ARG_VIDEO_ID)
+    private val videoId: Long? get() = arguments?.getLong(ARG_VIDEO_ID)  // ✅ 修改：从 String? 改为 Long?，使用 getLong
     private val initialCommentCount: Int get() = arguments?.getInt(ARG_COMMENT_COUNT) ?: 0
 
     private var commentsRecyclerView: RecyclerView? = null
@@ -206,10 +206,10 @@ class VideoCommentsDialogFragment : DialogFragment() {
         private const val ARG_VIDEO_ID = "arg_video_id"
         private const val ARG_COMMENT_COUNT = "arg_comment_count"
 
-        fun newInstance(videoId: String, commentCount: Int): VideoCommentsDialogFragment {
+        fun newInstance(videoId: Long, commentCount: Int): VideoCommentsDialogFragment {  // ✅ 修改：从 String 改为 Long
             return VideoCommentsDialogFragment().apply {
                 arguments = bundleOf(
-                    ARG_VIDEO_ID to videoId,
+                    ARG_VIDEO_ID to videoId,  // ✅ 修改：bundleOf 会自动处理 Long 类型
                     ARG_COMMENT_COUNT to commentCount
                 )
             }

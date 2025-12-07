@@ -17,7 +17,7 @@ class GetVideoDetailUseCase @Inject constructor(
      * @param videoId 视频ID
      * @return AppResult<Video>
      */
-    suspend operator fun invoke(videoId: String): AppResult<Video> {
+    suspend operator fun invoke(videoId: Long): AppResult<Video> {  // ✅ 修改：从 String 改为 Long
         return repository.getVideoDetail(videoId)
     }
 }

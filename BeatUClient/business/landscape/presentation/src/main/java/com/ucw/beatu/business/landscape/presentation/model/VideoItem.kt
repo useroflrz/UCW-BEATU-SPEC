@@ -10,7 +10,7 @@ import kotlinx.parcelize.Parcelize
  */
 @Parcelize
 data class VideoItem(
-    val id: String,
+    val id: Long,
     val videoUrl: String,
     val title: String,
     val authorName: String,

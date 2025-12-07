@@ -24,7 +24,7 @@ interface VideoRepository {
      * @param videoId 视频ID
      * @return AppResult<Video>
      */
-    suspend fun getVideoDetail(videoId: String): AppResult<Video>
+    suspend fun getVideoDetail(videoId: Long): AppResult<Video>  // ✅ 修改：从 String 改为 Long
 
     /**
      * 获取评论列表（分页）
@@ -33,36 +33,36 @@ interface VideoRepository {
      * @param limit 每页数量
      * @return Flow<AppResult<List<Comment>>> 响应式数据流
      */
-    fun getComments(videoId: String, page: Int = 1, limit: Int = 20): Flow<AppResult<List<Comment>>>
+    fun getComments(videoId: Long, page: Int = 1, limit: Int = 20): Flow<AppResult<List<Comment>>>  // ✅ 修改：从 String 改为 Long
 
     /**
      * 点赞视频
      */
-    suspend fun likeVideo(videoId: String): AppResult<Unit>
+    suspend fun likeVideo(videoId: Long): AppResult<Unit>  // ✅ 修改：从 String 改为 Long
 
     /**
      * 取消点赞
      */
-    suspend fun unlikeVideo(videoId: String): AppResult<Unit>
+    suspend fun unlikeVideo(videoId: Long): AppResult<Unit>  // ✅ 修改：从 String 改为 Long
 
     /**
      * 收藏视频
      */
-    suspend fun favoriteVideo(videoId: String): AppResult<Unit>
+    suspend fun favoriteVideo(videoId: Long): AppResult<Unit>  // ✅ 修改：从 String 改为 Long
 
     /**
      * 取消收藏
      */
-    suspend fun unfavoriteVideo(videoId: String): AppResult<Unit>
+    suspend fun unfavoriteVideo(videoId: Long): AppResult<Unit>  // ✅ 修改：从 String 改为 Long
 
     /**
      * 分享视频（统计）
      */
-    suspend fun shareVideo(videoId: String): AppResult<Unit>
+    suspend fun shareVideo(videoId: Long): AppResult<Unit>  // ✅ 修改：从 String 改为 Long
 
     /**
      * 发布评论
      */
-    suspend fun postComment(videoId: String, content: String): AppResult<Comment>
+    suspend fun postComment(videoId: Long, content: String): AppResult<Comment>  // ✅ 修改：从 String 改为 Long
 }
 

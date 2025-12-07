@@ -43,7 +43,7 @@ CREATE TABLE beatu_users (
 
 -- 视频信息表
 CREATE TABLE beatu_videos (
-    id VARCHAR(64) PRIMARY KEY COMMENT '视频唯一ID',
+    id BIGINT PRIMARY KEY COMMENT '视频唯一ID',
     play_url VARCHAR(500) NOT NULL COMMENT '视频播放地址',
     cover_url VARCHAR(500) NOT NULL COMMENT '封面地址',
     title VARCHAR(200) NOT NULL COMMENT '视频标题',
@@ -71,7 +71,7 @@ CREATE TABLE beatu_videos (
 -- 评论表
 CREATE TABLE beatu_comments (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
-    video_id VARCHAR(64) NOT NULL COMMENT '视频ID',
+    video_id BIGINT NOT NULL COMMENT '视频ID',  -- ✅ 修改：从 VARCHAR(64) 改为 BIGINT
     author_id VARCHAR(64) NOT NULL COMMENT '作者ID（评论用户）',
     author_name VARCHAR(100) NOT NULL COMMENT '作者昵称',
     author_avatar VARCHAR(500) DEFAULT NULL COMMENT '作者头像',
@@ -94,7 +94,7 @@ CREATE TABLE beatu_comments (
 CREATE TABLE beatu_interactions (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
     user_id VARCHAR(64) NOT NULL COMMENT '用户ID',
-    video_id VARCHAR(64) DEFAULT NULL COMMENT '视频ID（点赞/收藏场景）',
+    video_id BIGINT DEFAULT NULL COMMENT '视频ID（点赞/收藏场景）',  -- ✅ 修改：从 VARCHAR(64) 改为 BIGINT
     author_id VARCHAR(64) DEFAULT NULL COMMENT '作者ID（关注场景）',
     type ENUM('LIKE', 'FAVORITE', 'FOLLOW_AUTHOR') NOT NULL COMMENT '互动类型',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -125,7 +125,7 @@ CREATE TABLE beatu_user_follows (
 CREATE TABLE beatu_watch_history (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
     user_id VARCHAR(64) NOT NULL COMMENT '用户ID',
-    video_id VARCHAR(64) NOT NULL COMMENT '视频ID',
+    video_id BIGINT NOT NULL COMMENT '视频ID',  -- ✅ 修改：从 VARCHAR(64) 改为 BIGINT
     last_watch_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '最近观看时间',
     watch_count INT NOT NULL DEFAULT 1 COMMENT '累计观看次数',
     last_seek_ms BIGINT NOT NULL DEFAULT 0 COMMENT '最近一次的播放进度',
@@ -143,7 +143,7 @@ CREATE TABLE beatu_watch_history (
 -- 播放指标表
 CREATE TABLE beatu_metrics_playback (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    video_id VARCHAR(64) NOT NULL,
+    video_id BIGINT NOT NULL,  -- ✅ 修改：从 VARCHAR(64) 改为 BIGINT
     fps DOUBLE,
     start_up_ms BIGINT,
     rebuffer_count INT,
@@ -157,7 +157,7 @@ CREATE TABLE beatu_metrics_playback (
 CREATE TABLE beatu_metrics_interaction (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     event VARCHAR(64) NOT NULL,
-    video_id VARCHAR(64) DEFAULT NULL,
+    video_id BIGINT DEFAULT NULL,  -- ✅ 修改：从 VARCHAR(64) 改为 BIGINT
     latency_ms BIGINT,
     success BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -188,13 +188,14 @@ INSERT INTO beatu_users (
 ('ai_beatu', 'BeatU AI 助手', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/ai_beatu.jpg', '智能互动助手', 0, 0, 0, 0);
 
 -- 插入视频数据（根据 MockVideoCatalog.kt 中的 mock 数据）
+-- ✅ 修改：视频 ID 从字符串改为数字（使用简单的递增数字）
 INSERT INTO beatu_videos (
     id, play_url, cover_url, title, tags, duration_ms, orientation,
     author_id, author_name, author_avatar,
     like_count, comment_count, favorite_count, share_count, view_count, qualities
 ) VALUES
--- video_0011 - 横屏
-('video_0011',
+-- video_0011 - 横屏 (ID: 1)
+(1,
  'http://vjs.zencdn.net/v/oceans.mp4',
  'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_0011.jpg',
  '测试视频1',
@@ -207,8 +208,8 @@ INSERT INTO beatu_videos (
  535, 43, 159, 59, 5000,
  NULL),
 
--- video_0012 - 横屏
-('video_0012',
+-- video_0012 - 横屏 (ID: 2)
+(2,
  'https://media.w3.org/2010/05/sintel/trailer.mp4',
  'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_0012.jpg',
  'Sintel 高清预告片 - 奇幻冒险',
@@ -221,8 +222,8 @@ INSERT INTO beatu_videos (
  890, 67, 345, 123, 8000,
  NULL),
 
--- video_002 - 横屏
-('video_002',
+-- video_002 - 横屏 (ID: 3)
+(3,
  'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E6%A8%AA%E5%B1%8F%E8%A7%86%E9%A2%911.mp4',
  'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_002.jpg',
  '横屏视频1',
@@ -235,8 +236,8 @@ INSERT INTO beatu_videos (
  1234, 89, 567, 234, 12000,
  NULL),
 
--- video_003 - 横屏
-('video_003',
+-- video_003 - 横屏 (ID: 4)
+(4,
  'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E6%A8%AA%E5%B1%8F%E8%A7%86%E9%A2%912.mp4',
  'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_003.jpg',
  '横屏视频2',
@@ -249,8 +250,8 @@ INSERT INTO beatu_videos (
  1234, 89, 567, 234, 10000,
  NULL),
 
--- video_004 - 横屏
-('video_004',
+-- video_004 - 横屏 (ID: 5)
+(5,
  'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E6%A8%AA%E5%B1%8F%E8%A7%86%E9%A2%913.mp4',
  'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_004.jpg',
  '横屏视频3',
@@ -263,8 +264,8 @@ INSERT INTO beatu_videos (
  1234, 89, 567, 234, 11000,
  NULL),
 
--- video_005 - 横屏（第一个）
-('video_005',
+-- video_005 - 横屏（第一个）(ID: 6)
+(6,
  'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E6%A8%AA%E5%B1%8F%E8%A7%86%E9%A2%914.mp4',
  'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_005.jpg',
  '横屏视频4',
@@ -277,8 +278,8 @@ INSERT INTO beatu_videos (
  1234, 89, 567, 234, 15000,
  NULL),
 
--- video_006 - 横屏
-('video_006',
+-- video_006 - 横屏 (ID: 7)
+(7,
  'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E6%A8%AA%E5%B1%8F%E8%A7%86%E9%A2%915.mp4',
  'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_006.jpg',
  '横屏视频5',
@@ -291,8 +292,8 @@ INSERT INTO beatu_videos (
  1234, 89, 567, 234, 9000,
  NULL),
 
--- video_007 - 竖屏
-('video_007',
+-- video_007 - 竖屏 (ID: 8)
+(8,
  'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%AB%96%E5%B1%8F%E8%A7%86%E9%A2%911.mp4',
  'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_007.jpg',
  '竖屏视频1',
@@ -305,8 +306,8 @@ INSERT INTO beatu_videos (
  2345, 156, 789, 456, 20000,
  NULL),
 
--- video_008 - 竖屏
-('video_008',
+-- video_008 - 竖屏 (ID: 9)
+(9,
  'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%AB%96%E5%B1%8F%E7%AB%96%E5%B1%8F2.mp4',
  'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_008.jpg',
  '竖屏视频2',
@@ -319,8 +320,8 @@ INSERT INTO beatu_videos (
  2345, 156, 789, 456, 18000,
  NULL),
 
--- video_009 - 竖屏
-('video_009',
+-- video_009 - 竖屏 (ID: 10)
+(10,
  'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%AB%96%E5%B1%8F%E8%A7%86%E9%A2%913.mp4',
  'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_009.jpg',
  '竖屏视频3',
@@ -333,8 +334,8 @@ INSERT INTO beatu_videos (
  2345, 156, 789, 456, 17000,
  NULL),
 
--- video_010 - 竖屏
-('video_010',
+-- video_010 - 竖屏 (ID: 11)
+(11,
  'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%AB%96%E5%B1%8F%E8%A7%86%E9%A2%914.mp4',
  'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_010.jpg',
  '竖屏视频4',
@@ -347,8 +348,8 @@ INSERT INTO beatu_videos (
  2345, 156, 789, 456, 16000,
  NULL),
 
--- video_011 - 竖屏
-('video_011',
+-- video_011 - 竖屏 (ID: 12)
+(12,
  'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%AB%96%E5%B1%8F%E7%AB%96%E5%B1%8F5.mp4',
  'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_011.jpg',
  '竖屏视频5',
@@ -366,53 +367,55 @@ INSERT INTO beatu_comments (
     video_id, author_id, author_name, author_avatar, content, 
     parent_id, is_ai_reply, like_count, created_at
 ) VALUES
--- video_0011的评论
-('video_0011', 'user_008', '评论用户1', NULL, '太棒了！这个视频太燃了！🔥', NULL, FALSE, 45, NOW() - INTERVAL 2 DAY),
-('video_0011', 'user_009', '评论用户2', NULL, '视频内容很棒，爱了爱了', NULL, FALSE, 32, NOW() - INTERVAL 1 DAY),
-('video_0011', 'ai_beatu', '@元宝', NULL, '这个视频展现了很好的表现力，内容选择也很棒！', NULL, TRUE, 89, NOW() - INTERVAL 12 HOUR),
+-- ✅ 修改：视频 ID 从字符串改为数字
+-- video_0011的评论 (video_id: 1)
+(1, 'user_008', '评论用户1', NULL, '太棒了！这个视频太燃了！🔥', NULL, FALSE, 45, NOW() - INTERVAL 2 DAY),
+(1, 'user_009', '评论用户2', NULL, '视频内容很棒，爱了爱了', NULL, FALSE, 32, NOW() - INTERVAL 1 DAY),
+(1, 'ai_beatu', '@元宝', NULL, '这个视频展现了很好的表现力，内容选择也很棒！', NULL, TRUE, 89, NOW() - INTERVAL 12 HOUR),
 
--- video_0012的评论
-('video_0012', 'user_010', '评论用户3', NULL, '这个预告片太精彩了！', NULL, FALSE, 78, NOW() - INTERVAL 3 DAY),
-('video_0012', 'user_011', '评论用户4', NULL, '已经收藏了，期待正片', NULL, FALSE, 56, NOW() - INTERVAL 2 DAY),
-('video_0012', 'ai_beatu', '@元宝', NULL, '这个预告片制作精良，画面震撼，值得推荐。', NULL, TRUE, 120, NOW() - INTERVAL 1 DAY),
+-- video_0012的评论 (video_id: 2)
+(2, 'user_010', '评论用户3', NULL, '这个预告片太精彩了！', NULL, FALSE, 78, NOW() - INTERVAL 3 DAY),
+(2, 'user_011', '评论用户4', NULL, '已经收藏了，期待正片', NULL, FALSE, 56, NOW() - INTERVAL 2 DAY),
+(2, 'ai_beatu', '@元宝', NULL, '这个预告片制作精良，画面震撼，值得推荐。', NULL, TRUE, 120, NOW() - INTERVAL 1 DAY),
 
--- video_002的评论
-('video_002', 'user_012', '评论用户5', NULL, '横屏视频效果不错！', NULL, FALSE, 234, NOW() - INTERVAL 5 DAY),
-('video_002', 'user_013', '评论用户6', NULL, '画质很清晰', NULL, FALSE, 89, NOW() - INTERVAL 4 DAY),
-('video_002', 'ai_beatu', '@元宝', NULL, '这个横屏视频画面质量很好，内容也很精彩。', NULL, TRUE, 456, NOW() - INTERVAL 3 DAY),
+-- video_002的评论 (video_id: 3)
+(3, 'user_012', '评论用户5', NULL, '横屏视频效果不错！', NULL, FALSE, 234, NOW() - INTERVAL 5 DAY),
+(3, 'user_013', '评论用户6', NULL, '画质很清晰', NULL, FALSE, 89, NOW() - INTERVAL 4 DAY),
+(3, 'ai_beatu', '@元宝', NULL, '这个横屏视频画面质量很好，内容也很精彩。', NULL, TRUE, 456, NOW() - INTERVAL 3 DAY),
 
--- video_003的评论
-('video_003', 'user_014', '游戏玩家1', NULL, '这个视频不错！', NULL, FALSE, 123, NOW() - INTERVAL 1 DAY),
-('video_003', 'user_015', '游戏玩家2', NULL, '我也想要这样的效果', NULL, FALSE, 67, NOW() - INTERVAL 12 HOUR),
+-- video_003的评论 (video_id: 4)
+(4, 'user_014', '游戏玩家1', NULL, '这个视频不错！', NULL, FALSE, 123, NOW() - INTERVAL 1 DAY),
+(4, 'user_015', '游戏玩家2', NULL, '我也想要这样的效果', NULL, FALSE, 67, NOW() - INTERVAL 12 HOUR),
 
--- video_004的评论
-('video_004', 'user_016', '电影迷1', NULL, '经典！', NULL, FALSE, 345, NOW() - INTERVAL 6 DAY),
-('video_004', 'user_017', '电影迷2', NULL, '这个视频很精彩', NULL, FALSE, 234, NOW() - INTERVAL 5 DAY),
+-- video_004的评论 (video_id: 5)
+(5, 'user_016', '电影迷1', NULL, '经典！', NULL, FALSE, 345, NOW() - INTERVAL 6 DAY),
+(5, 'user_017', '电影迷2', NULL, '这个视频很精彩', NULL, FALSE, 234, NOW() - INTERVAL 5 DAY),
 
--- video_005的评论
-('video_005', 'user_018', '用户1', NULL, '横屏视频4很不错！', NULL, FALSE, 200, NOW() - INTERVAL 3 DAY),
-('video_005', 'user_019', '用户2', NULL, '内容很棒', NULL, FALSE, 150, NOW() - INTERVAL 2 DAY),
+-- video_005的评论 (video_id: 6)
+(6, 'user_018', '用户1', NULL, '横屏视频4很不错！', NULL, FALSE, 200, NOW() - INTERVAL 3 DAY),
+(6, 'user_019', '用户2', NULL, '内容很棒', NULL, FALSE, 150, NOW() - INTERVAL 2 DAY),
 
--- video_007的评论
-('video_007', 'user_020', '用户3', NULL, '竖屏视频1很棒！', NULL, FALSE, 180, NOW() - INTERVAL 2 DAY),
-('video_007', 'user_021', '用户4', NULL, '画质清晰，内容精彩', NULL, FALSE, 120, NOW() - INTERVAL 1 DAY),
-('video_007', 'ai_beatu', '@元宝', NULL, '这个竖屏视频制作精良，内容很有吸引力。', NULL, TRUE, 300, NOW() - INTERVAL 12 HOUR);
+-- video_007的评论 (video_id: 8)
+(8, 'user_020', '用户3', NULL, '竖屏视频1很棒！', NULL, FALSE, 180, NOW() - INTERVAL 2 DAY),
+(8, 'user_021', '用户4', NULL, '画质清晰，内容精彩', NULL, FALSE, 120, NOW() - INTERVAL 1 DAY),
+(8, 'ai_beatu', '@元宝', NULL, '这个竖屏视频制作精良，内容很有吸引力。', NULL, TRUE, 300, NOW() - INTERVAL 12 HOUR);
 
 -- 插入互动数据（点赞、收藏、关注）
 INSERT INTO beatu_interactions (
     user_id, video_id, author_id, type, created_at
 ) VALUES
+-- ✅ 修改：视频 ID 从字符串改为数字
 -- 点赞数据
-('demo-user', 'video_0011', NULL, 'LIKE', NOW() - INTERVAL 1 DAY),
-('demo-user', 'video_003', NULL, 'LIKE', NOW() - INTERVAL 2 DAY),
-('demo-user', 'video_005', NULL, 'LIKE', NOW() - INTERVAL 3 DAY),
-('demo-user', 'video_007', NULL, 'LIKE', NOW() - INTERVAL 1 DAY),
+('demo-user', 1, NULL, 'LIKE', NOW() - INTERVAL 1 DAY),  -- video_0011 -> 1
+('demo-user', 4, NULL, 'LIKE', NOW() - INTERVAL 2 DAY),  -- video_003 -> 4
+('demo-user', 6, NULL, 'LIKE', NOW() - INTERVAL 3 DAY),  -- video_005 -> 6
+('demo-user', 8, NULL, 'LIKE', NOW() - INTERVAL 1 DAY),  -- video_007 -> 8
 
 -- 收藏数据
-('demo-user', 'video_0012', NULL, 'FAVORITE', NOW() - INTERVAL 1 DAY),
-('demo-user', 'video_002', NULL, 'FAVORITE', NOW() - INTERVAL 2 DAY),
-('demo-user', 'video_007', NULL, 'FAVORITE', NOW() - INTERVAL 1 DAY),
-('demo-user', 'video_009', NULL, 'FAVORITE', NOW() - INTERVAL 2 DAY),
+('demo-user', 2, NULL, 'FAVORITE', NOW() - INTERVAL 1 DAY),  -- video_0012 -> 2
+('demo-user', 3, NULL, 'FAVORITE', NOW() - INTERVAL 2 DAY),  -- video_002 -> 3
+('demo-user', 8, NULL, 'FAVORITE', NOW() - INTERVAL 1 DAY),  -- video_007 -> 8
+('demo-user', 10, NULL, 'FAVORITE', NOW() - INTERVAL 2 DAY),  -- video_009 -> 10
 
 -- 关注数据
 ('demo-user', NULL, 'user_001', 'FOLLOW_AUTHOR', NOW() - INTERVAL 5 DAY),
@@ -434,20 +437,22 @@ INSERT INTO beatu_watch_history (
     user_id, video_id, last_watch_at, watch_count, last_seek_ms,
     last_duration_ms, total_duration_ms, completion_rate
 ) VALUES
-('demo-user', 'video_0011', NOW() - INTERVAL 2 DAY, 3, 12000, 42000, 126000, 0.84),
-('demo-user', 'video_0012', NOW() - INTERVAL 1 DAY, 2, 8000, 30000, 60000, 0.65),
-('demo-user', 'video_007', NOW() - INTERVAL 3 DAY, 4, 0, 60000, 180000, 1.00),
-('user_002', 'video_002', NOW() - INTERVAL 4 DAY, 1, 5000, 45000, 45000, 0.50);
+-- ✅ 修改：视频 ID 从字符串改为数字
+('demo-user', 1, NOW() - INTERVAL 2 DAY, 3, 12000, 42000, 126000, 0.84),  -- video_0011 -> 1
+('demo-user', 2, NOW() - INTERVAL 1 DAY, 2, 8000, 30000, 60000, 0.65),  -- video_0012 -> 2
+('demo-user', 8, NOW() - INTERVAL 3 DAY, 4, 0, 60000, 180000, 1.00),  -- video_007 -> 8
+('user_002', 3, NOW() - INTERVAL 4 DAY, 1, 5000, 45000, 45000, 0.50);  -- video_002 -> 3
 
 -- 插入播放指标数据（示例）
 INSERT INTO beatu_metrics_playback (
     video_id, fps, start_up_ms, rebuffer_count, memory_mb, channel, created_at
 ) VALUES
-('video_0011', 30.0, 1200, 0, 256.5, 'recommend', NOW() - INTERVAL 1 DAY),
-('video_0012', 30.0, 1500, 1, 320.8, 'recommend', NOW() - INTERVAL 2 DAY),
-('video_002', 60.0, 800, 0, 512.3, 'follow', NOW() - INTERVAL 1 DAY),
-('video_003', 30.0, 2000, 2, 456.7, 'recommend', NOW() - INTERVAL 3 DAY),
-('video_007', 30.0, 1800, 0, 380.2, 'recommend', NOW() - INTERVAL 1 DAY);
+-- ✅ 修改：视频 ID 从字符串改为数字
+(1, 30.0, 1200, 0, 256.5, 'recommend', NOW() - INTERVAL 1 DAY),  -- video_0011 -> 1
+(2, 30.0, 1500, 1, 320.8, 'recommend', NOW() - INTERVAL 2 DAY),  -- video_0012 -> 2
+(3, 60.0, 800, 0, 512.3, 'follow', NOW() - INTERVAL 1 DAY),  -- video_002 -> 3
+(4, 30.0, 2000, 2, 456.7, 'recommend', NOW() - INTERVAL 3 DAY),  -- video_003 -> 4
+(8, 30.0, 1800, 0, 380.2, 'recommend', NOW() - INTERVAL 1 DAY);  -- video_007 -> 8
 
 -- ============================================
 -- 4. 验证数据

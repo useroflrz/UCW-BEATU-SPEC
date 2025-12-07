@@ -9,7 +9,7 @@ import javax.inject.Singleton
  * 目前用于竖屏 <-> 横屏切换时的播放进度、倍速、播放状态同步。
  */
 data class PlaybackSession(
-    val videoId: String,
+    val videoId: Long,  // ✅ 修改：从 String 改为 Long
     val videoUrl: String,
     val positionMs: Long,
     val speed: Float,
@@ -19,14 +19,14 @@ data class PlaybackSession(
 @Singleton
 class PlaybackSessionStore @Inject constructor() {
 
-    private val sessions = ConcurrentHashMap<String, PlaybackSession>()
+    private val sessions = ConcurrentHashMap<Long, PlaybackSession>()  // ✅ 修改：从 String 改为 Long
 
     fun save(session: PlaybackSession) {
         sessions[session.videoId] = session
     }
 
-    fun consume(videoId: String): PlaybackSession? = sessions.remove(videoId)
+    fun consume(videoId: Long): PlaybackSession? = sessions.remove(videoId)  // ✅ 修改：从 String 改为 Long
 
-    fun peek(videoId: String): PlaybackSession? = sessions[videoId]
+    fun peek(videoId: Long): PlaybackSession? = sessions[videoId]  // ✅ 修改：从 String 改为 Long
 }
 

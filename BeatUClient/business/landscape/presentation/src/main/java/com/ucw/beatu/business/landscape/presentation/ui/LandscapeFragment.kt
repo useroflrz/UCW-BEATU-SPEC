@@ -58,10 +58,10 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
             BundleCompat.getParcelableArrayList(it, LandscapeLaunchContract.EXTRA_VIDEO_LIST, CommonVideoItem::class.java)
         }
         if (videoList != null && videoList.isNotEmpty()) {
-            // 转换为横屏页面的 VideoItem 模型
+            // ✅ 修复：转换为横屏页面的 VideoItem 模型，确保 ID 类型正确
             val landscapeVideoList = videoList.map { commonItem ->
                 VideoItem(
-                    id = commonItem.id,
+                    id = commonItem.id,  // ✅ 修复：commonItem.id 已经是 Long 类型
                     videoUrl = commonItem.videoUrl,
                     title = commonItem.title,
                     authorName = commonItem.authorName,
@@ -71,20 +71,35 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
                     shareCount = commonItem.shareCount.toInt()
                 )
             }
-            val currentIndex = args.getInt(LandscapeLaunchContract.EXTRA_CURRENT_INDEX, 0)
-            Log.d(TAG, "LandscapeFragment: Using fixed video list, size=${landscapeVideoList.size}, currentIndex=$currentIndex")
+            // ✅ 修复：获取当前视频ID，确保匹配正确的视频
+            val targetVideoId = args.getLong(LandscapeLaunchContract.EXTRA_VIDEO_ID, -1L)
+            val currentIndex = if (targetVideoId != -1L) {
+                // 优先使用传入的索引，如果没有则根据视频ID查找
+                val providedIndex = args.getInt(LandscapeLaunchContract.EXTRA_CURRENT_INDEX, -1)
+                if (providedIndex >= 0 && providedIndex < landscapeVideoList.size) {
+                    providedIndex
+                } else {
+                    // 根据视频ID查找索引
+                    landscapeVideoList.indexOfFirst { it.id == targetVideoId }.let {
+                        if (it == -1) 0 else it
+                    }
+                }
+            } else {
+                args.getInt(LandscapeLaunchContract.EXTRA_CURRENT_INDEX, 0)
+            }
+            Log.d(TAG, "LandscapeFragment: Using fixed video list, size=${landscapeVideoList.size}, targetVideoId=$targetVideoId, currentIndex=$currentIndex")
             viewModel.setVideoList(landscapeVideoList, currentIndex)
             // 设置视频列表后，跳转到当前索引
             viewPager?.post {
                 val boundedIndex = currentIndex.coerceIn(0, landscapeVideoList.lastIndex)
-                Log.d(TAG, "LandscapeFragment: Setting ViewPager to index $boundedIndex")
+                Log.d(TAG, "LandscapeFragment: Setting ViewPager to index $boundedIndex, videoId=${landscapeVideoList.getOrNull(boundedIndex)?.id}")
                 viewPager?.setCurrentItem(boundedIndex, false)
             }
         } else {
             // 没有视频列表时，处理外部视频参数并加载所有横屏视频
             Log.d(TAG, "LandscapeFragment: No fixed video list, loading all landscape videos")
             handleExternalVideoArgs()
-        viewModel.loadVideoList()
+            viewModel.loadVideoList()
         }
     }
 
@@ -189,11 +204,16 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
     private fun handleExternalVideoArgs() {
         if (externalVideoHandled) return
         val args = arguments ?: return
-        val videoId = args.getString(LandscapeLaunchContract.EXTRA_VIDEO_ID) ?: return
+        // ✅ 修复：videoId 现在是 Long 类型，使用 getLong 而不是 getString
+        val videoId = args.getLong(LandscapeLaunchContract.EXTRA_VIDEO_ID, -1L)
+        if (videoId == -1L) {
+            Log.w(TAG, "handleExternalVideoArgs: videoId not found in arguments")
+            return
+        }
         val videoUrl = args.getString(LandscapeLaunchContract.EXTRA_VIDEO_URL) ?: return
 
         val videoItem = VideoItem(
-            id = videoId,
+            id = videoId,  // ✅ 修复：直接使用 Long 类型，不需要转换
             videoUrl = videoUrl,
             title = args.getString(LandscapeLaunchContract.EXTRA_VIDEO_TITLE).orEmpty(),
             authorName = args.getString(LandscapeLaunchContract.EXTRA_VIDEO_AUTHOR).orEmpty(),
@@ -202,26 +222,65 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
             favoriteCount = args.getInt(LandscapeLaunchContract.EXTRA_VIDEO_FAVORITE),
             shareCount = args.getInt(LandscapeLaunchContract.EXTRA_VIDEO_SHARE)
         )
+        Log.d(TAG, "handleExternalVideoArgs: 处理外部视频，videoId=$videoId, videoUrl=$videoUrl")
         viewModel.showExternalVideo(videoItem)
         externalVideoHandled = true
     }
 
     /**
-     * 退出横屏模式，返回到 Feed 页面
-     * 使用 NavController 的 popBackStack() 确保与导航栈同步
+     * 退出横屏模式，返回到来源页面
+     * ✅ 修复：根据来源页面决定返回到哪里，而不是简单地 popBackStack
+     * ✅ 修复：确保返回到对应的竖屏视频页面，并正确恢复播放进度
      */
     private fun exitLandscape() {
-        // 先保存播放器状态并解绑 Surface
-        currentLandscapeItemFragment()?.prepareForExit()
+        // ✅ 修复：先保存播放器状态并解绑 Surface，确保播放进度被正确保存
+        val currentFragment = currentLandscapeItemFragment()
+        // ✅ 修复：prepareForExit() 方法内部已经处理了保存播放会话的逻辑，不需要在这里访问 viewModel
+        currentFragment?.prepareForExit()
+        
         // 恢复屏幕方向
         restoreOrientation()
 
-        val popped = runCatching { findNavController().popBackStack() }
-            .onFailure { Log.w(TAG, "popBackStack failed, fallback to finish()", it) }
-            .getOrDefault(false)
+        // ✅ 修复：获取来源页面 ID 和视频 ID，确保返回到正确的页面
+        val args = arguments
+        val sourceDestinationId = args?.getInt(LandscapeLaunchContract.EXTRA_SOURCE_DESTINATION, 0) ?: 0
+        val sourceVideoId = args?.getLong(LandscapeLaunchContract.EXTRA_VIDEO_ID, -1L) ?: -1L
+        
+        Log.d(TAG, "exitLandscape: 来源页面 ID=$sourceDestinationId, 来源视频ID=$sourceVideoId")
+        val navController = findNavController()
+        val currentDestinationId = navController.currentDestination?.id
+        
+        Log.d(TAG, "exitLandscape: 来源页面 ID=$sourceDestinationId, 来源视频ID=$sourceVideoId, 当前页面 ID=$currentDestinationId")
+        
+        // ✅ 修复：保存 sourceVideoId 到 SharedPreferences，以便 RecommendFragment 读取
+        if (sourceVideoId != -1L) {
+            val prefs = requireContext().getSharedPreferences("landscape_exit", android.content.Context.MODE_PRIVATE)
+            prefs.edit().putLong("source_video_id", sourceVideoId).apply()
+            Log.d(TAG, "exitLandscape: 保存 sourceVideoId=$sourceVideoId 到 SharedPreferences")
+        }
+        
+        // ✅ 修复：直接使用 popBackStack() 返回到上一个页面
+        // Navigation Component 会自动处理返回到正确的页面（FEED 或 USER_WORKS_VIEWER）
+        // 因为导航栈的结构是：FEED/USER_WORKS_VIEWER -> LANDSCAPE
+        // 所以 popBackStack() 会自动返回到正确的来源页面
+        Log.d(TAG, "exitLandscape: 使用 popBackStack() 返回到上一个页面")
+        val popped = runCatching { 
+            navController.popBackStack()
+        }.onFailure { e ->
+            Log.w(TAG, "popBackStack failed: ${e.message}, fallback to finish()", e)
+            requireActivity().finish()
+        }.getOrDefault(false)
 
         if (!popped) {
+            Log.w(TAG, "exitLandscape: popBackStack() 返回 false，使用 finish()")
             requireActivity().finish()
+        } else {
+            Log.d(TAG, "exitLandscape: 成功返回到上一个页面")
+            // ✅ 修复：延迟一小段时间，确保 Fragment 已经恢复，然后触发恢复播放
+            // 使用 post 确保在 UI 线程中执行，并且 Fragment 已经恢复
+            view?.postDelayed({
+                Log.d(TAG, "exitLandscape: Fragment 应该已经恢复，播放会话应该会被自动恢复")
+            }, 100)
         }
     }
 

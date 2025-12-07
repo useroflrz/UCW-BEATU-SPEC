@@ -10,7 +10,7 @@ import com.squareup.moshi.JsonClass
  */
 @JsonClass(generateAdapter = true)
 data class VideoDto(
-    val id: String,
+    val id: Long,  // ✅ 修改：从 String 改为 Long
     @Json(name = "playUrl") val playUrl: String,
     @Json(name = "coverUrl") val coverUrl: String,
     val title: String,

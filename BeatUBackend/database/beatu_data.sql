@@ -13,7 +13,7 @@ INSERT INTO beatu_videos (
   qualities
 )
 VALUES (
-  'BV1CXSbBVEFQ',
+  100,  -- ✅ 修改：BV1CXSbBVEFQ -> 100
   'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E3%80%90%E7%96%AF%E7%8B%82%E5%8A%A8%E7%89%A9%E5%9F%8E2%E3%80%91%E5%8F%AA%E6%98%AF%E8%A7%86%E8%A7%92%E9%97%AE%E9%A2%98.mp4',
   'http://i1.hdslb.com/bfs/archive/2dc05227c20ecd33264751f82a120c8657e5435c.jpg',
   '【疯狂动物城2】只是视角问题',
@@ -33,7 +33,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1CXSbBVEFQ',
+  100,  -- ✅ 修改：BV1CXSbBVEFQ -> 100
   '512407709',
   '好名字都被猫取了喵',
   'https://i2.hdslb.com/bfs/face/5aad76e98b8ada49d59d93ee1774a28b5d12dff4.jpg',
@@ -51,7 +51,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1CXSbBVEFQ',
+  100,  -- ✅ 修改：BV1CXSbBVEFQ -> 100
   '649342997',
   '晓春想摆烂',
   'https://i2.hdslb.com/bfs/face/4ee3680a1bb4571e94028015347077bf36978c41.jpg',
@@ -69,7 +69,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1CXSbBVEFQ',
+  100,  -- ✅ 修改：BV1CXSbBVEFQ -> 100
   '3493076209240846',
   '雁司绛',
   'https://i1.hdslb.com/bfs/face/8b9cd257c86ca5f216330ecb5571f57a6d52f2f3.jpg',
@@ -95,7 +95,7 @@ INSERT INTO beatu_videos (
   qualities
 )
 VALUES (
-  'BV1FQUrBzE2P',
+  101,  -- ✅ 修改：BV1FQUrBzE2P -> 101
   'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%BD%91%E7%BB%9C%E7%83%AD%E4%BC%A0%E7%94%9F%E7%89%A9%E9%89%B4%E5%AE%9A%20%E7%AC%AC58%E6%9C%9F.mp4',
   'http://i0.hdslb.com/bfs/archive/2df5d0de8cdd197ce99c744a00863bedc8e4a781.jpg',
   '网络热传生物鉴定 第58期',
@@ -115,7 +115,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1FQUrBzE2P',
+  101,  -- ✅ 修改：BV1FQUrBzE2P -> 101
   '454507',
   '魔幻组曲棱镜娜娜',
   'https://i1.hdslb.com/bfs/face/1907f22d45ea501b4006c09455a8699911dd50fc.jpg',
@@ -134,7 +134,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1FQUrBzE2P',
+  101,  -- ✅ 修改：BV1FQUrBzE2P -> 101
   '124668043',
   '杜烁',
   'https://i1.hdslb.com/bfs/face/0d9da902fc7db5fee44d30eaa249e8e6a35939a8.jpg',
@@ -152,7 +152,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1FQUrBzE2P',
+  101,  -- ✅ 修改：BV1FQUrBzE2P -> 101
   '44745161',
   '阿斯嘉德三公主',
   'https://i2.hdslb.com/bfs/face/37001a8c716ba4904e68de9d84f42be23bb4bf68.jpg',
@@ -178,7 +178,7 @@ INSERT INTO beatu_videos (
   qualities
 )
 VALUES (
-  'BV1AM4y1M71p',
+  102,  -- ✅ 修改：BV1AM4y1M71p -> 102
   'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%A0%B4%E4%BA%BF%E7%BA%AA%E5%BF%B5%21%E3%80%90%E7%8C%9B%E7%94%B7%E7%89%88%E3%80%91%E6%96%B0%E5%AE%9D%E5%B2%9B%204K%E9%AB%98%E6%B8%85%E9%87%8D%E7%BD%AE%E5%8A%A0%E5%BC%BA%E7%89%88.mp4',
   'http://i0.hdslb.com/bfs/archive/f28fae0e133f8bb289d719e031891764edb332e1.jpg',
   '破亿纪念!【猛男版】新宝岛 4K高清重置加强版',
@@ -198,7 +198,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1AM4y1M71p',
+  102,  -- ✅ 修改：BV1AM4y1M71p -> 102
   '284208940',
   '卡涅棘刺',
   'https://i1.hdslb.com/bfs/face/886ded3c03bf32bae9def6027539d9b7a83eea25.jpg',
@@ -221,7 +221,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1AM4y1M71p',
+  102,  -- ✅ 修改：BV1AM4y1M71p -> 102
   '394196223',
   '九月贰拾陆',
   'http://i0.hdslb.com/bfs/face/0b2b12c9faa9fca9107472ec99903264c7f48e6e.jpg',
@@ -239,7 +239,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1AM4y1M71p',
+  102,  -- ✅ 修改：BV1AM4y1M71p -> 102
   '429532543',
   '无影ya',
   'https://i1.hdslb.com/bfs/face/481dd54620a70415a965ce03013e7f9e1c5d7b79.jpg',
@@ -265,7 +265,7 @@ INSERT INTO beatu_videos (
   qualities
 )
 VALUES (
-  'BV19T411T7Yj',
+  103,  -- ✅ 修改：BV19T411T7Yj -> 103
   'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E3%80%904K60P%E7%AB%96%E5%B1%8F%E4%B8%A8%E8%99%9A%E5%B9%BB5%E3%80%91%E6%83%B3%E6%8B%A5%E4%BD%A0%E5%9C%A8%E6%80%80%2C%E5%BF%90%E5%BF%91%E7%9D%80%E5%9C%B0%E7%AD%89%E5%BE%85%E4%BD%A0%E6%9D%A5%7B%E7%AB%96%E5%B1%8F%E9%87%8D%E7%BD%AE%E7%89%88%7D.mp4',
   'http://i2.hdslb.com/bfs/archive/f2993ef27f3f669802a7fe024e1ca83061991b9d.jpg',
   '【4K60P竖屏丨虚幻5】想拥你在怀,忐忑着地等待你来{竖屏重置版}',
@@ -285,7 +285,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV19T411T7Yj',
+  103,  -- ✅ 修改：BV19T411T7Yj -> 103
   '516003403',
   '诸葛黛玉倒拔紫金葫芦',
   'https://i1.hdslb.com/bfs/face/f259fe15491eb86731a4bf0b5ceba14b69c3a09d.jpg',
@@ -303,7 +303,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV19T411T7Yj',
+  103,  -- ✅ 修改：BV19T411T7Yj -> 103
   '500332621',
   '理五晨曦',
   'https://i1.hdslb.com/bfs/face/5e60ad2184bf18ea01965d4e8db98184e125ccac.jpg',
@@ -325,7 +325,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV19T411T7Yj',
+  103,  -- ✅ 修改：BV19T411T7Yj -> 103
   '12746344',
   'SpeedyWing',
   'https://i1.hdslb.com/bfs/face/84a53815c6098d0572f4eeff5eac8fc479738a32.jpg',
@@ -351,7 +351,7 @@ INSERT INTO beatu_videos (
   qualities
 )
 VALUES (
-  'BV1HLdUYpE81',
+  104,  -- ✅ 修改：BV1HLdUYpE81 -> 104
   'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E2%80%9C%E4%BA%BA%E7%94%9F%E8%8B%A6%E7%9F%AD%20%E5%8F%8A%E6%97%B6%E8%A1%8C%E4%B9%90%22.mp4',
   'http://i0.hdslb.com/bfs/archive/1b4cb7873b52ebca98c08f8370702f3b7346cc92.jpg',
   '“人生苦短 及时行乐"',
@@ -371,7 +371,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1HLdUYpE81',
+  104,  -- ✅ 修改：BV1HLdUYpE81 -> 104
   '3546705091889223',
   '我凶的嘞',
   'https://i0.hdslb.com/bfs/face/de045acf59df5a1eaccd059782ef2824337a561e.jpg',
@@ -389,7 +389,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1HLdUYpE81',
+  104,  -- ✅ 修改：BV1HLdUYpE81 -> 104
   '3546750843358055',
   '放弃取名字了龠字号',
   'https://i2.hdslb.com/bfs/face/d7fff48a5e921072f520070ad818735cf73e7577.jpg',
@@ -407,7 +407,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1HLdUYpE81',
+  104,  -- ✅ 修改：BV1HLdUYpE81 -> 104
   '501937905',
   '爱上了你没什么道裡',
   'https://i0.hdslb.com/bfs/face/1a9ed8a15f65cc75674371ac7ca82ec4bdccda3e.jpg',
@@ -433,7 +433,7 @@ INSERT INTO beatu_videos (
   qualities
 )
 VALUES (
-  'BV1qaQxYBESr',
+  105,  -- ✅ 修改：BV1qaQxYBESr -> 105
   'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E6%81%8B%E4%B8%8E%E6%B7%B1%E7%A9%BA%E4%B8%A8%E7%8E%8B%E7%89%8CACE%E5%A4%8F%E4%BB%A5%E6%98%BC%E4%B8%AA%E4%BA%BAsolo%E9%A6%96%E7%A7%80%E6%83%8A%E8%89%B3%E4%BA%AE%E7%9B%B8%E2%9D%A4%E2%9D%A4%E2%9D%A4%E4%B8%A8%E7%AB%96%E5%B1%8F%E7%89%88.mp4',
   'http://i1.hdslb.com/bfs/archive/1d83c52953c2c7730156452d94e13fe9e18dc045.jpg',
   '恋与深空丨王牌ACE夏以昼个人solo首秀惊艳亮相❤❤❤丨竖屏版',
@@ -453,7 +453,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1qaQxYBESr',
+  105,  -- ✅ 修改：BV1qaQxYBESr -> 105
   '1762948',
   '烁砾',
   'https://i1.hdslb.com/bfs/face/5dc022ad00f5ef7c0d2633176beedfdac64c0b09.jpg',
@@ -471,7 +471,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1qaQxYBESr',
+  105,  -- ✅ 修改：BV1qaQxYBESr -> 105
   '2407474',
   '液老板',
   'https://i1.hdslb.com/bfs/face/67cf24304f29b4addda4938b8bb0ee98cdd8e12f.jpg',
@@ -490,7 +490,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1qaQxYBESr',
+  105,  -- ✅ 修改：BV1qaQxYBESr -> 105
   '264513499',
   '刀鸣集',
   'https://i1.hdslb.com/bfs/face/8e8db0582ff5d4a6e90c06b40c643764a82adda7.jpg',
@@ -516,7 +516,7 @@ INSERT INTO beatu_videos (
   qualities
 )
 VALUES (
-  'BV1EGUrBKEmM',
+  106,  -- ✅ 修改：BV1EGUrBKEmM -> 106
   'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E3%80%904k%E7%AB%96%E5%B1%8F%E3%80%91%E4%B8%AD%E9%87%8E%E6%A2%93%E7%9A%84%E4%B8%8D%E5%BF%83%E5%8A%A8%E6%8C%91%E6%88%98%E5%93%A6%EF%BC%81%EF%BC%81%EF%BC%81%EF%BC%81.mp4',
   'http://i0.hdslb.com/bfs/archive/741967a2f53a713d77a9d7b6b37d2cf6860fd634.jpg',
   '【4k竖屏】中野梓的不心动挑战哦！！！！',
@@ -536,7 +536,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1EGUrBKEmM',
+  106,  -- ✅ 修改：BV1EGUrBKEmM -> 106
   '695488101',
   '绝非鳝类o',
   'https://i0.hdslb.com/bfs/face/4bbcdc27f3b227322c87bb5cb30600c371828e73.jpg',
@@ -554,7 +554,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1EGUrBKEmM',
+  106,  -- ✅ 修改：BV1EGUrBKEmM -> 106
   '84511479',
   '初音太萌',
   'https://i0.hdslb.com/bfs/face/f22d4da7b46c34c572c72f0d7ede76d34004d5ea.jpg',
@@ -572,7 +572,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1EGUrBKEmM',
+  106,  -- ✅ 修改：BV1EGUrBKEmM -> 106
   '3546745751472938',
   '相遇的寻',
   'https://i2.hdslb.com/bfs/face/d19a97fdd3430fab5df61d7ada433ae3a38b8eef.jpg',
@@ -598,7 +598,7 @@ INSERT INTO beatu_videos (
   qualities
 )
 VALUES (
-  'BV1ufmTYYE1i',
+  107,  -- ✅ 修改：BV1ufmTYYE1i -> 107
   'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%AB%96%E5%B1%8F%E7%9F%AD%E7%89%87%E4%B8%A8%E4%BA%BA%E7%B1%BB%E4%B8%BA%E4%BD%95%E8%BF%B7%E6%81%8B%E5%A4%8F%E5%A4%A9.mp4',
   'http://i2.hdslb.com/bfs/archive/7593f88eb2ee387181ccf2fb7c646f515cee9f35.jpg',
   '竖屏短片丨人类为何迷恋夏天',
@@ -618,7 +618,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1ufmTYYE1i',
+  107,  -- ✅ 修改：BV1ufmTYYE1i -> 107
   '11822935',
   '银色亮片',
   'https://i1.hdslb.com/bfs/baselabs/b84a4cb7eb0dc883e67c4766603e6c5b1e58421e.png',
@@ -636,7 +636,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1ufmTYYE1i',
+  107,  -- ✅ 修改：BV1ufmTYYE1i -> 107
   '96640975',
   '蛀牙奶昔丷',
   'https://i1.hdslb.com/bfs/face/816dc5224a4f5f2a1b351f6e18e4cd247ea4093b.jpg',
@@ -654,7 +654,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1ufmTYYE1i',
+  107,  -- ✅ 修改：BV1ufmTYYE1i -> 107
   '225444889',
   'YourF4u1t',
   'https://i1.hdslb.com/bfs/face/ba268a6647eac4a07570e9e1b976512986951782.jpg',
@@ -680,7 +680,7 @@ INSERT INTO beatu_videos (
   qualities
 )
 VALUES (
-  'BV1sh1NBiEXq',
+  108,  -- ✅ 修改：BV1sh1NBiEXq -> 108
   'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E2%80%9C%E5%91%8A%E8%AF%89%E6%88%91%EF%BC%8C%E7%A5%9E%E4%BC%9A%E6%B5%81%E8%A1%80%E5%90%97%EF%BC%9F%E2%80%9D%E3%80%90%F0%9D%90%84%F0%9D%90%95%F0%9D%90%80%E3%80%91%F0%9D%90%8B%F0%9D%96%BE%F0%9D%97%8D%20%F0%9D%9A%B0%F0%9D%97%8D%20%F0%9D%90%81%E1%A5%A3%F0%9D%96%BE%F0%9D%96%BE%E1%91%AF.mp4',
   'http://i1.hdslb.com/bfs/archive/f571da4a5f781cd553c262a25c1f427a822f799e.jpg',
   '“告诉我，神会流血吗？”【𝐄𝐕𝐀】𝐋𝖾𝗍 𝚰𝗍 𝐁ᥣ𝖾𝖾ᑯ',
@@ -700,7 +700,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1sh1NBiEXq',
+  108,  -- ✅ 修改：BV1sh1NBiEXq -> 108
   '377572568',
   '周末酱想睡觉',
   'https://i2.hdslb.com/bfs/face/0a8e6fbd90335c5de2235731f9e9b9b617bdef11.jpg',
@@ -718,7 +718,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1sh1NBiEXq',
+  108,  -- ✅ 修改：BV1sh1NBiEXq -> 108
   '501483',
   'kurundam',
   'https://i0.hdslb.com/bfs/face/3e9d09fccb015a00a3057f2b0f9f6ca096b31377.jpg',
@@ -736,7 +736,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1sh1NBiEXq',
+  108,  -- ✅ 修改：BV1sh1NBiEXq -> 108
   '104243347',
   '繁霜星落',
   'https://i1.hdslb.com/bfs/face/d196dd031dc8ceb6b328812aacdaf441d28656dc.jpg',
@@ -762,7 +762,7 @@ INSERT INTO beatu_videos (
   qualities
 )
 VALUES (
-  'BV1eixNzWE4B',
+  109,  -- ✅ 修改：BV1eixNzWE4B -> 109
   'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E5%BD%93%E8%81%8C%E9%AB%98%E7%94%9F%E5%B0%9D%E8%AF%95%E6%A8%A1%E4%BB%BF%E8%8B%B9%E6%9E%9C%E5%8F%91%E5%B8%83%E4%BC%9A%E5%BC%80%E5%9C%BA%E7%BA%BF%E6%9D%A1%E5%8A%A8%E7%94%BB%E2%80%A6%E2%80%A6.mp4',
   'http://i2.hdslb.com/bfs/archive/0a0bf8a32bb44ba9339a409edefff9920c5dfe80.jpg',
   '当职高生尝试模仿苹果发布会开场线条动画……',
@@ -782,7 +782,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1eixNzWE4B',
+  109,  -- ✅ 修改：BV1eixNzWE4B -> 109
   '148957839',
   '隔壁闲人',
   'https://i0.hdslb.com/bfs/face/733d8422f24f91fda9a95b6097a693dda2de1d24.jpg',
@@ -800,7 +800,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1eixNzWE4B',
+  109,  -- ✅ 修改：BV1eixNzWE4B -> 109
   '389685337',
   '浪味鲜虾片',
   'https://i1.hdslb.com/bfs/face/b28a351b7deea124b98c24486a2bb3c4a2deac0b.jpg',
@@ -818,7 +818,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1eixNzWE4B',
+  109,  -- ✅ 修改：BV1eixNzWE4B -> 109
   '379390855',
   '瓦尔登湖上的丫丫',
   'https://i1.hdslb.com/bfs/face/1cc39f40dfe0ae89270e7c9b4e4063ee5e348dda.jpg',
@@ -844,7 +844,7 @@ INSERT INTO beatu_videos (
   qualities
 )
 VALUES (
-  'BV1ym411B764',
+  110,  -- ✅ 修改：BV1ym411B764 -> 110
   'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E3%80%90%E7%A0%82%E9%87%91%E3%80%91Trouble%20Maker.mp4',
   'http://i1.hdslb.com/bfs/archive/199d90c7c38067825e0efed2d5d0b0ce8a2f0bb5.jpg',
   '【砂金】Trouble Maker',
@@ -864,7 +864,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1ym411B764',
+  110,  -- ✅ 修改：BV1ym411B764 -> 110
   '3494361033608001',
   '偉yuan',
   'https://i0.hdslb.com/bfs/face/f9963184a9bb5e65d75a04d7fc7a3ffcb33c5a0e.jpg',
@@ -882,7 +882,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1ym411B764',
+  110,  -- ✅ 修改：BV1ym411B764 -> 110
   '519801151',
   '就是救世啊',
   'https://i1.hdslb.com/bfs/face/9df3c067507afcc99ad540bd9fdc38bb766c39cb.webp',
@@ -900,7 +900,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1ym411B764',
+  110,  -- ✅ 修改：BV1ym411B764 -> 110
   '598581575',
   '汤小圆鸽鸽鸽',
   'https://i2.hdslb.com/bfs/face/8dcf9575286a3a6ae8b124d4b38c082c208d8a8e.jpg',
@@ -926,7 +926,7 @@ INSERT INTO beatu_videos (
   qualities
 )
 VALUES (
-  'BV1pCyqB9EYz',
+  111,  -- ✅ 修改：BV1pCyqB9EYz -> 111
   'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E3%80%90IGN%E3%80%91%E7%94%B5%E5%BD%B1%E3%80%8A%E7%96%AF%E7%8B%82%E5%8A%A8%E7%89%A9%E5%9F%8E2%E3%80%8B%E5%85%A8%E6%96%B0%E9%A2%84%E5%91%8A.mp4',
   'http://i0.hdslb.com/bfs/archive/f6ce8f38d63e639e0ab7f937b6a7405e97886df8.jpg',
   '【IGN】电影《疯狂动物城2》全新预告',
@@ -946,7 +946,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1pCyqB9EYz',
+  111,  -- ✅ 修改：BV1pCyqB9EYz -> 111
   '360606596',
   '东方仗仗助',
   'https://i2.hdslb.com/bfs/face/4c324330f2e1f76b1d72d780d8908cf94d1a8a88.jpg',
@@ -964,7 +964,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1pCyqB9EYz',
+  111,  -- ✅ 修改：BV1pCyqB9EYz -> 111
   '3546390502312149',
   'bili_96838051560',
   'https://i0.hdslb.com/bfs/face/member/noface.jpg',
@@ -982,7 +982,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1pCyqB9EYz',
+  111,  -- ✅ 修改：BV1pCyqB9EYz -> 111
   '20301524',
   'Mousquetaire',
   'https://i2.hdslb.com/bfs/face/dfa3dc4b52039c86774687bf7b49428a8c175958.jpg',
@@ -1008,7 +1008,7 @@ INSERT INTO beatu_videos (
   qualities
 )
 VALUES (
-  'BV1dD4y1o76G',
+  112,  -- ✅ 修改：BV1dD4y1o76G -> 112
   'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/Beauty%20And%20A%20Beat%20-%20Justin%20Bieber.mp4',
   'http://i2.hdslb.com/bfs/archive/50a30a69df13a706cd077814fb01cc6b440bd54e.jpg',
   'Beauty And A Beat - Justin Bieber',
@@ -1028,7 +1028,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1dD4y1o76G',
+  112,  -- ✅ 修改：BV1dD4y1o76G -> 112
   '213820482',
   '王高徐',
   'https://i0.hdslb.com/bfs/face/2b4cfc2b6671ff201d7e69f975f268e1db47655b.jpg',
@@ -1046,7 +1046,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1dD4y1o76G',
+  112,  -- ✅ 修改：BV1dD4y1o76G -> 112
   '499471102',
   '追丶者',
   'https://i1.hdslb.com/bfs/face/f089e0bae1801e859caae60f1667e04b7337a315.jpg',
@@ -1064,7 +1064,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1dD4y1o76G',
+  112,  -- ✅ 修改：BV1dD4y1o76G -> 112
   '3461567819549658',
   '发鬓',
   'https://i0.hdslb.com/bfs/face/fd8681f451ed967e615f3632f72b9525737bb266.jpg',
@@ -1090,7 +1090,7 @@ INSERT INTO beatu_videos (
   qualities
 )
 VALUES (
-  'BV1o5SsBXEyc',
+  113,  -- ✅ 修改：BV1o5SsBXEyc -> 113
   'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%8C%ABmeme%E7%BE%8E%E9%A3%9F%EF%BD%9C%E8%A2%AB%E7%AA%9D%E5%8F%98%E6%88%90%E5%8F%AF%E4%B8%BD%E9%A5%BC%E4%BA%86%E5%96%B5.mp4',
   'http://i2.hdslb.com/bfs/archive/a285a8559781fed7cd3a0664af2ba58fef9f59f9.jpg',
   '猫meme美食｜被窝变成可丽饼了喵',
@@ -1110,7 +1110,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1o5SsBXEyc',
+  113,  -- ✅ 修改：BV1o5SsBXEyc -> 113
   '3546771223481092',
   '巧合很奇妙',
   'https://i1.hdslb.com/bfs/face/192983acc366c0e035bc3dbdce74120641e9cdcc.jpg',
@@ -1128,7 +1128,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1o5SsBXEyc',
+  113,  -- ✅ 修改：BV1o5SsBXEyc -> 113
   '1326922374',
   '藏狐108',
   'https://i0.hdslb.com/bfs/face/84739ad43064d322acdfe5389593a33f51087686.jpg',
@@ -1146,7 +1146,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1o5SsBXEyc',
+  113,  -- ✅ 修改：BV1o5SsBXEyc -> 113
   '693576322',
   'AAA灰珀晶片星琼批发',
   'https://i1.hdslb.com/bfs/face/1b9d5c5f9f7ffe5be04241702610db6e063460ad.jpg',
@@ -1172,7 +1172,7 @@ INSERT INTO beatu_videos (
   qualities
 )
 VALUES (
-  'BV1AzS3BFEKq',
+  114,  -- ✅ 修改：BV1AzS3BFEKq -> 114
   'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E2%9D%A4%E6%88%91%20%E5%BE%88%20%E5%8F%AF%20%E7%88%B1%20%E8%AF%B7%20%E7%BB%99%20%E6%88%91%20%E9%92%B1%E2%9D%A4.mp4',
   'http://i0.hdslb.com/bfs/archive/d1c8764ca97c9706f628753c56f3151c8e6cf719.jpg',
   '❤我 很 可 爱 请 给 我 钱❤',
@@ -1192,7 +1192,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1AzS3BFEKq',
+  114,  -- ✅ 修改：BV1AzS3BFEKq -> 114
   '179319934',
   '双海包子铺老板娘',
   'https://i1.hdslb.com/bfs/face/6e1da67e693a19cc9d468a21e2c8bd30fe05c9b7.jpg',
@@ -1210,7 +1210,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1AzS3BFEKq',
+  114,  -- ✅ 修改：BV1AzS3BFEKq -> 114
   '1069344105',
   'XU_Beft',
   'https://i0.hdslb.com/bfs/face/b461e0beb28bdeda355a4919b3a1c7b24a6ec8db.jpg',
@@ -1228,7 +1228,7 @@ INSERT INTO beatu_comments (
   like_count, created_at
 )
 VALUES (
-  'BV1AzS3BFEKq',
+  114,  -- ✅ 修改：BV1AzS3BFEKq -> 114
   '176618655',
   '你家的大湿兄',
   'http://i0.hdslb.com/bfs/face/0e8212a0b68957b400fbaae570f58c686eebc205.jpg',

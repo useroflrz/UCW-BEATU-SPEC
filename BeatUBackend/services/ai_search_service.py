@@ -28,7 +28,7 @@ class AISearchService:
         """初始化 AI 搜索服务
         
         Args:
-            db: 数据库会话，如果为 None 则使用默认连接
+            db: 数据库会话，如果是 None 则使用默认连接
         """
         self.mcp_service = get_mcp_service()
         self.db = db
@@ -110,7 +110,7 @@ class AISearchService:
         """
         try:
             # 构建搜索请求，让 Agent 联网搜索
-            search_prompt = f"请帮我搜索关于'{user_query}'的最新信息，并提供详细的搜索结果。"
+            search_prompt = f"请帮我搜索关于 '{user_query}' 的最新信息，并提供详细的搜索结果。"
             result = await self.mcp_service.process_request(search_prompt)
             return result
         except Exception as e:
@@ -177,7 +177,7 @@ class AISearchService:
                 keywords.append(word)
         
         # 2. 从 Agent 结果中提取可能的实体和关键词
-        # 提取中文词汇（2-4 个字）
+        # 提取中文词汇（2-4 个字符）
         chinese_words = re.findall(r'[\u4e00-\u9fa5]{2,4}', agent_result)
         for word in chinese_words[:5]:  # 最多取 5 个
             if word not in keywords and word not in stop_words:

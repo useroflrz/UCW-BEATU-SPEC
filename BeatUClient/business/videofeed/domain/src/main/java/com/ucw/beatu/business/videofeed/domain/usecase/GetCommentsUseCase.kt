@@ -21,7 +21,7 @@ class GetCommentsUseCase @Inject constructor(
      * @return Flow<AppResult<List<Comment>>> 响应式数据流
      */
     operator fun invoke(
-        videoId: String,
+        videoId: Long,  // ✅ 修改：从 String 改为 Long
         page: Int = 1,
         limit: Int = 20
     ): Flow<AppResult<List<Comment>>> {

@@ -29,7 +29,7 @@ class UserProfileNavigationHelper(
     /**
      * 导航到用户作品播放器
      */
-    fun navigateToUserWorksViewer(selectedWorkId: String) {
+    fun navigateToUserWorksViewer(selectedWorkId: Long) {  // ✅ 修改：从 String 改为 Long
         val works = getUserWorks()
         if (works.isEmpty()) {
             Toast.makeText(fragment.requireContext(), "暂无可播放的视频", Toast.LENGTH_SHORT).show()
@@ -71,11 +71,15 @@ class UserProfileNavigationHelper(
             }
 
             val currentUserId = getUser()?.id ?: "current_user"
+            // ✅ 修复：记录来源页面 ID，用于返回时决定返回到哪里
+            val currentDestinationId = navController.currentDestination?.id ?: 0
             val bundle = bundleOf(
                 UserWorksViewerFragment.ARG_USER_ID to currentUserId,
                 UserWorksViewerFragment.ARG_INITIAL_INDEX to initialIndex,
-                UserWorksViewerFragment.ARG_VIDEO_LIST to videoItems
+                UserWorksViewerFragment.ARG_VIDEO_LIST to videoItems,
+                UserWorksViewerFragment.ARG_SOURCE_DESTINATION to currentDestinationId // ✅ 修复：传递来源页面 ID
             )
+            Log.d(TAG, "navigateToUserWorksViewer: 传递来源页面 ID=$currentDestinationId")
             navController.navigate(actionId, bundle)
         }
     }
@@ -84,8 +88,14 @@ class UserProfileNavigationHelper(
      * 将 UserWork 转换为 VideoItem
      */
     private fun UserWork.toVideoItem(authorName: String): VideoItem {
+        // ✅ 修复：从 UserWork 中读取真实的 orientation，而不是硬编码为 PORTRAIT
+        val videoOrientation = when (orientation.uppercase()) {
+            "LANDSCAPE", "HORIZONTAL" -> VideoOrientation.LANDSCAPE
+            "PORTRAIT", "VERTICAL" -> VideoOrientation.PORTRAIT
+            else -> VideoOrientation.PORTRAIT  // 默认值
+        }
         return VideoItem(
-            id = id,
+            id = id, // ✅ 修改：直接使用 Long，无需转换
             videoUrl = playUrl,
             title = title,
             authorName = authorName,
@@ -93,7 +103,7 @@ class UserProfileNavigationHelper(
             commentCount = commentCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             favoriteCount = favoriteCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             shareCount = shareCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-            orientation = VideoOrientation.PORTRAIT
+            orientation = videoOrientation  // ✅ 修复：使用真实的 orientation 值
         )
     }
 }

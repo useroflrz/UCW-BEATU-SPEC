@@ -37,22 +37,23 @@ class VideoFeedAdapter(
     }
 
     override fun getItemId(position: Int): Long {
-        // 使用 videoId 的 hashCode 作为唯一标识
-        // 这样当列表顺序改变时，ViewPager2 会知道 Fragment 需要重新创建
         if (videoList.isEmpty()) {
             return position.toLong()
         }
+        // ✅ 修复：使用 video.id（稳定的 Numeric ID）作为 itemId
+        // 这样即使横屏重建、列表刷新、position 变化，Fragment 也能正确匹配到对应的视频
+        // 在无限循环模式下，同一个视频可能出现在多个 position，但 itemId 始终是 video.id
         val safeIndex = position % videoList.size
         val videoItem = videoList[safeIndex]
-        // 使用 videoId 的 hashCode，确保每个视频有唯一的 ID
-        // 即使列表顺序改变，ViewPager2 也能识别出需要重新创建 Fragment
-        return videoItem.id.hashCode().toLong()
+        return videoItem.id  // 返回稳定的 Numeric ID
     }
 
     override fun containsItem(itemId: Long): Boolean {
-        // 检查 itemId 是否在当前列表中
-        // 在无限循环模式下，需要检查所有可能的 position
-        return videoList.any { it.id.hashCode().toLong() == itemId }
+        if (videoList.isEmpty()) {
+            return false
+        }
+        // ✅ 修复：itemId 现在是 video.id，需要检查这个 ID 是否在当前列表中
+        return videoList.any { it.id == itemId }
     }
 
     override fun createFragment(position: Int): Fragment {
@@ -95,13 +96,23 @@ class VideoFeedAdapter(
 
     /**
      * 获取指定位置的视频
+     * ✅ 修复：支持无限循环模式，使用取模获取正确的视频
      */
     fun getVideoAt(position: Int): VideoItem? {
-        return if (position in 0 until videoList.size) {
-            videoList[position]
-        } else {
-            null
+        if (videoList.isEmpty()) {
+            return null
         }
+        // 在无限循环模式下，使用取模获取正确的视频
+        val safeIndex = position % videoList.size
+        return videoList[safeIndex]
+    }
+    
+    /**
+     * 根据 itemId（video.id）查找对应的视频
+     * ✅ 新增：用于根据稳定的 Numeric ID 查找视频
+     */
+    fun getVideoById(itemId: Long): VideoItem? {
+        return videoList.firstOrNull { it.id == itemId }
     }
 }
 

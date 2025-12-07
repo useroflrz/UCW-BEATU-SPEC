@@ -11,7 +11,7 @@ class CommentService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def list_comments(self, video_id: str, page: int, limit: int) -> CommentList:
+    def list_comments(self, video_id: int, page: int, limit: int) -> CommentList:  # ✅ 修改：video_id 从 str 改为 int
         total = self.db.scalar(
             select(func.count(Comment.id)).where(Comment.video_id == video_id)
         ) or 0
@@ -31,7 +31,7 @@ class CommentService:
             limit=limit,
         )
 
-    def create_comment(self, video_id: str, payload: CommentCreate, user_id: str, user_name: str) -> CommentItem:
+    def create_comment(self, video_id: int, payload: CommentCreate, user_id: str, user_name: str) -> CommentItem:  # ✅ 修改：video_id 从 str 改为 int
         video = self.db.get(Video, video_id)
         if not video:
             raise ValueError("视频不存在")
@@ -51,7 +51,7 @@ class CommentService:
 
     def create_ai_comment(
         self,
-        video_id: str,
+        video_id: int,  # ✅ 修改：video_id 从 str 改为 int
         payload: CommentAIRequest,
         user_name: str,
         override_content: str | None = None,
@@ -79,7 +79,7 @@ class CommentService:
     def _to_schema(self, comment: Comment) -> CommentItem:
         return CommentItem(
             id=str(comment.id),
-            video_id=comment.video_id,
+            video_id=int(comment.video_id),  # ✅ 修改：确保返回 int 类型
             author_id=comment.author_id,
             author_name=comment.author_name,
             author_avatar=comment.author_avatar,
@@ -93,7 +93,4 @@ class CommentService:
         )
 
     def _compose_ai_answer(self, question: str, title: str) -> str:
-        return f"基于《{title}》的内容，我认为：{question} —— 继续保持好奇，更多精彩马上呈现。"
-
-
-
+        return f"基于《{title}》的内容，我认为：{question} — 继续保持好奇，更多精彩马上呈现！"
