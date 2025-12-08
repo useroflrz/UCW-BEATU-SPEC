@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from database.models import Interaction, Video
+from database.models import VideoInteraction, UserFollow, Video, User
 from schemas.api import (
     FollowRequest,
     InteractionRequest,
@@ -30,8 +30,9 @@ class VideoService:
         channel: str | None,
         user_id: str,
     ) -> VideoList:
-        query = select(Video).order_by(Video.created_at.desc())
-        count_query = select(func.count(Video.id))
+        # ✅ 修改：使用新的字段名 videoId，按 videoId 降序排序
+        query = select(Video).order_by(Video.videoId.desc())
+        count_query = select(func.count(Video.videoId))
 
         if orientation:
             orm_orientation = orientation.upper()
@@ -44,6 +45,32 @@ class VideoService:
         )
 
         items = self._build_video_items(records, user_id=user_id, channel=channel)
+        return VideoList.create(items=items, total=total, page=page, limit=limit)
+
+    def search_videos(
+        self,
+        *,
+        query: str,
+        page: int,
+        limit: int,
+        user_id: str,
+    ) -> VideoList:
+        """搜索视频（根据标题关键词）"""
+        # 构建查询条件：在标题中搜索关键词
+        search_query = select(Video).where(
+            Video.title.like(f"%{query}%")
+        ).order_by(Video.videoId.desc())
+        
+        count_query = select(func.count(Video.videoId)).where(
+            Video.title.like(f"%{query}%")
+        )
+        
+        total = self.db.scalar(count_query) or 0
+        records = (
+            self.db.execute(search_query.offset((page - 1) * limit).limit(limit)).scalars().all()
+        )
+        
+        items = self._build_video_items(records, user_id=user_id, channel=None)
         return VideoList.create(items=items, total=total, page=page, limit=limit)
 
     def get_video(self, video_id: int, user_id: str) -> VideoItem:  # ✅ 修改：video_id 从 str 改为 int
@@ -66,45 +93,78 @@ class VideoService:
 
     def share_video(self, video_id: int) -> OperationResult:  # ✅ 修改：video_id 从 str 改为 int
         """
-        记录一次分享行为：将对应视频的 share_count 自增 1。
+        记录一次分享行为：将对应视频的 shareCount 自增 1。
         客户端负责实际的系统分享逻辑，这里只做统计。
         """
         video = self.db.get(Video, video_id)
         if not video:
             raise ValueError("视频不存在")
 
-        # 自增分享次数（保证不为负数）
-        video.share_count = max(0, video.share_count + 1)
+        # ✅ 修改：新表结构中没有 shareCount 字段，暂时不处理
+        # 如果需要统计分享，可以单独创建分享统计表
         self.db.commit()
 
         return OperationResult(success=True, message="OK")
 
     def follow_author(self, payload: FollowRequest, user_id: str) -> OperationResult:
         author_id = payload.author_id
-        interaction = (
-            self.db.query(Interaction)
+        # ✅ 修改：使用新的 UserFollow 表
+        follow = (
+            self.db.query(UserFollow)
             .filter(
-                Interaction.user_id == user_id,
-                Interaction.author_id == author_id,
-                Interaction.type == "FOLLOW_AUTHOR",
+                UserFollow.userId == user_id,
+                UserFollow.authorId == author_id,
             )
             .one_or_none()
         )
+
         if payload.action == "FOLLOW":
-            if interaction:
+            if follow and follow.isFollowed:
                 return OperationResult(success=True, message="已关注")
-            entity = Interaction(
-                user_id=user_id,
-                author_id=author_id,
-                type="FOLLOW_AUTHOR",
-            )
-            self.db.add(entity)
+            if follow:
+                # 更新现有记录
+                follow.isFollowed = True
+                follow.isPending = False
+            else:
+                # 创建新记录
+                entity = UserFollow(
+                    userId=user_id,
+                    authorId=author_id,
+                    isFollowed=True,
+                    isPending=False,
+                )
+                self.db.add(entity)
+            
+            # ✅ 修改：更新用户的关注数
+            user = self.db.get(User, user_id)
+            if user:
+                user.followingCount += 1
+            
+            # ✅ 修改：更新被关注用户的粉丝数
+            target_user = self.db.get(User, author_id)
+            if target_user:
+                target_user.followerCount += 1
+            
             self.db.commit()
             return OperationResult(success=True, message="关注成功")
-        if interaction:
-            self.db.delete(interaction)
-            self.db.commit()
-        return OperationResult(success=True, message="已取消关注")
+        else:
+            # 取消关注
+            if follow and follow.isFollowed:
+                follow.isFollowed = False
+                follow.isPending = False
+                
+                # ✅ 修改：更新用户的关注数
+                user = self.db.get(User, user_id)
+                if user and user.followingCount > 0:
+                    user.followingCount -= 1
+                
+                # ✅ 修改：更新被关注用户的粉丝数
+                target_user = self.db.get(User, author_id)
+                if target_user and target_user.followerCount > 0:
+                    target_user.followerCount -= 1
+                
+                self.db.commit()
+            return OperationResult(success=True, message="已取消关注")
 
     def _handle_interaction(
         self,
@@ -117,29 +177,45 @@ class VideoService:
         if not video:
             raise ValueError("视频不存在")
 
+        # ✅ 修改：使用新的 VideoInteraction 表
         interaction = (
-            self.db.query(Interaction)
+            self.db.query(VideoInteraction)
             .filter(
-                Interaction.video_id == video_id,
-                Interaction.user_id == user_id,
-                Interaction.type == interaction_type,
+                VideoInteraction.videoId == video_id,
+                VideoInteraction.userId == user_id,
             )
             .one_or_none()
         )
 
         if action in ("LIKE", "SAVE"):
+            # 点赞或收藏
             if interaction:
-                return OperationResult(success=True, message="已处理")
-            entity = Interaction(
-                video_id=video_id,
-                user_id=user_id,
-                type=interaction_type,
-            )
-            self.db.add(entity)
+                # 更新现有记录
+                if interaction_type == "LIKE":
+                    interaction.isLiked = True
+                elif interaction_type == "FAVORITE":
+                    interaction.isFavorited = True
+            else:
+                # 创建新记录
+                interaction = VideoInteraction(
+                    videoId=video_id,
+                    userId=user_id,
+                    isLiked=(interaction_type == "LIKE"),
+                    isFavorited=(interaction_type == "FAVORITE"),
+                    isPending=False,
+                )
+                self.db.add(interaction)
             self._bump_counter(video, interaction_type, delta=1)
         else:
+            # 取消点赞或取消收藏
             if interaction:
-                self.db.delete(interaction)
+                if interaction_type == "LIKE":
+                    interaction.isLiked = False
+                elif interaction_type == "FAVORITE":
+                    interaction.isFavorited = False
+                # 如果既没有点赞也没有收藏，删除记录
+                if not interaction.isLiked and not interaction.isFavorited:
+                    self.db.delete(interaction)
                 self._bump_counter(video, interaction_type, delta=-1)
 
         try:
@@ -152,9 +228,9 @@ class VideoService:
 
     def _bump_counter(self, video: Video, interaction_type: str, delta: int) -> None:
         if interaction_type == "LIKE":
-            video.like_count = max(0, video.like_count + delta)
+            video.likeCount = max(0, video.likeCount + delta)  # ✅ 修改：字段名从 like_count 改为 likeCount
         elif interaction_type == "FAVORITE":
-            video.favorite_count = max(0, video.favorite_count + delta)
+            video.favoriteCount = max(0, video.favoriteCount + delta)  # ✅ 修改：字段名从 favorite_count 改为 favoriteCount
 
     def _build_video_items(
         self,
@@ -162,54 +238,78 @@ class VideoService:
         user_id: str,
         channel: str | None = None,
     ) -> List[VideoItem]:
-        video_ids = [video.id for video in videos]
-        author_ids = {video.author_id for video in videos}
+        video_ids = [video.videoId for video in videos]  # ✅ 修改：字段名从 id 改为 videoId
+        author_ids = {video.authorId for video in videos}  # ✅ 修改：字段名从 author_id 改为 authorId
 
+        # ✅ 修改：使用新的 VideoInteraction 表
         interactions = []
         if user_id:
             interactions = (
-                self.db.query(Interaction)
-                .filter(Interaction.user_id == user_id, Interaction.video_id.in_(video_ids))
+                self.db.query(VideoInteraction)
+                .filter(VideoInteraction.userId == user_id, VideoInteraction.videoId.in_(video_ids))
                 .all()
             )
+        
+        # ✅ 修改：使用新的 UserFollow 表
         follow_map = {}
         if user_id and author_ids:
-            follow_map = parse_bool_map(
-                self.db.query(Interaction)
+            follows = (
+                self.db.query(UserFollow)
                 .filter(
-                    Interaction.user_id == user_id,
-                    Interaction.author_id.in_(author_ids),
-                    Interaction.type == "FOLLOW_AUTHOR",
+                    UserFollow.userId == user_id,
+                    UserFollow.authorId.in_(author_ids),
+                    UserFollow.isFollowed == True,
                 )
-                .all(),
-                key=lambda it: it.author_id,
+                .all()
             )
+            follow_map = {follow.authorId: True for follow in follows}
 
-        interaction_map = parse_bool_map(interactions, key=lambda it: f"{it.video_id}:{it.type}")  # ✅ video_id 现在是 int，但 f-string 会自动转换
+        # ✅ 修改：构建互动映射
+        interaction_map = {}
+        for interaction in interactions:
+            key = f"{interaction.videoId}"
+            interaction_map[key] = {
+                "isLiked": interaction.isLiked,
+                "isFavorited": interaction.isFavorited,
+            }
+
+        # ✅ 优化：批量获取所有作者信息，避免 N+1 查询
+        author_map = {}
+        if author_ids:
+            authors = self.db.query(User).filter(User.userId.in_(author_ids)).all()
+            author_map = {author.userId: author for author in authors}
 
         items: List[VideoItem] = []
         for video in videos:
+            video_key = f"{video.videoId}"
+            interaction = interaction_map.get(video_key, {})
+            
+            # ✅ 优化：从批量查询的 author_map 中获取作者信息
+            author = author_map.get(video.authorId)
+            author_name = author.userName if author else video.authorId
+            author_avatar = author.avatarUrl if author else None  # ✅ 修复：使用用户的 avatarUrl 而不是 video.authorAvatar
+            
             items.append(
                 VideoItem(
-                    id=video.id,  # ✅ video.id 现在是 BigInteger (int)
-                    play_url=video.play_url,
-                    cover_url=video.cover_url,
+                    id=video.videoId,  # ✅ 修改：字段名从 id 改为 videoId
+                    play_url=video.playUrl,  # ✅ 修改：字段名从 play_url 改为 playUrl
+                    cover_url=video.coverUrl,  # ✅ 修改：字段名从 cover_url 改为 coverUrl
                     title=video.title,
-                    tags=parse_tag_list(video.tags),
-                    duration_ms=video.duration_ms,
-                    orientation=video.orientation.lower(),
-                    author_id=video.author_id,
-                    author_name=video.author_name,
-                    author_avatar=video.author_avatar,
-                    like_count=video.like_count,
-                    comment_count=video.comment_count,
-                    favorite_count=video.favorite_count,
-                    share_count=video.share_count,
-                    view_count=video.view_count,
-                    is_liked=interaction_map.get(f"{video.id}:LIKE", False),  # ✅ video.id 现在是 int，f-string 会自动转换
-                    is_favorited=interaction_map.get(f"{video.id}:FAVORITE", False),  # ✅ video.id 现在是 int，f-string 会自动转换
-                    is_followed_author=follow_map.get(video.author_id, False),
-                    qualities=parse_quality_list(video.qualities) or [],
+                    tags=[],  # ✅ 修改：新表结构中没有 tags 字段
+                    duration_ms=video.durationMs,  # ✅ 修改：字段名从 duration_ms 改为 durationMs
+                    orientation=str(video.orientation).lower() if video.orientation else "portrait",
+                    author_id=video.authorId,  # ✅ 修改：字段名从 author_id 改为 authorId
+                    author_name=author_name,  # ✅ 修改：通过 authorId 查询 User 获取 userName
+                    author_avatar=author_avatar,  # ✅ 修复：使用用户的 avatarUrl
+                    like_count=video.likeCount,  # ✅ 修改：字段名从 like_count 改为 likeCount
+                    comment_count=video.commentCount,  # ✅ 修改：字段名从 comment_count 改为 commentCount
+                    favorite_count=video.favoriteCount,  # ✅ 修改：字段名从 favorite_count 改为 favoriteCount
+                    share_count=0,  # ✅ 修改：新表结构中没有 share_count 字段
+                    view_count=video.viewCount,  # ✅ 修改：字段名从 view_count 改为 viewCount
+                    is_liked=interaction.get("isLiked", False),
+                    is_favorited=interaction.get("isFavorited", False),
+                    is_followed_author=follow_map.get(video.authorId, False),
+                    qualities=[],  # ✅ 修改：新表结构中没有 qualities 字段
                     # 现有表中仅存储视频内容，统一标记为 VIDEO；图文卡片在后续注入时单独构造
                     contentType="VIDEO",
                     imageUrls=[],
@@ -217,6 +317,24 @@ class VideoService:
                 )
             )
         return items
+
+    def get_all_video_interactions(self, user_id: str) -> list[dict]:
+        """获取指定用户的所有视频交互"""
+        interactions = (
+            self.db.query(VideoInteraction)
+            .filter(VideoInteraction.userId == user_id)
+            .all()
+        )
+        return [
+            {
+                "videoId": interaction.videoId,
+                "userId": interaction.userId,
+                "isLiked": interaction.isLiked,
+                "isFavorited": interaction.isFavorited,
+                "isPending": interaction.isPending,
+            }
+            for interaction in interactions
+        ]
 
     def build_mixed_feed(self, *, page: int, items: List[VideoItem]) -> List[VideoItem]:
         """

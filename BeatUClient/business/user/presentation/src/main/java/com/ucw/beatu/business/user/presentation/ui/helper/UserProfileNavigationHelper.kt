@@ -46,7 +46,7 @@ class UserProfileNavigationHelper(
         if (isReadOnly) {
             val host = fragment.parentFragment as? UserProfileVideoClickHost
             if (host != null) {
-                val currentUserId = getUser()?.id ?: "current_user"
+                val currentUserId = getUser()?.id ?: "BEATU"
                 host.onUserWorkClicked(currentUserId, authorName, videoItems, initialIndex)
                 Log.d(TAG, "Notified parent fragment via UserProfileVideoClickHost")
             } else {

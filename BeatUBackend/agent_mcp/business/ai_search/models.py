@@ -13,8 +13,8 @@ class AISearchResponse(BaseModel):
     """AI 搜索响应"""
     ai_answer: str = Field(..., description="AI 生成的文本回�?")
     keywords: List[str] = Field(default_factory=list, description="提取的关键词列表")
-    video_ids: List[str] = Field(default_factory=list, description="远程数据库的视频 ID 列表")
-    local_video_ids: List[str] = Field(default_factory=list, description="本地数据库的视频 ID 列表")
+    video_ids: List[int] = Field(default_factory=list, description="远程数据库的视频 ID 列表（Long 类型）")
+    local_video_ids: List[int] = Field(default_factory=list, description="本地数据库的视频 ID 列表（Long 类型）")
 
 
 class StreamChunk(BaseModel):

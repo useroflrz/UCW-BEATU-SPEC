@@ -13,13 +13,13 @@ import com.ucw.beatu.shared.database.entity.UserEntity
  */
 fun UserEntity.toDomain(): User {
     return User(
-        id = id,
+        id = userId, // ✅ 修改：使用 userId 字段
         avatarUrl = avatarUrl,
-        name = name,
+        name = userName, // ✅ 修改：使用 userName 字段
         bio = bio,
-        likesCount = likesCount,
+        likesCount = 0, // ✅ 修改：新表结构中没有 likesCount 字段
         followingCount = followingCount,
-        followersCount = followersCount
+        followersCount = followerCount // ✅ 修改：使用 followerCount 字段
     )
 }
 
@@ -28,13 +28,12 @@ fun UserEntity.toDomain(): User {
  */
 fun User.toEntity(): UserEntity {
     return UserEntity(
-        id = id,
+        userId = id, // ✅ 修改：使用 userId 字段
+        userName = name, // ✅ 修改：使用 userName 字段
         avatarUrl = avatarUrl,
-        name = name,
-        bio = bio,
-        likesCount = likesCount,
+        followerCount = followersCount, // ✅ 修改：使用 followerCount 字段
         followingCount = followingCount,
-        followersCount = followersCount
+        bio = bio
     )
 }
 

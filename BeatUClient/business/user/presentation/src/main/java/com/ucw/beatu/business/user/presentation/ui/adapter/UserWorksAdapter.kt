@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import com.ucw.beatu.business.user.presentation.R
+import com.ucw.beatu.shared.common.util.NumberFormatter
 import com.ucw.beatu.shared.designsystem.util.IOSButtonEffect
 
 class UserWorksAdapter(
@@ -57,18 +58,9 @@ class UserWorksAdapter(
                 }
             }
             
-            playCount.text = formatPlayCount(item.playCount)
+            playCount.text = NumberFormatter.formatCount(item.playCount)
             IOSButtonEffect.applyIOSEffect(itemView) {
                 onVideoClick(item)
-            }
-        }
-
-        private fun formatPlayCount(count: Long): String {
-            return when {
-                count >= 100000000 -> String.format("%.1f亿", count / 100000000.0)
-                count >= 10000 -> String.format("%.1f万", count / 10000.0)
-                count >= 1000 -> String.format("%.1f千", count / 1000.0)
-                else -> count.toString()
             }
         }
     }
@@ -90,7 +82,7 @@ class UserWorksAdapter(
 data class UserWorkUiModel(
     val id: Long,  // ✅ 修改：从 String 改为 Long
     val thumbnailUrl: String?,
-    val playCount: Long,
+    val playCount: Long,  // ✅ 修改：这是 viewCount（观看数），不是 playCount
     val playUrl: String,
     val title: String
 )

@@ -31,6 +31,17 @@ def get_user(
     return success_response(user.dict(by_alias=True))
 
 
+@router.get("/users/name/{name}")
+def get_user_by_name(
+    name: str = Path(...),
+    service: UserService = Depends(get_user_service),
+    current_user_id: str = Depends(resolve_user),
+):
+    """根据用户名获取用户信息"""
+    user = service.get_user_by_name(name, current_user_id=current_user_id)
+    return success_response(user.dict(by_alias=True))
+
+
 @router.post("/users/{user_id}/follow")
 def follow_user(
     user_id: str = Path(...),
@@ -51,4 +62,23 @@ def unfollow_user(
     """取消关注用户"""
     result = service.unfollow_user(current_user_id, user_id)
     return success_response(None)
+
+
+@router.get("/users")
+def get_all_users(
+    service: UserService = Depends(get_user_service),
+):
+    """获取所有用户信息（首次启动时全量加载）"""
+    users = service.get_all_users()
+    return success_response([user.dict(by_alias=True) for user in users])
+
+
+@router.get("/users/{user_id}/follows")
+def get_user_follows(
+    user_id: str = Path(...),
+    service: UserService = Depends(get_user_service),
+):
+    """获取指定用户的所有关注关系（首次启动时全量加载）"""
+    follows = service.get_all_user_follows(user_id)
+    return success_response(follows)
 

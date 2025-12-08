@@ -73,18 +73,23 @@ private fun parseIso8601ToTimestamp(iso8601: String): Long {
 
 /**
  * Entity -> Domain Model
+ * @param authorName 作者名称（从UserEntity查询得到）
+ * @param authorAvatar 作者头像（从UserEntity查询得到，如果为null则使用entity中的authorAvatar）
  */
-fun CommentEntity.toDomain(): Comment {
+fun CommentEntity.toDomain(
+    authorName: String = "",
+    authorAvatar: String? = null
+): Comment {
     return Comment(
-        id = id,
-        videoId = videoId.toLongOrNull() ?: 0L,  // ✅ 修改：将 String 转换为 Long
+        id = commentId, // ✅ 修改：使用 commentId 字段
+        videoId = videoId, // ✅ 修改：videoId 现在是 Long，直接使用
         authorId = authorId,
-        authorName = authorName,
-        authorAvatar = null,
+        authorName = authorName.ifEmpty { authorId }, // ✅ 修改：如果authorName为空，使用authorId作为fallback
+        authorAvatar = authorAvatar ?: this.authorAvatar, // ✅ 修改：优先使用传入的authorAvatar，否则使用entity中的
         content = content,
         createdAt = createdAt,
-        isAiReply = isAiReply,
-        likeCount = 0
+        isAiReply = false, // ✅ 修改：新表结构中没有 isAiReply 字段
+        likeCount = likeCount // ✅ 修改：使用 likeCount 字段
     )
 }
 
@@ -93,13 +98,15 @@ fun CommentEntity.toDomain(): Comment {
  */
 fun Comment.toEntity(): CommentEntity {
     return CommentEntity(
-        id = id,
-        videoId = videoId.toString(),  // ✅ 修改：将 Long 转换为 String（因为 CommentEntity.videoId 是 String）
+        commentId = id, // ✅ 修改：使用 commentId 字段
+        videoId = videoId, // ✅ 修改：videoId 现在是 Long，直接使用
         authorId = authorId,
-        authorName = authorName,
         content = content,
         createdAt = createdAt,
-        isAiReply = isAiReply
+        likeCount = likeCount, // ✅ 修改：使用 likeCount 字段
+        isLiked = false, // ✅ 修改：需要通过 CommentInteractionEntity 查询（如果存在）
+        isPending = false, // ✅ 修改：新评论默认为 false
+        authorAvatar = authorAvatar // ✅ 修改：使用 authorAvatar 字段
     )
 }
 

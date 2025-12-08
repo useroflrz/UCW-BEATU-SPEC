@@ -41,6 +41,10 @@ dependencies {
     // Business Domain
     implementation(project(":business:videofeed:domain"))
     
+    // User domain and data (for getting user data in VideoItemFragment)
+    implementation(project(":business:user:domain"))
+    implementation(project(":business:user:data"))  // 需要依赖 data 模块以获取 UserRepository 的 Hilt 绑定
+    
     // Settings domain (for reading playback settings)
     implementation(project(":business:settings:domain"))
     

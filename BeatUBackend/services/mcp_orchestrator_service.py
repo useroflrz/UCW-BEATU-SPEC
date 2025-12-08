@@ -31,6 +31,14 @@ class MCPOrchestratorService:
         # 设置 AgentMCP 所需的环境变量（从 BeatUBackend 配置读取）
         if settings.mcp_api_key:
             os.environ["API_KEY"] = settings.mcp_api_key
+        else:
+            # 如果 API key 未配置，记录警告
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "MCP_API_KEY 未配置！AI 搜索功能将无法使用。"
+                "请在 .env 文件中设置 MCP_API_KEY 环境变量，或设置系统环境变量。"
+            )
         if settings.mcp_base_url:
             os.environ["BASE_URL"] = settings.mcp_base_url
         if settings.mcp_model:

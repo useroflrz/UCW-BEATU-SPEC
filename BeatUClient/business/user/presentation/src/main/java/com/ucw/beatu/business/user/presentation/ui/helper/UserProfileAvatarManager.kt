@@ -11,7 +11,9 @@ import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.fragment.app.Fragment
+import coil.load
 import com.ucw.beatu.business.user.presentation.viewmodel.UserProfileViewModel
+import com.ucw.beatu.shared.designsystem.R as DesignSystemR
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -165,17 +167,41 @@ class UserProfileAvatarManager(
     }
 
     /**
-     * 加载头像
+     * 加载头像（支持本地文件和网络URL）
      */
-    fun loadAvatar(avatarPath: String) {
+    fun loadAvatar(avatarUrl: String?) {
+        if (avatarUrl.isNullOrBlank()) {
+            // 如果头像URL为空，使用占位图
+            ivAvatar.setImageResource(DesignSystemR.drawable.ic_avatar_placeholder)
+            return
+        }
+
         try {
-            val file = File(avatarPath)
-            if (file.exists()) {
-                val bitmap = BitmapFactory.decodeFile(avatarPath)
-                ivAvatar.setImageBitmap(bitmap)
+            // 判断是本地文件路径还是网络URL
+            if (avatarUrl.startsWith("http://") || avatarUrl.startsWith("https://")) {
+                // 网络URL：使用Coil加载
+                ivAvatar.load(avatarUrl) {
+                    crossfade(true)
+                    placeholder(DesignSystemR.drawable.ic_avatar_placeholder)
+                    error(DesignSystemR.drawable.ic_avatar_placeholder)
+                }
+            } else {
+                // 本地文件路径：检查文件是否存在
+                val file = File(avatarUrl)
+                if (file.exists()) {
+                    val bitmap = BitmapFactory.decodeFile(avatarUrl)
+                    if (bitmap != null) {
+                        ivAvatar.setImageBitmap(bitmap)
+                    } else {
+                        ivAvatar.setImageResource(DesignSystemR.drawable.ic_avatar_placeholder)
+                    }
+                } else {
+                    ivAvatar.setImageResource(DesignSystemR.drawable.ic_avatar_placeholder)
+                }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Failed to load avatar: $avatarUrl", e)
+            ivAvatar.setImageResource(DesignSystemR.drawable.ic_avatar_placeholder)
         }
     }
 }

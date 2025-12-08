@@ -1,5 +1,6 @@
 package com.ucw.beatu.shared.router
 
+import android.os.Bundle
 import androidx.fragment.app.Fragment
 
 /**
@@ -17,5 +18,13 @@ interface UserProfileRouter {
      * @return 用户信息展示 Fragment
      */
     fun createUserProfileFragment(userId: String, authorName: String, readOnly: Boolean = true): Fragment
+    
+    /**
+     * 创建用户信息展示 Fragment（只读模式），传递完整用户数据
+     * @param userData Bundle 包含用户完整数据（id, name, avatarUrl, bio, likesCount, followingCount, followersCount）
+     * @param readOnly 是否只读模式
+     * @return 用户信息展示 Fragment
+     */
+    fun createUserProfileFragmentWithData(userData: Bundle, readOnly: Boolean = true): Fragment
 }
 

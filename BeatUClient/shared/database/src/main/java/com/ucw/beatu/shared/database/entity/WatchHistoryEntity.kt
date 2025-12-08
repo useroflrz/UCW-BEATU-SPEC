@@ -6,20 +6,22 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * 本地观看历史聚合表，对应后端 beatu_watch_history
+ * 观看历史表，对应后端 beatu_watch_history
+ * 用于记录用户观看视频的历史，支持"从上次播放继续"功能
  */
 @Entity(
-    tableName = "watch_history",
+    tableName = "beatu_watch_history",
+    primaryKeys = ["videoId", "userId"],
     foreignKeys = [
         ForeignKey(
             entity = UserEntity::class,
-            parentColumns = ["id"],
+            parentColumns = ["userId"],
             childColumns = ["userId"],
             onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
             entity = VideoEntity::class,
-            parentColumns = ["id"],
+            parentColumns = ["videoId"],
             childColumns = ["videoId"],
             onDelete = ForeignKey.CASCADE
         )
@@ -27,18 +29,16 @@ import androidx.room.PrimaryKey
     indices = [
         Index(value = ["userId"]),
         Index(value = ["videoId"]),
-        Index(value = ["userId", "videoId"], unique = true)
+        Index(value = ["userId", "watchedAt"]),
+        Index(value = ["isPending"])  // ✅ 新增：用于查询待同步的观看历史
     ]
 )
 data class WatchHistoryEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val userId: String,
-    val videoId: String,
-    val lastWatchAt: Long = System.currentTimeMillis(),
-    val lastSeekMs: Long = 0L,
-    val watchCount: Int = 1,
-    val totalDurationMs: Long = 0L,
-    val completionRate: Double = 0.0
+    val videoId: Long,  // 视频 ID (PK)
+    val userId: String,  // 用户 ID (PK)
+    val lastPlayPositionMs: Long = 0L,  // 上次播放进度（用于"从上次播放继续"）
+    val watchedAt: Long = System.currentTimeMillis(),  // 最后观看时间（排序用）
+    val isPending: Boolean = false  // ✅ 新增：本地待同步状态（弱一致性数据，策略B：不回滚，自动重试）
 )
 
 

@@ -27,6 +27,7 @@ enum class FeedContentType {
 data class VideoItem(
     val id: Long, //唯一，用视频id
     val videoUrl: String,
+    val coverUrl: String? = null, // 视频封面URL
     val title: String,
     val authorName: String,
     val authorId: String = "", // 作者ID，用于获取用户详细信息

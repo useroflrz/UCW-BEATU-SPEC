@@ -18,6 +18,8 @@ interface UserRemoteDataSource {
     suspend fun getUserByName(userName: String): AppResult<User>
     suspend fun followUser(userId: String): AppResult<Unit>
     suspend fun unfollowUser(userId: String): AppResult<Unit>
+    suspend fun getAllUsers(): AppResult<List<User>>
+    suspend fun getUserFollows(userId: String): AppResult<List<Map<String, Any>>>
 }
 
 /**
@@ -125,6 +127,62 @@ class UserRemoteDataSourceImpl @Inject constructor(
             val response = apiService.unfollowUser(userId)
             when {
                 response.isSuccess -> Unit
+                response.isUnauthorized -> {
+                    throw DataException.AuthException(
+                        response.message,
+                        response.code
+                    )
+                }
+                else -> {
+                    throw DataException.ServerException(
+                        response.message,
+                        response.code
+                    )
+                }
+            }
+        }
+    }
+
+    override suspend fun getAllUsers(): AppResult<List<User>> {
+        return runAppResult {
+            if (!connectivityObserver.isConnected()) {
+                throw DataException.NetworkException("No internet connection")
+            }
+
+            val response = apiService.getAllUsers()
+            val data = response.data
+            when {
+                response.isSuccess && data != null -> {
+                    data.map { it.toDomain() }
+                }
+                response.isUnauthorized -> {
+                    throw DataException.AuthException(
+                        response.message,
+                        response.code
+                    )
+                }
+                else -> {
+                    throw DataException.ServerException(
+                        response.message,
+                        response.code
+                    )
+                }
+            }
+        }
+    }
+
+    override suspend fun getUserFollows(userId: String): AppResult<List<Map<String, Any>>> {
+        return runAppResult {
+            if (!connectivityObserver.isConnected()) {
+                throw DataException.NetworkException("No internet connection")
+            }
+
+            val response = apiService.getUserFollows(userId)
+            val data = response.data
+            when {
+                response.isSuccess && data != null -> {
+                    data
+                }
                 response.isUnauthorized -> {
                     throw DataException.AuthException(
                         response.message,

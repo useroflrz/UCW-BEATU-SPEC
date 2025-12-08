@@ -17,6 +17,7 @@ fun Video.toVideoItem(): VideoItem {
     return VideoItem(
         id = id,
         videoUrl = playUrl,
+        coverUrl = coverUrl, // 传递视频封面URL
         title = title,
         authorName = authorName,
         authorAvatar = authorAvatar,

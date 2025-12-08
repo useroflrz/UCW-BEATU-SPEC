@@ -64,5 +64,20 @@ interface VideoRepository {
      * 发布评论
      */
     suspend fun postComment(videoId: Long, content: String): AppResult<Comment>  // ✅ 修改：从 String 改为 Long
+
+    /**
+     * 获取关注页视频列表（显示所有用户关注的创作者的视频）
+     * @param page 页码，从1开始
+     * @param limit 每页数量
+     * @return Flow<AppResult<List<Video>>> 响应式数据流
+     */
+    fun getFollowFeed(page: Int = 1, limit: Int = 20): Flow<AppResult<List<Video>>>
+
+    /**
+     * 保存观看历史（异步写入数据库，上传远程）
+     * @param videoId 视频ID
+     * @param positionMs 播放位置（毫秒）
+     */
+    suspend fun saveWatchHistory(videoId: Long, positionMs: Long = 0L)
 }
 

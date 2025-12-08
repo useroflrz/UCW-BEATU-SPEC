@@ -9,6 +9,7 @@ import com.ucw.beatu.business.videofeed.domain.model.Comment
 import com.ucw.beatu.business.videofeed.domain.model.Video
 import com.ucw.beatu.shared.database.BeatUDatabase
 import com.ucw.beatu.shared.database.dao.CommentDao
+import com.ucw.beatu.shared.database.dao.UserDao
 import com.ucw.beatu.shared.database.dao.VideoDao
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -42,6 +43,7 @@ interface VideoLocalDataSource {
     suspend fun getCommentById(commentId: String): Comment?
     suspend fun saveComments(comments: List<Comment>)
     suspend fun saveComment(comment: Comment)
+    suspend fun deleteCommentById(commentId: String)  // ✅ 新增：删除指定评论（用于回滚）
     suspend fun clearComments(videoId: Long)  // ✅ 修改：从 String 改为 Long
 }
 
@@ -57,6 +59,7 @@ class VideoLocalDataSourceImpl @Inject constructor(
 
     private val videoDao: VideoDao = database.videoDao()
     private val commentDao: CommentDao = database.commentDao()
+    private val userDao: UserDao = database.userDao()
     private val thumbnailScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun observeVideos(limit: Int): Flow<List<Video>> {
@@ -90,14 +93,31 @@ class VideoLocalDataSourceImpl @Inject constructor(
         videoDao.clear()
     }
 
-    override fun observeComments(videoId: Long): Flow<List<Comment>> {  // ✅ 修改：从 String 改为 Long
-        return commentDao.observeComments(videoId.toString()).map { entities ->  // ✅ 修改：CommentDao 需要 String，所以转换
-            entities.map { it.toDomain() }
+    override fun observeComments(videoId: Long): Flow<List<Comment>> {
+        return commentDao.observeComments(videoId).map { entities -> // ✅ 修改：CommentDao 现在使用 Long
+            // 批量查询所有作者信息，避免N+1查询
+            val authorIds = entities.map { it.authorId }.distinct()
+            val authors = authorIds.mapNotNull { authorId ->
+                userDao.getUserById(authorId)
+            }.associateBy { it.userId }
+            
+            entities.map { entity ->
+                val author = authors[entity.authorId]
+                entity.toDomain(
+                    authorName = author?.userName ?: entity.authorId,
+                    authorAvatar = author?.avatarUrl ?: entity.authorAvatar
+                )
+            }
         }
     }
 
     override suspend fun getCommentById(commentId: String): Comment? {
-        return commentDao.getCommentById(commentId)?.toDomain()
+        val entity = commentDao.getCommentById(commentId) ?: return null
+        val author = userDao.getUserById(entity.authorId)
+        return entity.toDomain(
+            authorName = author?.userName ?: entity.authorId,
+            authorAvatar = author?.avatarUrl ?: entity.authorAvatar
+        )
     }
 
     override suspend fun saveComments(comments: List<Comment>) {
@@ -108,8 +128,12 @@ class VideoLocalDataSourceImpl @Inject constructor(
         commentDao.insert(comment.toEntity())
     }
 
-    override suspend fun clearComments(videoId: Long) {  // ✅ 修改：从 String 改为 Long
-        commentDao.clear(videoId.toString())  // ✅ 修改：CommentDao 需要 String，所以转换
+    override suspend fun deleteCommentById(commentId: String) {
+        commentDao.deleteById(commentId)
+    }
+
+    override suspend fun clearComments(videoId: Long) {
+        commentDao.clear(videoId) // ✅ 修改：CommentDao 现在使用 Long
     }
     override fun enqueueThumbnailGeneration(videos: List<Video>) {
         // 后台懒生成：仅针对当前批次中 coverUrl 为空的条目生成缩略图并更新 DB

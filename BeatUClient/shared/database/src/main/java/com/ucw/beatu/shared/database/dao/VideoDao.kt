@@ -9,14 +9,14 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface VideoDao {
-    @Query("SELECT * FROM videos ORDER BY viewCount DESC LIMIT :limit")
+    @Query("SELECT * FROM beatu_video ORDER BY viewCount DESC LIMIT :limit")
     fun observeTopVideos(limit: Int): Flow<List<VideoEntity>>
     
     /**
-     * 根据作者ID查询该用户的作品（符合数据库表逻辑，使用authorId而非authorName）
+     * 根据作者ID查询该用户的作品
      */
     @Query("""
-    SELECT * FROM videos
+    SELECT * FROM beatu_video
     WHERE authorId = :authorId
     ORDER BY viewCount DESC
     LIMIT :limit
@@ -24,57 +24,74 @@ interface VideoDao {
     fun observeVideosByAuthorId(authorId: String, limit: Int): Flow<List<VideoEntity>>
     
     /**
-     * 根据作者名称查询该用户的作品（兼容旧接口，但建议使用authorId）
+     * 根据作者名称查询该用户的作品（JOIN beatu_user 表）
+     * Room 要求明确指定所有字段，不能使用 v.*
      */
     @Query("""
-    SELECT * FROM videos
-    WHERE authorName = :authorName
-    ORDER BY viewCount DESC
+    SELECT v.videoId, v.playUrl, v.coverUrl, v.title, v.authorId, v.orientation, 
+           v.durationMs, v.likeCount, v.commentCount, v.favoriteCount, v.viewCount, 
+           v.authorAvatar, v.shareUrl
+    FROM beatu_video v
+    INNER JOIN beatu_user u ON v.authorId = u.userId
+    WHERE u.userName = :authorName
+    ORDER BY v.viewCount DESC
     LIMIT :limit
     """)
     fun observeVideosByAuthorName(authorName: String, limit: Int): Flow<List<VideoEntity>>
     
     /**
-     * 查询用户收藏的视频（JOIN user_interactions表，符合数据库表逻辑）
+     * 查询用户收藏的视频（JOIN beatu_video_interaction表）
+     * Room 要求明确指定所有字段，不能使用 v.*
      */
     @Query("""
-    SELECT v.* FROM videos v
-    INNER JOIN user_interactions ui ON v.id = ui.videoId
-    WHERE ui.userId = :userId AND ui.type = 'FAVORITE'
-    ORDER BY ui.createdAt DESC
+    SELECT v.videoId, v.playUrl, v.coverUrl, v.title, v.authorId, v.orientation, 
+           v.durationMs, v.likeCount, v.commentCount, v.favoriteCount, v.viewCount, 
+           v.authorAvatar, v.shareUrl
+    FROM beatu_video v
+    INNER JOIN beatu_video_interaction vi ON v.videoId = vi.videoId
+    WHERE vi.userId = :userId AND vi.isFavorited = 1
+    ORDER BY v.viewCount DESC
     LIMIT :limit
     """)
     fun observeFavoritedVideos(userId: String, limit: Int): Flow<List<VideoEntity>>
     
     /**
-     * 查询用户点赞的视频（JOIN user_interactions表，符合数据库表逻辑）
+     * 查询用户点赞的视频（JOIN beatu_video_interaction表）
+     * Room 要求明确指定所有字段，不能使用 v.*
      */
     @Query("""
-    SELECT v.* FROM videos v
-    INNER JOIN user_interactions ui ON v.id = ui.videoId
-    WHERE ui.userId = :userId AND ui.type = 'LIKE'
-    ORDER BY ui.createdAt DESC
+    SELECT v.videoId, v.playUrl, v.coverUrl, v.title, v.authorId, v.orientation, 
+           v.durationMs, v.likeCount, v.commentCount, v.favoriteCount, v.viewCount, 
+           v.authorAvatar, v.shareUrl
+    FROM beatu_video v
+    INNER JOIN beatu_video_interaction vi ON v.videoId = vi.videoId
+    WHERE vi.userId = :userId AND vi.isLiked = 1
+    ORDER BY v.viewCount DESC
     LIMIT :limit
     """)
     fun observeLikedVideos(userId: String, limit: Int): Flow<List<VideoEntity>>
     
     /**
-     * 查询用户观看历史（JOIN watch_history表，符合数据库表逻辑）
+     * 查询用户观看历史（JOIN beatu_watch_history表）
+     * Room 要求明确指定所有字段，不能使用 v.*
      */
     @Query("""
-    SELECT v.* FROM videos v
-    INNER JOIN watch_history wh ON v.id = wh.videoId
+    SELECT v.videoId, v.playUrl, v.coverUrl, v.title, v.authorId, v.orientation, 
+           v.durationMs, v.likeCount, v.commentCount, v.favoriteCount, v.viewCount, 
+           v.authorAvatar, v.shareUrl
+    FROM beatu_video v
+    INNER JOIN beatu_watch_history wh ON v.videoId = wh.videoId
     WHERE wh.userId = :userId
-    ORDER BY wh.lastWatchAt DESC
+    ORDER BY wh.watchedAt DESC
     LIMIT :limit
     """)
     fun observeHistoryVideos(userId: String, limit: Int): Flow<List<VideoEntity>>
 
-    @Query("SELECT * FROM videos WHERE id = :id LIMIT 1")
-    suspend fun getVideoById(id: Long): VideoEntity?  // ✅ 修改：从 String 改为 Long
+    @Query("SELECT * FROM beatu_video WHERE videoId = :videoId LIMIT 1")
+    suspend fun getVideoById(videoId: Long): VideoEntity?
 
-    @Query("SELECT * FROM videos WHERE id = :id LIMIT 1")
-    fun observeVideoById(id: Long): Flow<VideoEntity?>  // ✅ 修改：从 String 改为 Long
+    @Query("SELECT * FROM beatu_video WHERE videoId = :videoId LIMIT 1")
+    fun observeVideoById(videoId: Long): Flow<VideoEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(items: List<VideoEntity>)
@@ -82,21 +99,21 @@ interface VideoDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(item: VideoEntity)
 
-    @Query("UPDATE videos SET coverUrl = :coverUrl WHERE id = :id")
-    suspend fun updateCoverUrl(id: Long, coverUrl: String)  // ✅ 修改：从 String 改为 Long
+    @Query("UPDATE beatu_video SET coverUrl = :coverUrl WHERE videoId = :videoId")
+    suspend fun updateCoverUrl(videoId: Long, coverUrl: String)
 
-    @Query("DELETE FROM videos")
+    @Query("DELETE FROM beatu_video")
     suspend fun clear()
 
-    @Query("DELETE FROM videos WHERE id = :id")
-    suspend fun deleteById(id: Long)  // ✅ 修改：从 String 改为 Long
+    @Query("DELETE FROM beatu_video WHERE videoId = :videoId")
+    suspend fun deleteById(videoId: Long)
 
     /**
      * 根据关键词搜索视频（标题匹配）
      * 使用LIKE进行模糊匹配
      */
     @Query("""
-    SELECT * FROM videos
+    SELECT * FROM beatu_video
     WHERE title LIKE '%' || :query || '%'
     ORDER BY viewCount DESC
     """)

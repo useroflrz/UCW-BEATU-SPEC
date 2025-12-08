@@ -115,6 +115,8 @@ class UserRepositoryImpl @Inject constructor(
                 when (result) {
                     is AppResult.Success -> {
                         Log.d(TAG, "Follow user sync success: targetUserId=$targetUserId")
+                        // ✅ 修改：清除待同步标记
+                        localDataSource.clearFollowPendingStatus(currentUserId, targetUserId)
                         _followSyncResult.emit(UserRepository.FollowSyncResult.Success(isFollow = true, targetUserId))
                     }
                     is AppResult.Error -> {
@@ -123,9 +125,9 @@ class UserRepositoryImpl @Inject constructor(
                             else -> result.message ?: result.throwable.message ?: "网络异常，该服务不可用"
                         }
                         Log.e(TAG, "Follow user sync failed: targetUserId=$targetUserId, error: $errorMessage")
-                        // 同步失败，回滚本地状态
+                        // ✅ 修改：同步失败，回滚本地状态（设置为未关注且已同步）
                         try {
-                            localDataSource.unfollowUser(currentUserId, targetUserId)
+                            localDataSource.rollbackFollowStatus(currentUserId, targetUserId, shouldFollow = false)
                             Log.d(TAG, "Follow user local state rolled back: targetUserId=$targetUserId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback follow user local state: targetUserId=$targetUserId", e)
@@ -135,9 +137,9 @@ class UserRepositoryImpl @Inject constructor(
                     }
                     else -> {
                         Log.w(TAG, "Follow user sync unknown result: targetUserId=$targetUserId")
-                        // 未知结果，也回滚本地状态
+                        // ✅ 修改：未知结果，也回滚本地状态
                         try {
-                            localDataSource.unfollowUser(currentUserId, targetUserId)
+                            localDataSource.rollbackFollowStatus(currentUserId, targetUserId, shouldFollow = false)
                             Log.d(TAG, "Follow user local state rolled back (unknown result): targetUserId=$targetUserId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback follow user local state: targetUserId=$targetUserId", e)
@@ -148,9 +150,9 @@ class UserRepositoryImpl @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Follow user sync exception: targetUserId=$targetUserId", e)
-                // 异常情况，回滚本地状态
+                // ✅ 修改：异常情况，回滚本地状态
                 try {
-                    localDataSource.unfollowUser(currentUserId, targetUserId)
+                    localDataSource.rollbackFollowStatus(currentUserId, targetUserId, shouldFollow = false)
                     Log.d(TAG, "Follow user local state rolled back (exception): targetUserId=$targetUserId")
                 } catch (rollbackException: Exception) {
                     Log.e(TAG, "Failed to rollback follow user local state: targetUserId=$targetUserId", rollbackException)
@@ -178,6 +180,8 @@ class UserRepositoryImpl @Inject constructor(
                 when (result) {
                     is AppResult.Success -> {
                         Log.d(TAG, "Unfollow user sync success: targetUserId=$targetUserId")
+                        // ✅ 修改：清除待同步标记
+                        localDataSource.clearFollowPendingStatus(currentUserId, targetUserId)
                         _followSyncResult.emit(UserRepository.FollowSyncResult.Success(isFollow = false, targetUserId))
                     }
                     is AppResult.Error -> {
@@ -186,9 +190,9 @@ class UserRepositoryImpl @Inject constructor(
                             else -> result.message ?: result.throwable.message ?: "网络异常，该服务不可用"
                         }
                         Log.e(TAG, "Unfollow user sync failed: targetUserId=$targetUserId, error: $errorMessage")
-                        // 同步失败，回滚本地状态
+                        // ✅ 修改：同步失败，回滚本地状态（设置为已关注且已同步）
                         try {
-                            localDataSource.followUser(currentUserId, targetUserId)
+                            localDataSource.rollbackFollowStatus(currentUserId, targetUserId, shouldFollow = true)
                             Log.d(TAG, "Unfollow user local state rolled back: targetUserId=$targetUserId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback unfollow user local state: targetUserId=$targetUserId", e)
@@ -198,9 +202,9 @@ class UserRepositoryImpl @Inject constructor(
                     }
                     else -> {
                         Log.w(TAG, "Unfollow user sync unknown result: targetUserId=$targetUserId")
-                        // 未知结果，也回滚本地状态
+                        // ✅ 修改：未知结果，也回滚本地状态
                         try {
-                            localDataSource.followUser(currentUserId, targetUserId)
+                            localDataSource.rollbackFollowStatus(currentUserId, targetUserId, shouldFollow = true)
                             Log.d(TAG, "Unfollow user local state rolled back (unknown result): targetUserId=$targetUserId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback unfollow user local state: targetUserId=$targetUserId", e)
@@ -211,9 +215,9 @@ class UserRepositoryImpl @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Unfollow user sync exception: targetUserId=$targetUserId", e)
-                // 异常情况，回滚本地状态
+                // ✅ 修改：异常情况，回滚本地状态
                 try {
-                    localDataSource.followUser(currentUserId, targetUserId)
+                    localDataSource.rollbackFollowStatus(currentUserId, targetUserId, shouldFollow = true)
                     Log.d(TAG, "Unfollow user local state rolled back (exception): targetUserId=$targetUserId")
                 } catch (rollbackException: Exception) {
                     Log.e(TAG, "Failed to rollback unfollow user local state: targetUserId=$targetUserId", rollbackException)

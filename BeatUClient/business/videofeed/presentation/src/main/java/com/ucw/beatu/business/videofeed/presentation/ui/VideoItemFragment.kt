@@ -28,6 +28,7 @@ import com.ucw.beatu.business.videofeed.presentation.share.ShareImageUtils
 import com.ucw.beatu.shared.common.navigation.LandscapeLaunchContract
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
+import com.ucw.beatu.shared.common.util.NumberFormatter
 import com.ucw.beatu.shared.designsystem.widget.VideoControlsView
 import coil.load
 import com.ucw.beatu.shared.router.RouterRegistry
@@ -40,9 +41,15 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import com.ucw.beatu.business.user.domain.repository.UserRepository
+import com.ucw.beatu.business.user.domain.model.User
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class VideoItemFragment : BaseFeedItemFragment() {
+    
+    @Inject
+    lateinit var userRepository: UserRepository
 
     companion object {
         private const val TAG = "VideoItemFragment"
@@ -177,17 +184,17 @@ class VideoItemFragment : BaseFeedItemFragment() {
             // 四个互动按钮下方的计数文案（与截图风格一致）
             sharedControlsRoot?.findViewById<android.widget.TextView>(
                 com.ucw.beatu.shared.designsystem.R.id.tv_like_count
-            )?.text = item.likeCount.toString()
+            )?.text = NumberFormatter.formatCount(item.likeCount)
              val shareCountTextView = sharedControlsRoot?.findViewById<android.widget.TextView>(
                  com.ucw.beatu.shared.designsystem.R.id.tv_share_count
              )
-             shareCountTextView?.text = item.shareCount.toString()
+             shareCountTextView?.text = NumberFormatter.formatCount(item.shareCount)
             sharedControlsRoot?.findViewById<android.widget.TextView>(
                 com.ucw.beatu.shared.designsystem.R.id.tv_favorite_count
-            )?.text = item.favoriteCount.toString()
+            )?.text = NumberFormatter.formatCount(item.favoriteCount)
             sharedControlsRoot?.findViewById<android.widget.TextView>(
                 com.ucw.beatu.shared.designsystem.R.id.tv_comment_count
-            )?.text = item.commentCount.toString()
+            )?.text = NumberFormatter.formatCount(item.commentCount)
             
             // 初始化互动状态
             viewModel.initInteractionState(
@@ -1135,20 +1142,69 @@ class VideoItemFragment : BaseFeedItemFragment() {
         TransitionManager.beginDelayedTransition(layout)
         constraintSet.applyTo(layout)
 
-        // 显示用户信息 DialogFragment（从底部弹出）
+        // 异步获取用户完整数据
         val userId = if (authorId.isNotEmpty()) authorId else authorName
-        userProfileDialogFragment = UserProfileDialogFragment.newInstance(userId, authorName)
-        userProfileDialogFragment?.setOnDismissListener {
-            hideUserInfoOverlay()
+        lifecycleScope.launch {
+            try {
+                // 优先通过 userId 获取用户数据（因为 userId 更准确）
+                var user: User? = null
+                
+                // 1. 如果 authorId 不为空，优先通过 authorId 查询
+                if (authorId.isNotEmpty()) {
+                    user = userRepository.getUserById(authorId)
+                    Log.d(TAG, "Trying to get user by ID: $authorId, result: ${if (user != null) "found" else "not found"}")
+                }
+                
+                // 2. 如果通过 authorId 没找到，尝试通过 authorName 查询（可能是用户名）
+                if (user == null && authorName.isNotEmpty() && authorName != authorId) {
+                    user = userRepository.getUserByName(authorName)
+                    Log.d(TAG, "Trying to get user by name: $authorName, result: ${if (user != null) "found" else "not found"}")
+                }
+                
+                // 3. 如果还是没找到，且 authorName 看起来像用户ID（纯数字），尝试作为用户ID查询
+                if (user == null && authorName.isNotEmpty() && authorName.all { it.isDigit() }) {
+                    user = userRepository.getUserById(authorName)
+                    Log.d(TAG, "Trying to get user by ID (from authorName): $authorName, result: ${if (user != null) "found" else "not found"}")
+                }
+                
+                if (user != null) {
+                    // 如果获取到用户数据，创建包含完整数据的 Bundle
+                    Log.d(TAG, "User found: id=${user.id}, name=${user.name}, avatarUrl=${user.avatarUrl}")
+                    val userData = Bundle().apply {
+                        putString("id", user.id)
+                        putString("name", user.name)
+                        putString("avatarUrl", user.avatarUrl)
+                        putString("bio", user.bio)
+                        putLong("likesCount", user.likesCount)
+                        putLong("followingCount", user.followingCount)
+                        putLong("followersCount", user.followersCount)
+                    }
+                    // 使用完整用户数据创建弹窗
+                    userProfileDialogFragment = UserProfileDialogFragment.newInstanceWithData(userData)
+                } else {
+                    // 如果获取不到用户数据，仍然尝试使用 userId 创建弹窗（UserProfileFragment 会尝试从远程获取）
+                    Log.w(TAG, "User not found in local DB: userId=$userId, authorName=$authorName, will try remote fetch")
+                    userProfileDialogFragment = UserProfileDialogFragment.newInstance(userId, authorName)
+                }
+            } catch (e: Exception) {
+                // 获取用户数据失败，使用 fallback
+                Log.e(TAG, "Failed to get user data: userId=$userId, authorName=$authorName", e)
+                userProfileDialogFragment = UserProfileDialogFragment.newInstance(userId, authorName)
+            }
+            
+            // 设置弹窗监听器
+            userProfileDialogFragment?.setOnDismissListener {
+                hideUserInfoOverlay()
+            }
+            // 设置视频点击回调，当在个人主页中点击视频时，关闭Dialog并导航到视频播放器
+            userProfileDialogFragment?.setOnVideoClickListener { userId, authorName, videoItems, initialIndex ->
+                // 关闭Dialog
+                hideUserInfoOverlay()
+                // 导航到视频播放器
+                navigateToUserWorksViewer(userId, videoItems, initialIndex)
+            }
+            userProfileDialogFragment?.show(parentFragmentManager, "UserProfileDialog")
         }
-        // 设置视频点击回调，当在个人主页中点击视频时，关闭Dialog并导航到视频播放器
-        userProfileDialogFragment?.setOnVideoClickListener { userId, authorName, videoItems, initialIndex ->
-            // 关闭Dialog
-            hideUserInfoOverlay()
-            // 导航到视频播放器
-            navigateToUserWorksViewer(userId, videoItems, initialIndex)
-        }
-        userProfileDialogFragment?.show(parentFragmentManager, "UserProfileDialog")
     }
 
     /**

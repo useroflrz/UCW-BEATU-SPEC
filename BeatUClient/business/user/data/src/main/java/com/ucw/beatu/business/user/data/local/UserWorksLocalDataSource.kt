@@ -10,9 +10,9 @@ import javax.inject.Inject
 
 interface UserWorksLocalDataSource {
     /**
-     * 根据作者名称查询该用户的作品（使用authorName）
+     * 根据作者ID查询该用户的作品（使用authorId）
      */
-    fun observeUserWorks(authorName: String, limit: Int): Flow<List<UserWork>>
+    fun observeUserWorks(authorId: String, limit: Int): Flow<List<UserWork>>
     
     /**
      * 查询用户收藏的视频（需要userId，JOIN user_interactions表）
@@ -36,10 +36,14 @@ class UserWorksLocalDataSourceImpl @Inject constructor(
 
     private val videoDao = database.videoDao()
 
-    override fun observeUserWorks(authorName: String, limit: Int): Flow<List<UserWork>> {
-        // 按 authorName 查询该用户的作品
-        return videoDao.observeVideosByAuthorName(authorName, limit)
-            .map { entities -> entities.map { it.toUserWork() } }
+    override fun observeUserWorks(authorId: String, limit: Int): Flow<List<UserWork>> {
+        // 从数据库查询该用户的作品（通过 authorId）
+        android.util.Log.d("UserWorksLocalDataSource", "查询用户作品：authorId=$authorId, limit=$limit")
+        return videoDao.observeVideosByAuthorId(authorId, limit)
+            .map { entities -> 
+                android.util.Log.d("UserWorksLocalDataSource", "从数据库查询到 ${entities.size} 条视频数据")
+                entities.map { it.toUserWork() } 
+            }
             .distinctUntilChanged()
     }
 

@@ -7,6 +7,7 @@ import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.ucw.beatu.business.videofeed.domain.usecase.FavoriteVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.LikeVideoUseCase
+import com.ucw.beatu.business.videofeed.domain.usecase.SaveWatchHistoryUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.UnfavoriteVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.ShareVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.UnlikeVideoUseCase
@@ -55,7 +56,8 @@ class VideoItemViewModel @Inject constructor(
     private val unlikeVideoUseCase: UnlikeVideoUseCase,
     private val favoriteVideoUseCase: FavoriteVideoUseCase,
     private val unfavoriteVideoUseCase: UnfavoriteVideoUseCase,
-    private val shareVideoUseCase: ShareVideoUseCase
+    private val shareVideoUseCase: ShareVideoUseCase,
+    private val saveWatchHistoryUseCase: SaveWatchHistoryUseCase
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(VideoItemUiState())
@@ -198,6 +200,19 @@ class VideoItemViewModel @Inject constructor(
                             durationMs = player.player.duration.takeIf { it > 0 } ?: _uiState.value.durationMs
                         )
                         android.util.Log.d("VideoItemViewModel", "onReady: 已更新 isPlaying=$isActuallyPlaying，当前位置=${player.player.currentPosition}ms")
+                        
+                        // ✅ 观看历史异步写入：用户点击开始观看视频时，按照文档的异步写入数据库，上传远程
+                        // 策略B：不回滚（弱一致性数据，自动重试同步）
+                        val currentPosition = player.player.currentPosition
+                        viewModelScope.launch {
+                            try {
+                                saveWatchHistoryUseCase(videoId, currentPosition)
+                                android.util.Log.d("VideoItemViewModel", "保存观看历史: videoId=$videoId, position=$currentPosition")
+                            } catch (e: Exception) {
+                                android.util.Log.e("VideoItemViewModel", "保存观看历史失败: videoId=$videoId", e)
+                                // 策略B：不回滚，保留待同步状态，下次启动时继续重试
+                            }
+                        }
                     }
 
                     override fun onError(videoId: Long, throwable: Throwable) {  // ✅ 修改：从 String 改为 Long

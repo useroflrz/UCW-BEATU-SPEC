@@ -31,6 +31,7 @@ import com.ucw.beatu.business.user.presentation.ui.helper.UserProfileFollowButto
 import com.ucw.beatu.business.user.presentation.ui.helper.UserProfileNavigationHelper
 import com.ucw.beatu.business.user.presentation.ui.helper.UserProfileTabManager
 import com.ucw.beatu.business.user.presentation.viewmodel.UserProfileViewModel
+import com.ucw.beatu.shared.common.util.NumberFormatter
 import com.ucw.beatu.shared.designsystem.util.IOSButtonEffect
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -138,17 +139,25 @@ class UserProfileFragment : Fragment() {
         // 观察 ViewModel 数据
         observeViewModel()
 
-        // 初始化并加载用户数据（使用用户名或用户ID）
-        Log.d(TAG, "Loading user with userName: $userName")
-        viewModel.loadUser(userName)
-        // 默认加载"作品"标签的数据
-        // 如果 userName 是 "current_user"，需要等待用户加载完成后获取实际用户名
-        // 否则直接使用 userName 作为 authorName
-        if (userName == "current_user") {
-            // 等待用户加载完成后再加载作品
-            // 作品加载会在 observeViewModel 中的用户加载完成后触发
+        // 初始化并加载用户数据
+        val userData = arguments?.getBundle(ARG_USER_DATA)
+        if (userData != null) {
+            // 如果提供了完整用户数据，直接使用
+            Log.d(TAG, "Using provided user data: id=${userData.getString("id")}, name=${userData.getString("name")}")
+            viewModel.setUserData(
+                id = userData.getString("id") ?: "",
+                name = userData.getString("name") ?: "",
+                avatarUrl = userData.getString("avatarUrl"),
+                bio = userData.getString("bio"),
+                likesCount = userData.getLong("likesCount", 0),
+                followingCount = userData.getLong("followingCount", 0),
+                followersCount = userData.getLong("followersCount", 0)
+            )
         } else {
-            viewModel.switchTab(UserProfileViewModel.TabType.WORKS, authorName = userName, currentUserId = "current_user")
+            // 否则通过用户名或用户ID加载
+            Log.d(TAG, "Loading user with userName: $userName")
+            viewModel.loadUser(userName)
+            // 注意：作品列表的加载会在 observeViewModel 中的用户加载完成后触发，使用实际的用户名
         }
         
         // 只读模式下，开始观察关注同步结果
@@ -195,22 +204,19 @@ class UserProfileFragment : Fragment() {
             view = view,
             viewModel = viewModel,
             isReadOnly = isReadOnly,
-            onTabSwitched = { tabType, authorName, currentUserId ->
-                val actualAuthorName = if (authorName.isEmpty()) {
-                    if (userName == "current_user" && latestUser != null) {
-                        latestUser!!.name
-                    } else {
-                        userName
-                    }
+            onTabSwitched = { tabType, authorId, currentUserId ->
+                val actualAuthorId = if (authorId.isEmpty()) {
+                    // 如果没有提供authorId，使用当前用户的ID
+                    latestUser?.id ?: (if (userName == "BEATU") "BEATU" else userName)
                 } else {
-                    authorName
+                    authorId
                 }
                 val actualCurrentUserId = if (currentUserId.isEmpty()) {
-                    latestUser?.id ?: "current_user"
+                    latestUser?.id ?: "BEATU"
                 } else {
                     currentUserId
                 }
-                viewModel.switchTab(tabType, authorName = actualAuthorName, currentUserId = actualCurrentUserId)
+                viewModel.switchTab(tabType, authorId = actualAuthorId, currentUserId = actualCurrentUserId)
             }
         )
     }
@@ -289,13 +295,13 @@ class UserProfileFragment : Fragment() {
                 launch {
                     viewModel.user.collect { user ->
                         if (user != null) {
-                            Log.d(TAG, "User loaded: ${user.name}, id: ${user.id}")
+                            Log.d(TAG, "User loaded: name=${user.name}, id=${user.id}")
                             latestUser = user
                             updateUserInfo(user)
-                            // 用户加载完成后，更新标签数据
-                            // 使用用户的实际名称作为 authorName（因为作品是通过 authorName 查询的）
-                            val authorName = if (userName == "current_user") user.name else userName
-                            viewModel.switchTab(UserProfileViewModel.TabType.WORKS, authorName = authorName, currentUserId = user.id)
+                            // 用户加载完成后，从数据库查询该用户的视频数据
+                            // 使用用户的ID（user.id）来查询作品
+                            Log.d(TAG, "Loading user works from database: authorId=${user.id}, userId=${user.id}, originalUserName=$userName")
+                            viewModel.switchTab(UserProfileViewModel.TabType.WORKS, authorId = user.id, currentUserId = user.id)
                             // 开始观察关注状态（只读模式），当前登录用户固定为 BEATU
                             if (isReadOnly) {
                                 val currentUserId = CURRENT_USER_ID
@@ -340,13 +346,16 @@ class UserProfileFragment : Fragment() {
      * 更新用户信息 UI
      */
     private fun updateUserInfo(user: User) {
-        tvUsername.text = user.name
+        // ✅ 显示用户姓名（user.name 映射自后端的 userName）
+        val displayName = user.name.ifEmpty { user.id }
+        tvUsername.text = displayName
+        Log.d(TAG, "更新用户信息：name=${user.name}, id=${user.id}, displayName=$displayName")
         tvBio.text = user.bio ?: ""
         
         // 格式化数字显示
-        tvLikesCount.text = formatCount(user.likesCount)
-        tvFollowingCount.text = formatCount(user.followingCount)
-        tvFollowersCount.text = formatCount(user.followersCount)
+        tvLikesCount.text = NumberFormatter.formatCount(user.likesCount)
+        tvFollowingCount.text = NumberFormatter.formatCount(user.followingCount)
+        tvFollowersCount.text = NumberFormatter.formatCount(user.followersCount)
         
         // 加载头像
         user.avatarUrl?.let { avatarPath ->
@@ -367,18 +376,6 @@ class UserProfileFragment : Fragment() {
         }
     }
     
-
-    /**
-     * 格式化数字显示（如：5.6万）
-     */
-    private fun formatCount(count: Long): String {
-        return when {
-            count >= 100000000 -> String.format("%.1f亿", count / 100000000.0)
-            count >= 10000 -> String.format("%.1f万", count / 10000.0)
-            count >= 1000 -> String.format("%.1f千", count / 1000.0)
-            else -> count.toString()
-        }
-    }
 
     /**
      * 应用只读模式下的文本颜色（黑色背景，白色文本）
@@ -412,11 +409,12 @@ class UserProfileFragment : Fragment() {
     companion object {
         private const val TAG = "UserProfileFragment"
         // 当前登录用户的固定 ID 与用户名
-        private const val CURRENT_USER_ID = "current_user"
+        private const val CURRENT_USER_ID = "BEATU"
         private const val CURRENT_USER_NAME = "BEATU"
         private const val ARG_USER_NAME = "user_name"
         private const val ARG_USER_ID = "user_id" // 保留用于兼容
         private const val ARG_READ_ONLY = "read_only"
+        private const val ARG_USER_DATA = "user_data" // 完整用户数据
 
         /**
          * 创建 Fragment 实例
@@ -428,6 +426,20 @@ class UserProfileFragment : Fragment() {
                 arguments = Bundle().apply {
                     // 如果未显式传用户名称，则默认展示当前登录用户 BEATU 的主页
                     putString(ARG_USER_NAME, userName ?: CURRENT_USER_NAME)
+                    putBoolean(ARG_READ_ONLY, readOnly)
+                }
+            }
+        }
+        
+        /**
+         * 创建 Fragment 实例，传递完整用户数据
+         * @param userData Bundle 包含用户完整数据（id, name, avatarUrl, bio, likesCount, followingCount, followersCount）
+         * @param readOnly 是否只读模式（隐藏返回按钮、禁用编辑功能），默认 false
+         */
+        fun newInstanceWithData(userData: Bundle, readOnly: Boolean = false): UserProfileFragment {
+            return UserProfileFragment().apply {
+                arguments = Bundle().apply {
+                    putBundle(ARG_USER_DATA, userData)
                     putBoolean(ARG_READ_ONLY, readOnly)
                 }
             }

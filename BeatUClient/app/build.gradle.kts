@@ -53,6 +53,7 @@ dependencies {
     // Business modules - Presentation layers
     implementation(project(":business:videofeed:presentation"))
     implementation(project(":business:videofeed:data"))
+    implementation(project(":business:videofeed:domain"))  // ✅ 需要访问 Comment 类型
     implementation(project(":business:user:presentation"))
     implementation(project(":business:user:data"))
     implementation(project(":business:user:domain"))

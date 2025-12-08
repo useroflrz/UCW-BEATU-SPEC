@@ -1,149 +1,116 @@
 -- ============================================
--- BeatU 数据库初始化脚本
--- 数据库：jeecg-boot3
--- 服务器：192.168.1.206:3306
--- 用户：jeecg
--- 密码：haomo123
--- ============================================
-
--- 注意：数据库 jeecg-boot3 应该已经存在，这里不需要创建
--- 如果数据库不存在，请先创建：
--- CREATE DATABASE IF NOT EXISTS `jeecg-boot3` 
---     CHARACTER SET utf8mb4 
---     COLLATE utf8mb4_unicode_ci;
-
-USE `jeecg-boot3`;
-
--- ============================================
 -- 1. 删除现有表（如果存在）
 -- ============================================
 DROP TABLE IF EXISTS beatu_watch_history;
-DROP TABLE IF EXISTS beatu_user_follows;
+DROP TABLE IF EXISTS beatu_user_follow;
+DROP TABLE IF EXISTS beatu_video_interaction;
+DROP TABLE IF EXISTS beatu_comment;
+DROP TABLE IF EXISTS beatu_video;
+DROP TABLE IF EXISTS beatu_user;
 DROP TABLE IF EXISTS beatu_metrics_interaction;
 DROP TABLE IF EXISTS beatu_metrics_playback;
-DROP TABLE IF EXISTS beatu_interactions;
-DROP TABLE IF EXISTS beatu_comments;
-DROP TABLE IF EXISTS beatu_videos;
-DROP TABLE IF EXISTS beatu_users;
 
--- 用户信息表
-CREATE TABLE beatu_users (
-    id VARCHAR(64) PRIMARY KEY COMMENT '用户唯一ID',
-    nickname VARCHAR(100) NOT NULL COMMENT '昵称',
-    avatar VARCHAR(500) DEFAULT NULL COMMENT '头像地址',
-    bio VARCHAR(500) DEFAULT NULL COMMENT '个人简介',
-    followers BIGINT NOT NULL DEFAULT 0 COMMENT '粉丝数',
-    followings BIGINT NOT NULL DEFAULT 0 COMMENT '关注数',
-    likes_received BIGINT NOT NULL DEFAULT 0 COMMENT '累计获赞',
-    works_count BIGINT NOT NULL DEFAULT 0 COMMENT '作品数量',
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    INDEX idx_user_nickname (nickname)
+-- ============================================
+-- 2. 创建新表结构（按照设计文档）
+-- ============================================
+
+-- 表：beatu_user
+CREATE TABLE beatu_user (
+    userId VARCHAR(64) PRIMARY KEY COMMENT '用户 ID (PK)',
+    userName VARCHAR(100) NOT NULL UNIQUE COMMENT '用户昵称（唯一）',
+    avatarUrl VARCHAR(500) DEFAULT NULL COMMENT '头像 URL',
+    followerCount BIGINT NOT NULL DEFAULT 0 COMMENT '粉丝数',
+    followingCount BIGINT NOT NULL DEFAULT 0 COMMENT '关注数',
+    bio VARCHAR(500) DEFAULT NULL COMMENT '简介',
+    INDEX idx_userName (userName)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户信息表';
 
--- 视频信息表
-CREATE TABLE beatu_videos (
-    id BIGINT PRIMARY KEY COMMENT '视频唯一ID',
-    play_url VARCHAR(500) NOT NULL COMMENT '视频播放地址',
-    cover_url VARCHAR(500) NOT NULL COMMENT '封面地址',
+-- 表：beatu_video
+CREATE TABLE beatu_video (
+    videoId BIGINT PRIMARY KEY COMMENT '视频 ID (PK)',
+    playUrl VARCHAR(500) NOT NULL COMMENT '播放地址',
+    coverUrl VARCHAR(500) NOT NULL COMMENT '封面地址',
     title VARCHAR(200) NOT NULL COMMENT '视频标题',
-    tags JSON DEFAULT NULL COMMENT '标签 JSON 数组',
-    duration_ms BIGINT NOT NULL DEFAULT 0 COMMENT '视频时长（毫秒）',
-    orientation ENUM('PORTRAIT', 'LANDSCAPE') NOT NULL DEFAULT 'PORTRAIT' COMMENT '视频方向',
-    author_id VARCHAR(64) NOT NULL COMMENT '作者ID',
-    author_name VARCHAR(100) NOT NULL COMMENT '作者名称',
-    author_avatar VARCHAR(500) DEFAULT NULL COMMENT '作者头像',
-    like_count BIGINT NOT NULL DEFAULT 0 COMMENT '点赞数',
-    comment_count BIGINT NOT NULL DEFAULT 0 COMMENT '评论数',
-    favorite_count BIGINT NOT NULL DEFAULT 0 COMMENT '收藏数',
-    share_count BIGINT NOT NULL DEFAULT 0 COMMENT '分享数',
-    view_count BIGINT NOT NULL DEFAULT 0 COMMENT '播放数',
-    qualities JSON DEFAULT NULL COMMENT '可选清晰度信息',
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    
-    INDEX idx_orientation_created (orientation, created_at DESC),
-    INDEX idx_author_id (author_id),
-    INDEX idx_duration (duration_ms),
-    FOREIGN KEY (author_id) REFERENCES beatu_users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='视频信息表';
+    authorId VARCHAR(64) NOT NULL COMMENT '作者 ID',
+    orientation ENUM('PORTRAIT', 'LANDSCAPE') NOT NULL DEFAULT 'PORTRAIT' COMMENT '横屏/竖屏',
+    durationMs BIGINT NOT NULL DEFAULT 0 COMMENT '视频时长（毫秒）',
+    likeCount BIGINT NOT NULL DEFAULT 0 COMMENT '点赞数',
+    commentCount BIGINT NOT NULL DEFAULT 0 COMMENT '评论数',
+    favoriteCount BIGINT NOT NULL DEFAULT 0 COMMENT '收藏数',
+    viewCount BIGINT NOT NULL DEFAULT 0 COMMENT '观看次数',
+    authorAvatar VARCHAR(500) DEFAULT NULL COMMENT '作者头像',
+    shareUrl VARCHAR(500) DEFAULT NULL COMMENT '分享链接',
+    INDEX idx_authorId (authorId),
+    INDEX idx_orientation (orientation),
+    FOREIGN KEY (authorId) REFERENCES beatu_user(userId) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='视频内容表';
 
--- 评论表
-CREATE TABLE beatu_comments (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
-    video_id BIGINT NOT NULL COMMENT '视频ID',  -- ✅ 修改：从 VARCHAR(64) 改为 BIGINT
-    author_id VARCHAR(64) NOT NULL COMMENT '作者ID（评论用户）',
-    author_name VARCHAR(100) NOT NULL COMMENT '作者昵称',
-    author_avatar VARCHAR(500) DEFAULT NULL COMMENT '作者头像',
-    content TEXT NOT NULL COMMENT '评论内容',
-    parent_id BIGINT DEFAULT NULL COMMENT '父评论ID（用于回复）',
-    is_ai_reply BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否为AI回复',
-    ai_model VARCHAR(64) DEFAULT NULL COMMENT 'AI模型',
-    ai_source VARCHAR(32) DEFAULT NULL COMMENT 'AI来源',
-    ai_confidence DOUBLE DEFAULT NULL COMMENT 'AI置信度',
-    like_count BIGINT NOT NULL DEFAULT 0 COMMENT '评论点赞数',
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    
-    INDEX idx_video_created (video_id, created_at DESC),
-    INDEX idx_parent_id (parent_id),
-    FOREIGN KEY (video_id) REFERENCES beatu_videos(id) ON DELETE CASCADE,
-    FOREIGN KEY (parent_id) REFERENCES beatu_comments(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='评论表';
+-- 表：beatu_video_interaction
+CREATE TABLE beatu_video_interaction (
+    videoId BIGINT NOT NULL COMMENT '视频 ID (PK)',
+    userId VARCHAR(64) NOT NULL COMMENT '用户 ID (PK)',
+    isLiked TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否点赞 (0/1)',
+    isFavorited TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否收藏 (0/1)',
+    isPending TINYINT(1) NOT NULL DEFAULT 0 COMMENT '本地待同步状态 (0/1)',
+    PRIMARY KEY (videoId, userId),
+    INDEX idx_userId (userId),
+    INDEX idx_videoId (videoId),
+    INDEX idx_isPending (isPending),
+    FOREIGN KEY (videoId) REFERENCES beatu_video(videoId) ON DELETE CASCADE,
+    FOREIGN KEY (userId) REFERENCES beatu_user(userId) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户-视频互动表';
 
--- 用户互动表
-CREATE TABLE beatu_interactions (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
-    user_id VARCHAR(64) NOT NULL COMMENT '用户ID',
-    video_id BIGINT DEFAULT NULL COMMENT '视频ID（点赞/收藏场景）',  -- ✅ 修改：从 VARCHAR(64) 改为 BIGINT
-    author_id VARCHAR(64) DEFAULT NULL COMMENT '作者ID（关注场景）',
-    type ENUM('LIKE', 'FAVORITE', 'FOLLOW_AUTHOR') NOT NULL COMMENT '互动类型',
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    
-    UNIQUE KEY uk_video_user_type (user_id, video_id, type),
-    UNIQUE KEY uk_author_user_type (user_id, author_id, type),
-    INDEX idx_user_video (user_id, video_id),
-    FOREIGN KEY (video_id) REFERENCES beatu_videos(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES beatu_users(id) ON DELETE CASCADE,
-    FOREIGN KEY (author_id) REFERENCES beatu_users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户互动表';
+-- 表：beatu_user_follow
+CREATE TABLE beatu_user_follow (
+    userId VARCHAR(64) NOT NULL COMMENT '当前用户 ID (PK)',
+    authorId VARCHAR(64) NOT NULL COMMENT '被关注的作者 ID (PK)',
+    isFollowed TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否关注 (0/1)',
+    isPending TINYINT(1) NOT NULL DEFAULT 0 COMMENT '本地待同步状态 (0/1)',
+    PRIMARY KEY (userId, authorId),
+    INDEX idx_userId (userId),
+    INDEX idx_authorId (authorId),
+    INDEX idx_isPending (isPending),
+    FOREIGN KEY (userId) REFERENCES beatu_user(userId) ON DELETE CASCADE,
+    FOREIGN KEY (authorId) REFERENCES beatu_user(userId) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户-用户关注表';
 
--- 用户关注关系表
-CREATE TABLE beatu_user_follows (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
-    follower_id VARCHAR(64) NOT NULL COMMENT '粉丝ID',
-    followee_id VARCHAR(64) NOT NULL COMMENT '被关注用户ID',
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '关注时间',
-    
-    UNIQUE KEY uk_follow_pair (follower_id, followee_id),
-    INDEX idx_followee (followee_id, created_at DESC),
-    INDEX idx_follower (follower_id, created_at DESC),
-    FOREIGN KEY (follower_id) REFERENCES beatu_users(id) ON DELETE CASCADE,
-    FOREIGN KEY (followee_id) REFERENCES beatu_users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户关注关系表';
-
--- 用户观看历史聚合表
+-- 表：beatu_watch_history
 CREATE TABLE beatu_watch_history (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
-    user_id VARCHAR(64) NOT NULL COMMENT '用户ID',
-    video_id BIGINT NOT NULL COMMENT '视频ID',  -- ✅ 修改：从 VARCHAR(64) 改为 BIGINT
-    last_watch_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '最近观看时间',
-    watch_count INT NOT NULL DEFAULT 1 COMMENT '累计观看次数',
-    last_seek_ms BIGINT NOT NULL DEFAULT 0 COMMENT '最近一次的播放进度',
-    last_duration_ms BIGINT NOT NULL DEFAULT 0 COMMENT '最近一次观看时长',
-    total_duration_ms BIGINT NOT NULL DEFAULT 0 COMMENT '累计观看时长',
-    completion_rate DOUBLE NOT NULL DEFAULT 0 COMMENT '最近一次播放完成度',
-    
-    UNIQUE KEY uk_user_video_history (user_id, video_id),
-    INDEX idx_history_user (user_id, last_watch_at DESC),
-    INDEX idx_history_video (video_id, last_watch_at DESC),
-    FOREIGN KEY (user_id) REFERENCES beatu_users(id) ON DELETE CASCADE,
-    FOREIGN KEY (video_id) REFERENCES beatu_videos(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户观看历史聚合表';
+    videoId BIGINT NOT NULL COMMENT '视频 ID (PK)',
+    userId VARCHAR(64) NOT NULL COMMENT '用户 ID (PK)',
+    lastPlayPositionMs BIGINT NOT NULL DEFAULT 0 COMMENT '上次播放进度（用于"从上次播放继续"）',
+    watchedAt BIGINT NOT NULL COMMENT '最后观看时间（排序用，Unix 时间戳毫秒）',
+    isPending TINYINT(1) NOT NULL DEFAULT 0 COMMENT '本地待同步状态 (0/1)',
+    PRIMARY KEY (videoId, userId),
+    INDEX idx_userId (userId),
+    INDEX idx_videoId (videoId),
+    INDEX idx_userId_watchedAt (userId, watchedAt),
+    INDEX idx_isPending (isPending),
+    FOREIGN KEY (videoId) REFERENCES beatu_video(videoId) ON DELETE CASCADE,
+    FOREIGN KEY (userId) REFERENCES beatu_user(userId) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='观看历史表';
+
+-- 表：beatu_comment
+CREATE TABLE beatu_comment (
+    commentId VARCHAR(64) PRIMARY KEY COMMENT '评论 ID (PK)',
+    videoId BIGINT NOT NULL COMMENT '所属视频 ID',
+    authorId VARCHAR(64) NOT NULL COMMENT '评论作者',
+    content TEXT NOT NULL COMMENT '评论内容',
+    createdAt BIGINT NOT NULL COMMENT '评论时间（Unix 时间戳毫秒）',
+    likeCount BIGINT NOT NULL DEFAULT 0 COMMENT '点赞数',
+    isLiked TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否点赞 (0/1)',
+    isPending TINYINT(1) NOT NULL DEFAULT 0 COMMENT '本地待同步状态 (0/1)',
+    authorAvatar VARCHAR(500) DEFAULT NULL COMMENT '作者头像',
+    INDEX idx_videoId (videoId),
+    INDEX idx_authorId (authorId),
+    INDEX idx_createdAt (createdAt),
+    FOREIGN KEY (videoId) REFERENCES beatu_video(videoId) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='评论内容表';
 
 -- 播放指标表
 CREATE TABLE beatu_metrics_playback (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    video_id BIGINT NOT NULL,  -- ✅ 修改：从 VARCHAR(64) 改为 BIGINT
+    video_id BIGINT NOT NULL,
     fps DOUBLE,
     start_up_ms BIGINT,
     rebuffer_count INT,
@@ -157,7 +124,7 @@ CREATE TABLE beatu_metrics_playback (
 CREATE TABLE beatu_metrics_interaction (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     event VARCHAR(64) NOT NULL,
-    video_id BIGINT DEFAULT NULL,  -- ✅ 修改：从 VARCHAR(64) 改为 BIGINT
+    video_id BIGINT DEFAULT NULL,
     latency_ms BIGINT,
     success BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -165,300 +132,276 @@ CREATE TABLE beatu_metrics_interaction (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='互动指标';
 
 -- ============================================
--- 3. 插入示例数据
+-- 3. 插入数据
 -- ============================================
 
--- 插入用户数据
-INSERT INTO beatu_users (
-    id, nickname, avatar, bio,
-    followers, followings, likes_received, works_count
-) VALUES
-('user_001', '云哥讲电影', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_001.jpg', '专注分享电影幕后故事', 1250000, 320, 3580000, 420),
-('user_002', '美食博主小美', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_002.jpg', '热爱厨房与旅行的美食记录者', 980000, 210, 2100000, 180),
-('user_003', '旅行摄影师', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_003.jpg', '记录世界的每一次日落', 560000, 120, 860000, 95),
-('user_004', '游戏解说员', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_004.jpg', '硬核玩法讲解', 450000, 160, 1200000, 150),
-('user_005', '电影爱好者', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_005.jpg', '每天一部好电影推荐', 300000, 200, 560000, 110),
-('user_006', '健身教练', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_006.jpg', '科学健身，拒绝瞎练', 750000, 180, 980000, 205),
-('user_007', '竖屏视频1', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_007.jpg', '生活方式记录者', 380000, 90, 420000, 88),
-('user_008', '评论用户1', NULL, '热爱互动的评论家', 13000, 58, 2800, 12),
-('user_009', '评论用户2', NULL, '喜欢分享观点', 9600, 32, 1500, 7),
-('user_010', '评论用户3', NULL, '影评爱好者', 7800, 25, 1180, 5),
-('user_011', '评论用户4', NULL, '旅行中', 5200, 18, 830, 3),
-('demo-user', 'BeatU 用户', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/demo_user.jpg', '客户端默认登录用户', 36, 58, 1200, 8),
-('ai_beatu', 'BeatU AI 助手', 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/ai_beatu.jpg', '智能互动助手', 0, 0, 0, 0);
+-- 用户数据（15个真实用户）
+INSERT INTO beatu_user (userId, userName, avatarUrl, followerCount, followingCount, bio)
+VALUES
+('12536984', '黑璇BLACK', 'https://i2.hdslb.com/bfs/face/05cec9b52c9aeb4ce214c26a5486cbb8a06259c6.jpg', 0, 0, NULL),
+('14804670', '无穷小亮的科普日常', 'http://i0.hdslb.com/bfs/face/6de12181ed59518fc7beff2046fb3218d50206cc.jpg', 0, 0, NULL),
+('483879799', '猛男舞团IconX', 'https://i1.hdslb.com/bfs/face/48503596681ab931d7d08a34071d3c8bf8b284bb.webp', 0, 0, NULL),
+('11831050', 'RedialC', 'https://i1.hdslb.com/bfs/face/21eb08b4bc9835218ba9f1c2ebd152060f864f34.jpg', 0, 0, NULL),
+('523064213', '海外视频', 'https://i2.hdslb.com/bfs/face/ecb0696c509831173929547693babd135b5b8867.jpg', 0, 0, NULL),
+('2407474', '液老板', 'https://i1.hdslb.com/bfs/face/67cf24304f29b4addda4938b8bb0ee98cdd8e12f.jpg', 0, 0, NULL),
+('296462800', '与优树', 'https://i1.hdslb.com/bfs/face/a15c18d253ca4f368064da9b5caf12860aedd005.jpg', 0, 0, NULL),
+('3546708495567018', 'jagaimotatop', 'https://i0.hdslb.com/bfs/face/6decfb735be6078999a0c330b1b56b324694e873.jpg', 0, 0, NULL),
+('15377173', '烟季', 'https://i1.hdslb.com/bfs/face/3c657487f9a7993f50bcbafa82f64f99ff1229bd.jpg', 0, 0, NULL),
+('3546610069932716', 'JN-yxn', 'https://i2.hdslb.com/bfs/face/49fee719f87cc10f56bd3d280b53bf92aa2b9f40.jpg', 0, 0, NULL),
+('598581575', '汤小圆鸽鸽鸽', 'https://i2.hdslb.com/bfs/face/8dcf9575286a3a6ae8b124d4b38c082c208d8a8e.jpg', 0, 0, NULL),
+('652239032', 'IGN中国', 'https://i2.hdslb.com/bfs/face/4c9095a6fc7d6ef7bf97ee1c65767f537763c60c.jpg', 0, 0, NULL),
+('669334488', '环球音乐中国', 'https://i0.hdslb.com/bfs/face/11ad74a0cf807b9896656ef9987e1b833aa11f8a.jpg', 0, 0, NULL),
+('92850496', '变形菌纲', 'https://i1.hdslb.com/bfs/face/01b1fc94d9f2654c291f0634cc024d6eed12ed6a.jpg', 0, 0, NULL),
+('291894729', '火大花haha', 'https://i0.hdslb.com/bfs/face/8fa1c5a5d8e23ae1bec7ef07e132daa7f08e5f62.jpg', 0, 0, NULL);
 
--- 插入视频数据（根据 MockVideoCatalog.kt 中的 mock 数据）
--- ✅ 修改：视频 ID 从字符串改为数字（使用简单的递增数字）
-INSERT INTO beatu_videos (
-    id, play_url, cover_url, title, tags, duration_ms, orientation,
-    author_id, author_name, author_avatar,
-    like_count, comment_count, favorite_count, share_count, view_count, qualities
-) VALUES
--- video_0011 - 横屏 (ID: 1)
-(1,
- 'http://vjs.zencdn.net/v/oceans.mp4',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_0011.jpg',
- '测试视频1',
- JSON_ARRAY('test', 'demo'),
- 45000,
- 'LANDSCAPE',
- 'user_001',
- '云哥讲电影 视频1',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_001.jpg',
- 535, 43, 159, 59, 5000,
- NULL),
+-- 评论用户（用于评论数据）
+INSERT INTO beatu_user (userId, userName, avatarUrl, followerCount, followingCount, bio)
+VALUES
+('512407709', '好名字都被猫取了喵', 'https://i2.hdslb.com/bfs/face/5aad76e98b8ada49d59d93ee1774a28b5d12dff4.jpg', 0, 0, NULL),
+('649342997', '晓春想摆烂', 'https://i2.hdslb.com/bfs/face/4ee3680a1bb4571e94028015347077bf36978c41.jpg', 0, 0, NULL),
+('3493076209240846', '雁司绛', 'https://i1.hdslb.com/bfs/face/8b9cd257c86ca5f216330ecb5571f57a6d52f2f3.jpg', 0, 0, NULL),
+('454507', '魔幻组曲棱镜娜娜', 'https://i1.hdslb.com/bfs/face/1907f22d45ea501b4006c09455a8699911dd50fc.jpg', 0, 0, NULL),
+('124668043', '杜烁', 'https://i1.hdslb.com/bfs/face/0d9da902fc7db5fee44d30eaa249e8e6a35939a8.jpg', 0, 0, NULL),
+('44745161', '阿斯嘉德三公主', 'https://i2.hdslb.com/bfs/face/37001a8c716ba4904e68de9d84f42be23bb4bf68.jpg', 0, 0, NULL),
+('284208940', '卡涅棘刺', 'https://i1.hdslb.com/bfs/face/886ded3c03bf32bae9def6027539d9b7a83eea25.jpg', 0, 0, NULL),
+('394196223', '九月贰拾陆', 'http://i0.hdslb.com/bfs/face/0b2b12c9faa9fca9107472ec99903264c7f48e6e.jpg', 0, 0, NULL),
+('429532543', '无影ya', 'https://i1.hdslb.com/bfs/face/481dd54620a70415a965ce03013e7f9e1c5d7b79.jpg', 0, 0, NULL),
+('516003403', '诸葛黛玉倒拔紫金葫芦', 'https://i1.hdslb.com/bfs/face/f259fe15491eb86731a4bf0b5ceba14b69c3a09d.jpg', 0, 0, NULL),
+('500332621', '理五晨曦', 'https://i1.hdslb.com/bfs/face/5e60ad2184bf18ea01965d4e8db98184e125ccac.jpg', 0, 0, NULL),
+('12746344', 'SpeedyWing', 'https://i1.hdslb.com/bfs/face/84a53815c6098d0572f4eeff5eac8fc479738a32.jpg', 0, 0, NULL),
+('3546705091889223', '我凶的嘞', 'https://i0.hdslb.com/bfs/face/de045acf59df5a1eaccd059782ef2824337a561e.jpg', 0, 0, NULL),
+('3546750843358055', '放弃取名字了龠字号', 'https://i2.hdslb.com/bfs/face/d7fff48a5e921072f520070ad818735cf73e7577.jpg', 0, 0, NULL),
+('501937905', '爱上了你没什么道裡', 'https://i0.hdslb.com/bfs/face/1a9ed8a15f65cc75674371ac7ca82ec4bdccda3e.jpg', 0, 0, NULL),
+('1762948', '烁砾', 'https://i1.hdslb.com/bfs/face/5dc022ad00f5ef7c0d2633176beedfdac64c0b09.jpg', 0, 0, NULL),
+('264513499', '刀鸣集', 'https://i1.hdslb.com/bfs/face/8e8db0582ff5d4a6e90c06b40c643764a82adda7.jpg', 0, 0, NULL),
+('695488101', '绝非鳝类o', 'https://i0.hdslb.com/bfs/face/4bbcdc27f3b227322c87bb5cb30600c371828e73.jpg', 0, 0, NULL),
+('84511479', '初音太萌', 'https://i0.hdslb.com/bfs/face/f22d4da7b46c34c572c72f0d7ede76d34004d5ea.jpg', 0, 0, NULL),
+('3546745751472938', '相遇的寻', 'https://i2.hdslb.com/bfs/face/d19a97fdd3430fab5df61d7ada433ae3a38b8eef.jpg', 0, 0, NULL),
+('11822935', '银色亮片', 'https://i1.hdslb.com/bfs/baselabs/b84a4cb7eb0dc883e67c4766603e6c5b1e58421e.png', 0, 0, NULL),
+('96640975', '蛀牙奶昔丷', 'https://i1.hdslb.com/bfs/face/816dc5224a4f5f2a1b351f6e18e4cd247ea4093b.jpg', 0, 0, NULL),
+('225444889', 'YourF4u1t', 'https://i1.hdslb.com/bfs/face/ba268a6647eac4a07570e9e1b976512986951782.jpg', 0, 0, NULL),
+('377572568', '周末酱想睡觉', 'https://i2.hdslb.com/bfs/face/0a8e6fbd90335c5de2235731f9e9b9b617bdef11.jpg', 0, 0, NULL),
+('501483', 'kurundam', 'https://i0.hdslb.com/bfs/face/3e9d09fccb015a00a3057f2b0f9f6ca096b31377.jpg', 0, 0, NULL),
+('104243347', '繁霜星落', 'https://i1.hdslb.com/bfs/face/d196dd031dc8ceb6b328812aacdaf441d28656dc.jpg', 0, 0, NULL),
+('148957839', '隔壁闲人', 'https://i0.hdslb.com/bfs/face/733d8422f24f91fda9a95b6097a693dda2de1d24.jpg', 0, 0, NULL),
+('389685337', '浪味鲜虾片', 'https://i1.hdslb.com/bfs/face/b28a351b7deea124b98c24486a2bb3c4a2deac0b.jpg', 0, 0, NULL),
+('379390855', '瓦尔登湖上的丫丫', 'https://i1.hdslb.com/bfs/face/1cc39f40dfe0ae89270e7c9b4e4063ee5e348dda.jpg', 0, 0, NULL),
+('3494361033608001', '偉yuan', 'https://i0.hdslb.com/bfs/face/f9963184a9bb5e65d75a04d7fc7a3ffcb33c5a0e.jpg', 0, 0, NULL),
+('519801151', '就是救世啊', 'https://i1.hdslb.com/bfs/face/9df3c067507afcc99ad540bd9fdc38bb766c39cb.webp', 0, 0, NULL),
+('360606596', '东方仗仗助', 'https://i2.hdslb.com/bfs/face/4c324330f2e1f76b1d72d780d8908cf94d1a8a88.jpg', 0, 0, NULL),
+('3546390502312149', 'bili_96838051560', 'https://i0.hdslb.com/bfs/face/member/noface.jpg', 0, 0, NULL),
+('20301524', 'Mousquetaire', 'https://i2.hdslb.com/bfs/face/dfa3dc4b52039c86774687bf7b49428a8c175958.jpg', 0, 0, NULL),
+('213820482', '王高徐', 'https://i0.hdslb.com/bfs/face/2b4cfc2b6671ff201d7e69f975f268e1db47655b.jpg', 0, 0, NULL),
+('499471102', '追丶者', 'https://i1.hdslb.com/bfs/face/f089e0bae1801e859caae60f1667e04b7337a315.jpg', 0, 0, NULL),
+('3461567819549658', '发鬓', 'https://i0.hdslb.com/bfs/face/fd8681f451ed967e615f3632f72b9525737bb266.jpg', 0, 0, NULL),
+('3546771223481092', '巧合很奇妙', 'https://i1.hdslb.com/bfs/face/192983acc366c0e035bc3dbdce74120641e9cdcc.jpg', 0, 0, NULL),
+('1326922374', '藏狐108', 'https://i0.hdslb.com/bfs/face/84739ad43064d322acdfe5389593a33f51087686.jpg', 0, 0, NULL),
+('693576322', 'AAA灰珀晶片星琼批发', 'https://i1.hdslb.com/bfs/face/1b9d5c5f9f7ffe5be04241702610db6e063460ad.jpg', 0, 0, NULL),
+('179319934', '双海包子铺老板娘', 'https://i1.hdslb.com/bfs/face/6e1da67e693a19cc9d468a21e2c8bd30fe05c9b7.jpg', 0, 0, NULL),
+('1069344105', 'XU_Beft', 'https://i0.hdslb.com/bfs/face/b461e0beb28bdeda355a4919b3a1c7b24a6ec8db.jpg', 0, 0, NULL),
+('BEATU', 'BEATU', 'http://i0.hdslb.com/bfs/face/0e8212a0b68957b400fbaae570f58c686eebc205.jpg', 0, 0, NULL);
 
--- video_0012 - 横屏 (ID: 2)
-(2,
- 'https://media.w3.org/2010/05/sintel/trailer.mp4',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_0012.jpg',
- 'Sintel 高清预告片 - 奇幻冒险',
- JSON_ARRAY('movie', 'trailer', 'fantasy'),
- 60000,
- 'LANDSCAPE',
- 'user_003',
- '视频3',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_003.jpg',
- 890, 67, 345, 123, 8000,
- NULL),
+-- 视频数据（修正版，确保所有videoId唯一）
+INSERT INTO beatu_video (
+  videoId, playUrl, coverUrl, title,
+  authorId, orientation,
+  durationMs, likeCount, commentCount, favoriteCount, viewCount,
+  authorAvatar, shareUrl
+)
+VALUES
+-- 注意：videoId需要转换为数值类型，这里用伪转换，实际应该用唯一数值ID
+(100001,
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E3%80%90%E7%96%AF%E7%8B%82%E5%8A%A8%E7%89%A9%E5%9F%8E2%E3%80%91%E5%8F%AA%E6%98%AF%E8%A7%86%E8%A7%92%E9%97%AE%E9%A2%98.mp4',
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/BV1CXSbBVEFQ.jpg',
+ '【疯狂动物城2】只是视角问题',
+ '12536984', 'LANDSCAPE', 50000, 40756, 447, 11254, 251956,
+ 'https://i2.hdslb.com/bfs/face/05cec9b52c9aeb4ce214c26a5486cbb8a06259c6.jpg', NULL),
 
--- video_002 - 横屏 (ID: 3)
-(3,
- 'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E6%A8%AA%E5%B1%8F%E8%A7%86%E9%A2%911.mp4',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_002.jpg',
- '横屏视频1',
- JSON_ARRAY('landscape', 'demo'),
- 90000,
- 'LANDSCAPE',
- 'user_002',
- '视频2',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_002.jpg',
- 1234, 89, 567, 234, 12000,
- NULL),
+(100002,
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%BD%91%E7%BB%9C%E7%83%AD%E4%BC%A0%E7%94%9F%E7%89%A9%E9%89%B4%E5%AE%9A%20%E7%AC%AC58%E6%9C%9F.mp4',
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/BV1FQUrBzE2P.jpg',
+ '网络热传生物鉴定 第58期',
+ '14804670', 'PORTRAIT', 699000, 436349, 12962, 29993, 4997211,
+ 'http://i0.hdslb.com/bfs/face/6de12181ed59518fc7beff2046fb3218d50206cc.jpg', NULL),
 
--- video_003 - 横屏 (ID: 4)
-(4,
- 'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E6%A8%AA%E5%B1%8F%E8%A7%86%E9%A2%912.mp4',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_003.jpg',
- '横屏视频2',
- JSON_ARRAY('landscape', 'demo'),
- 60000,
- 'LANDSCAPE',
- 'user_003',
- '视频3',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_003.jpg',
- 1234, 89, 567, 234, 10000,
- NULL),
+(100003,
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%A0%B4%E4%BA%BF%E7%BA%AA%E5%BF%B5%21%E3%80%90%E7%8C%9B%E7%94%B7%E7%89%88%E3%80%91%E6%96%B0%E5%AE%9D%E5%B2%9B%204K%E9%AB%98%E6%B8%85%E9%87%8D%E7%BD%AE%E5%8A%A0%E5%BC%BA%E7%89%88.mp4',
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/BV1AM4y1M71p.jpg',
+ '破亿纪念!【猛男版】新宝岛 4K高清重置加强版',
+ '483879799', 'LANDSCAPE', 116000, 3204017, 47621, 1084135, 51075881,
+ 'https://i1.hdslb.com/bfs/face/48503596681ab931d7d08a34071d3c8bf8b284bb.webp', NULL),
 
--- video_004 - 横屏 (ID: 5)
-(5,
- 'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E6%A8%AA%E5%B1%8F%E8%A7%86%E9%A2%913.mp4',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_004.jpg',
- '横屏视频3',
- JSON_ARRAY('landscape', 'demo'),
- 90000,
- 'LANDSCAPE',
- 'user_004',
- '视频4',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_004.jpg',
- 1234, 89, 567, 234, 11000,
- NULL),
+(100004,
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E3%80%904K60P%E7%AB%96%E5%B1%8F%E4%B8%A8%E8%99%9A%E5%B9%BB5%E3%80%91%E6%83%B3%E6%8B%A5%E4%BD%A0%E5%9C%A8%E6%80%80%2C%E5%BF%90%E5%BF%91%E7%9D%80%E5%9C%B0%E7%AD%89%E5%BE%85%E4%BD%A0%E6%9D%A5%7B%E7%AB%96%E5%B1%8F%E9%87%8D%E7%BD%AE%E7%89%88%7D.mp4',
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/BV19T411T7Yj.jpg',
+ '【4K60P竖屏丨虚幻5】想拥你在怀,忐忑着地等待你来{竖屏重置版}',
+ '11831050', 'PORTRAIT', 169000, 10255, 292, 7353, 71685,
+ 'https://i1.hdslb.com/bfs/face/21eb08b4bc9835218ba9f1c2ebd152060f864f34.jpg', NULL),
 
--- video_005 - 横屏（第一个）(ID: 6)
-(6,
- 'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E6%A8%AA%E5%B1%8F%E8%A7%86%E9%A2%914.mp4',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_005.jpg',
- '横屏视频4',
- JSON_ARRAY('landscape', 'demo'),
- 180000,
- 'LANDSCAPE',
- 'user_005',
- '视频5',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_005.jpg',
- 1234, 89, 567, 234, 15000,
- NULL),
+(100005,
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E2%80%9C%E4%BA%BA%E7%94%9F%E8%8B%A6%E7%9F%AD%20%E5%8F%8A%E6%97%B6%E8%A1%8C%E4%B9%90%22.mp4',
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/BV1HLdUYpE81.jpg',
+ '"人生苦短 及时行乐"',
+ '523064213', 'PORTRAIT', 89000, 3304, 31, 1160, 23699,
+ 'https://i2.hdslb.com/bfs/face/ecb0696c509831173929547693babd135b5b8867.jpg', NULL),
 
--- video_006 - 横屏 (ID: 7)
-(7,
- 'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E6%A8%AA%E5%B1%8F%E8%A7%86%E9%A2%915.mp4',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_006.jpg',
- '横屏视频5',
- JSON_ARRAY('landscape', 'demo'),
- 30000,
- 'LANDSCAPE',
- 'user_006',
- '视频6',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_006.jpg',
- 1234, 89, 567, 234, 9000,
- NULL),
+(100006,
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E6%81%8B%E4%B8%8E%E6%B7%B1%E7%A9%BA%E4%B8%A8%E7%8E%8B%E7%89%8CACE%E5%A4%8F%E4%BB%A5%E6%98%BC%E4%BA%BA%E4%B8%AAsolo%E9%A6%96%E7%A7%80%E6%83%8A%E8%89%B3%E4%BA%AE%E7%9B%B8%E2%9D%A4%E2%9D%A4%E2%9D%A4%E4%B8%A8%E7%AB%96%E5%B1%8F%E7%89%88.mp4',
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/BV1qaQxYBESr.jpg',
+ '恋与深空丨王牌ACE夏以昼个人solo首秀惊艳亮相❤❤❤丨竖屏版',
+ '2407474', 'PORTRAIT', 42000, 40326, 959, 9433, 250551,
+ 'https://i1.hdslb.com/bfs/face/67cf24304f29b4addda4938b8bb0ee98cdd8e12f.jpg', NULL),
 
--- video_007 - 竖屏 (ID: 8)
-(8,
- 'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%AB%96%E5%B1%8F%E8%A7%86%E9%A2%911.mp4',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_007.jpg',
- '竖屏视频1',
- JSON_ARRAY('portrait', 'demo'),
- 30000,
- 'PORTRAIT',
- 'user_007',
- '竖屏视频1',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_007.jpg',
- 2345, 156, 789, 456, 20000,
- NULL),
+(100007,
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E3%80%904k%E7%AB%96%E5%B1%8F%E3%80%91%E4%B8%AD%E9%87%8E%E6%A2%93%E7%9A%84%E4%B8%8D%E5%BF%83%E5%8A%A8%E6%8C%91%E6%88%98%E5%93%A6%EF%BC%81%EF%BC%81%EF%BC%81%EF%BC%81.mp4',
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/BV1EGUrBKEmM.jpg',
+ '【4k竖屏】中野梓的不心动挑战哦！！！！',
+ '296462800', 'PORTRAIT', 55000, 1249, 54, 317, 3503,
+ 'https://i1.hdslb.com/bfs/face/a15c18d253ca4f368064da9b5caf12860aedd005.jpg', NULL),
 
--- video_008 - 竖屏 (ID: 9)
-(9,
- 'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%AB%96%E5%B1%8F%E7%AB%96%E5%B1%8F2.mp4',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_008.jpg',
- '竖屏视频2',
- JSON_ARRAY('portrait', 'demo'),
- 60000,
- 'PORTRAIT',
- 'user_008',
- '竖屏视频2',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_008.jpg',
- 2345, 156, 789, 456, 18000,
- NULL),
+(100008,
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%AB%96%E5%B1%8F%E7%9F%AD%E7%89%87%E4%B8%A8%E4%BA%BA%E7%B1%BB%E4%B8%BA%E4%BD%95%E8%BF%B7%E6%81%8B%E5%A4%8F%E5%A4%A9.mp4',
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/BV1ufmTYYE1i.jpg',
+ '竖屏短片丨人类为何迷恋夏天',
+ '3546708495567018', 'PORTRAIT', 91000, 1198, 30, 933, 13279,
+ 'https://i0.hdslb.com/bfs/face/6decfb735be6078999a0c330b1b56b324694e873.jpg', NULL),
 
--- video_009 - 竖屏 (ID: 10)
-(10,
- 'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%AB%96%E5%B1%8F%E8%A7%86%E9%A2%913.mp4',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_009.jpg',
- '竖屏视频3',
- JSON_ARRAY('portrait', 'demo'),
- 30000,
- 'PORTRAIT',
- 'user_009',
- '竖屏视频3',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_009.jpg',
- 2345, 156, 789, 456, 17000,
- NULL),
+(100009,
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E2%80%9C%E5%91%8A%E8%AF%89%E6%88%91%EF%BC%8C%E7%A5%9E%E4%BC%9A%E6%B5%81%E8%A1%80%E5%90%97%EF%BC%9F%E2%80%9D%E3%80%90%F0%9D%90%84%F0%9D%90%95%F0%9D%90%80%E3%80%91%F0%9D%90%8B%F0%9D%96%BE%F0%9D%97%8D%20%F0%9D%9A%B0%F0%9D%97%8D%20%F0%9D%90%81%E1%A5%A3%F0%9D%96%BE%F0%9D%96%BE%E1%91%AF.mp4',
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/BV1sh1NBiEXq.jpg',
+ '"告诉我，神会流血吗？"【𝐄𝐕𝐀】𝐋𝖾𝗍 𝚰𝗍 𝐁ᥣ𝖾𝖾ᑯ',
+ '15377173', 'LANDSCAPE', 120000, 11368, 147, 5155, 97432,
+ 'https://i1.hdslb.com/bfs/face/3c657487f9a7993f50bcbafa82f64f99ff1229bd.jpg', NULL),
 
--- video_010 - 竖屏 (ID: 11)
-(11,
- 'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%AB%96%E5%B1%8F%E8%A7%86%E9%A2%914.mp4',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_010.jpg',
- '竖屏视频4',
- JSON_ARRAY('portrait', 'demo'),
- 60000,
- 'PORTRAIT',
- 'user_010',
- '竖屏视频4',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_010.jpg',
- 2345, 156, 789, 456, 16000,
- NULL),
+(100010,
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E5%BD%93%E8%81%8C%E9%AB%98%E7%94%9F%E5%B0%9D%E8%AF%95%E6%A8%A1%E4%BB%BF%E8%8B%B9%E6%9E%9C%E5%8F%91%E5%B8%83%E4%BC%9A%E5%BC%80%E5%9C%BA%E7%BA%BF%E6%9D%A1%E5%8A%A8%E7%94%BB%E2%80%A6%E2%80%A6.mp4',
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/BV1eixNzWE4B.jpg',
+ '当职高生尝试模仿苹果发布会开场线条动画……',
+ '3546610069932716', 'LANDSCAPE', 50000, 50839, 1083, 8477, 655854,
+ 'https://i2.hdslb.com/bfs/face/49fee719f87cc10f56bd3d280b53bf92aa2b9f40.jpg', NULL),
 
--- video_011 - 竖屏 (ID: 12)
-(12,
- 'http://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%AB%96%E5%B1%8F%E7%AB%96%E5%B1%8F5.mp4',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/video_011.jpg',
- '竖屏视频5',
- JSON_ARRAY('portrait', 'demo'),
- 30000,
- 'PORTRAIT',
- 'user_011',
- '竖屏视频5',
- 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/avatars/user_011.jpg',
- 2345, 156, 789, 456, 15000,
- NULL);
+(100011,
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E3%80%90%E7%A0%82%E9%87%91%E3%80%91Trouble%20Maker.mp4',
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/BV1ym411B764.jpg',
+ '【砂金】Trouble Maker',
+ '598581575', 'LANDSCAPE', 26000, 30415, 135, 34213, 517941,
+ 'https://i2.hdslb.com/bfs/face/8dcf9575286a3a6ae8b124d4b38c082c208d8a8e.jpg', NULL),
 
--- 插入评论数据
-INSERT INTO beatu_comments (
-    video_id, author_id, author_name, author_avatar, content, 
-    parent_id, is_ai_reply, like_count, created_at
-) VALUES
--- ✅ 修改：视频 ID 从字符串改为数字
--- video_0011的评论 (video_id: 1)
-(1, 'user_008', '评论用户1', NULL, '太棒了！这个视频太燃了！🔥', NULL, FALSE, 45, NOW() - INTERVAL 2 DAY),
-(1, 'user_009', '评论用户2', NULL, '视频内容很棒，爱了爱了', NULL, FALSE, 32, NOW() - INTERVAL 1 DAY),
-(1, 'ai_beatu', '@元宝', NULL, '这个视频展现了很好的表现力，内容选择也很棒！', NULL, TRUE, 89, NOW() - INTERVAL 12 HOUR),
+(100012,
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E3%80%90IGN%E3%80%91%E7%94%B5%E5%BD%B1%E3%80%8A%E7%96%AF%E7%8B%82%E5%8A%A8%E7%89%A9%E5%9F%8E2%E3%80%8B%E5%85%A8%E6%96%B0%E9%A2%84%E5%91%8A.mp4',
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/BV1pCyqB9EYz.jpg',
+ '【IGN】电影《疯狂动物城2》全新预告',
+ '652239032', 'LANDSCAPE', 135000, 25744, 1594, 4025, 1059347,
+ 'https://i2.hdslb.com/bfs/face/4c9095a6fc7d6ef7bf97ee1c65767f537763c60c.jpg', NULL),
 
--- video_0012的评论 (video_id: 2)
-(2, 'user_010', '评论用户3', NULL, '这个预告片太精彩了！', NULL, FALSE, 78, NOW() - INTERVAL 3 DAY),
-(2, 'user_011', '评论用户4', NULL, '已经收藏了，期待正片', NULL, FALSE, 56, NOW() - INTERVAL 2 DAY),
-(2, 'ai_beatu', '@元宝', NULL, '这个预告片制作精良，画面震撼，值得推荐。', NULL, TRUE, 120, NOW() - INTERVAL 1 DAY),
+(100013,
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/Beauty%20And%20A%20Beat%20-%20Justin%20Bieber.mp4',
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/BV1dD4y1o76G.jpg',
+ 'Beauty And A Beat - Justin Bieber',
+ '669334488', 'LANDSCAPE', 294000, 573, 17, 499, 32214,
+ 'https://i0.hdslb.com/bfs/face/11ad74a0cf807b9896656ef9987e1b833aa11f8a.jpg', NULL),
 
--- video_002的评论 (video_id: 3)
-(3, 'user_012', '评论用户5', NULL, '横屏视频效果不错！', NULL, FALSE, 234, NOW() - INTERVAL 5 DAY),
-(3, 'user_013', '评论用户6', NULL, '画质很清晰', NULL, FALSE, 89, NOW() - INTERVAL 4 DAY),
-(3, 'ai_beatu', '@元宝', NULL, '这个横屏视频画面质量很好，内容也很精彩。', NULL, TRUE, 456, NOW() - INTERVAL 3 DAY),
+(100014,
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E7%8C%ABmeme%E7%BE%8E%E9%A3%9F%EF%BD%9C%E8%A2%AB%E7%AA%9D%E5%8F%98%E6%88%90%E5%8F%AF%E4%B8%BD%E9%A5%BC%E4%BA%86%E5%96%B5.mp4',
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/BV1o5SsBXEyc.jpg',
+ '猫meme美食｜被窝变成可丽饼了喵',
+ '92850496', 'PORTRAIT', 100000, 34256, 285, 2673, 194806,
+ 'https://i1.hdslb.com/bfs/face/01b1fc94d9f2654c291f0634cc024d6eed12ed6a.jpg', NULL),
 
--- video_003的评论 (video_id: 4)
-(4, 'user_014', '游戏玩家1', NULL, '这个视频不错！', NULL, FALSE, 123, NOW() - INTERVAL 1 DAY),
-(4, 'user_015', '游戏玩家2', NULL, '我也想要这样的效果', NULL, FALSE, 67, NOW() - INTERVAL 12 HOUR),
+(100015,
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/%E2%9D%A4%E6%88%91%20%E5%BE%88%20%E5%8F%AF%20%E7%88%B1%20%E8%AF%B7%20%E7%BB%99%20%E6%88%91%20%E9%92%B1%E2%9D%A4.mp4',
+ 'https://ucw-beatu.oss-cn-shenzhen.aliyuncs.com/covers/BV1AzS3BFEKq.jpg',
+ '❤我 很 可 爱 请 给 我 钱❤',
+ '291894729', 'LANDSCAPE', 196000, 64218, 961, 27095, 917923,
+ 'https://i0.hdslb.com/bfs/face/8fa1c5a5d8e23ae1bec7ef07e132daa7f08e5f62.jpg', NULL);
 
--- video_004的评论 (video_id: 5)
-(5, 'user_016', '电影迷1', NULL, '经典！', NULL, FALSE, 345, NOW() - INTERVAL 6 DAY),
-(5, 'user_017', '电影迷2', NULL, '这个视频很精彩', NULL, FALSE, 234, NOW() - INTERVAL 5 DAY),
+-- 评论数据（修正videoId为对应的数值ID）
+INSERT INTO beatu_comment (
+  commentId, videoId, authorId, content, createdAt, likeCount, isLiked, isPending, authorAvatar
+)
+VALUES
+-- 视频100001 的评论 (3条)
+('c001', 100001, '512407709', '天哪每个品质对应的角色都好适配，好厉害', 1764757824000, 624, 0, 0, 'https://i2.hdslb.com/bfs/face/5aad76e98b8ada49d59d93ee1774a28b5d12dff4.jpg'),
+('c002', 100001, '649342997', '萌得我埋头做了十道高数题[大哭]', 1764770848000, 4148, 0, 0, 'https://i2.hdslb.com/bfs/face/4ee3680a1bb4571e94028015347077bf36978c41.jpg'),
+('c003', 100001, '3493076209240846', '好萌……看得我哈特软软……', 1764740503000, 420, 0, 0, 'https://i1.hdslb.com/bfs/face/8b9cd257c86ca5f216330ecb5571f57a6d52f2f3.jpg'),
 
--- video_005的评论 (video_id: 6)
-(6, 'user_018', '用户1', NULL, '横屏视频4很不错！', NULL, FALSE, 200, NOW() - INTERVAL 3 DAY),
-(6, 'user_019', '用户2', NULL, '内容很棒', NULL, FALSE, 150, NOW() - INTERVAL 2 DAY),
+-- 视频100002 的评论 (3条)
+('c004', 100002, '454507', '估计未来小亮的鉴定视频，有一半素材都是AI生成的假动物。[笑哭]', 1763975663000, 686, 0, 0, 'https://i1.hdslb.com/bfs/face/1907f22d45ea501b4006c09455a8699911dd50fc.jpg'),
+('c005', 100002, '124668043', '04:37 老一辈儿还有说冬天东北的铁栏杆是甜的呢[妙啊][doge]', 1763976190000, 1573, 0, 0, 'https://i1.hdslb.com/bfs/face/0d9da902fc7db5fee44d30eaa249e8e6a35939a8.jpg'),
+('c006', 100002, '44745161', '等我老了我也要胡说八道', 1763979311000, 3452, 0, 0, 'https://i2.hdslb.com/bfs/face/37001a8c716ba4904e68de9d84f42be23bb4bf68.jpg'),
 
--- video_007的评论 (video_id: 8)
-(8, 'user_020', '用户3', NULL, '竖屏视频1很棒！', NULL, FALSE, 180, NOW() - INTERVAL 2 DAY),
-(8, 'user_021', '用户4', NULL, '画质清晰，内容精彩', NULL, FALSE, 120, NOW() - INTERVAL 1 DAY),
-(8, 'ai_beatu', '@元宝', NULL, '这个竖屏视频制作精良，内容很有吸引力。', NULL, TRUE, 300, NOW() - INTERVAL 12 HOUR);
+-- 视频100003 的评论 (3条)
+('c007', 100003, '284208940', '1.14版本主要修改:.增强了画质.移除了领舞的项链.增长了领舞的头发长度.胖哥 头发颜色更变.别的不知道了', 1625533567000, 228726, 0, 0, 'https://i1.hdslb.com/bfs/face/886ded3c03bf32bae9def6027539d9b7a83eea25.jpg'),
+('c008', 100003, '394196223', '男  人  大  可  不  必  这  么  完  美[doge][doge]', 1625493967000, 157836, 0, 0, 'http://i0.hdslb.com/bfs/face/0b2b12c9faa9fca9107472ec99903264c7f48e6e.jpg'),
+('c009', 100003, '429532543', '主C真的帅，自信的眼神，严肃的表情，舞蹈人般的身材，以及节奏非常强烈的肥肉抖动和收吸，加上浪子一样的发型，天王的崛起。[响指]', 1625488332000, 119404, 0, 0, 'https://i1.hdslb.com/bfs/face/481dd54620a70415a965ce03013e7f9e1c5d7b79.jpg'),
 
--- 插入互动数据（点赞、收藏、关注）
-INSERT INTO beatu_interactions (
-    user_id, video_id, author_id, type, created_at
-) VALUES
--- ✅ 修改：视频 ID 从字符串改为数字
--- 点赞数据
-('demo-user', 1, NULL, 'LIKE', NOW() - INTERVAL 1 DAY),  -- video_0011 -> 1
-('demo-user', 4, NULL, 'LIKE', NOW() - INTERVAL 2 DAY),  -- video_003 -> 4
-('demo-user', 6, NULL, 'LIKE', NOW() - INTERVAL 3 DAY),  -- video_005 -> 6
-('demo-user', 8, NULL, 'LIKE', NOW() - INTERVAL 1 DAY),  -- video_007 -> 8
+-- 视频100004 的评论 (3条)
+('c010', 100004, '516003403', '大家可以试试跟着天依一起眨眼，这感觉就好像是天依在工作(录舞蹈视频)时看到你了，但舞不能停，就眨眨眼向你打个招呼，而你也眨眼回意。但跟着天依眨眼的次数多了，就好像情侣之间无事可做，看着对方的脸逗对方笑，结果一个视频下来给我看脸红了♡(๑•ω•๑)♡[tv_微笑]', 1663973694000, 655, 0, 0, 'https://i1.hdslb.com/bfs/face/f259fe15491eb86731a4bf0b5ceba14b69c3a09d.jpg'),
+('c011', 100004, '500332621', '不知道为什么感觉好行，快乐！这模型做的好细看得......_(≧∇≦」∠)_', 1663988623000, 91, 0, 0, 'https://i1.hdslb.com/bfs/face/5e60ad2184bf18ea01965d4e8db98184e125ccac.jpg'),
+('c012', 100004, '12746344', '[脱单doge]', 1672834185000, 61, 0, 0, 'https://i1.hdslb.com/bfs/face/84a53815c6098d0572f4eeff5eac8fc479738a32.jpg'),
 
--- 收藏数据
-('demo-user', 2, NULL, 'FAVORITE', NOW() - INTERVAL 1 DAY),  -- video_0012 -> 2
-('demo-user', 3, NULL, 'FAVORITE', NOW() - INTERVAL 2 DAY),  -- video_002 -> 3
-('demo-user', 8, NULL, 'FAVORITE', NOW() - INTERVAL 1 DAY),  -- video_007 -> 8
-('demo-user', 10, NULL, 'FAVORITE', NOW() - INTERVAL 2 DAY),  -- video_009 -> 10
+-- 视频100005 的评论 (3条)
+('c013', 100005, '3546705091889223', '你只看到我的表面贫瘠，没看到我的内心丰盈[星星眼]', 1745634415000, 29, 0, 0, 'https://i0.hdslb.com/bfs/face/de045acf59df5a1eaccd059782ef2824337a561e.jpg'),
+('c014', 100005, '3546750843358055', '有一种笨拙而自由的快乐', 1744386935000, 29, 0, 0, 'https://i2.hdslb.com/bfs/face/d7fff48a5e921072f520070ad818735cf73e7577.jpg'),
+('c015', 100005, '501937905', '没有人认出来吗，这是怪哥的张牙舞爪健身操啊[笑哭]', 1744445594000, 26, 0, 0, 'https://i0.hdslb.com/bfs/face/1a9ed8a15f65cc75674371ac7ca82ec4bdccda3e.jpg'),
 
--- 关注数据
-('demo-user', NULL, 'user_001', 'FOLLOW_AUTHOR', NOW() - INTERVAL 5 DAY),
-('demo-user', NULL, 'user_002', 'FOLLOW_AUTHOR', NOW() - INTERVAL 3 DAY),
-('demo-user', NULL, 'user_003', 'FOLLOW_AUTHOR', NOW() - INTERVAL 2 DAY);
+-- 视频100006 的评论 (3条)
+('c016', 100006, '1762948', '《冷 脸 热 舞 王》', 1742109056000, 5130, 0, 0, 'https://i1.hdslb.com/bfs/face/5dc022ad00f5ef7c0d2633176beedfdac64c0b09.jpg'),
+('c017', 100006, '2407474', 'xhs那边今天被创了n次没想到B站这边也有觉得怪或者好笑的评论…真的心累了真的…把那边的解释复制过来一下……真的…姐们觉得好笑或者搞笑或者面部表情不够生动的请刷走可以吗？？？我做梦也想做的跟叠纸一样好啊但是个人能力仅限于此了', 1742136700000, 2574, 0, 0, 'https://i1.hdslb.com/bfs/face/67cf24304f29b4addda4938b8bb0ee98cdd8e12f.jpg'),
+('c018', 100006, '264513499', '摸摸，up主没深度混过深空的社区吧……社区环境打架打厨子打得很厉害的，夏以昼作为最晚上线的男主被盯着打压是很正常的[笑哭]我不玩乙游仅仅是吃瓜，之前围观到这个男主的同人作者也有被一些不知道该怎么形容的其他男主的粉丝围攻的，然后会有很多装作是这个男主的推的披皮在搬弄是非，建议老师别太放在心上，作为老二次元来看你的mmd真的做得挺好的。', 1742227525000, 1724, 0, 0, 'https://i1.hdslb.com/bfs/face/8e8db0582ff5d4a6e90c06b40c643764a82adda7.jpg'),
 
--- 插入关注关系数据
-INSERT INTO beatu_user_follows (
-    follower_id, followee_id, created_at
-) VALUES
-('demo-user', 'user_001', NOW() - INTERVAL 5 DAY),
-('demo-user', 'user_002', NOW() - INTERVAL 3 DAY),
-('demo-user', 'user_003', NOW() - INTERVAL 2 DAY),
-('user_002', 'user_001', NOW() - INTERVAL 10 DAY),
-('user_003', 'user_002', NOW() - INTERVAL 8 DAY);
+-- 视频100007 的评论 (3条)
+('c019', 100007, '695488101', '[打call][打call]', 1763996710000, 7, 0, 0, 'https://i0.hdslb.com/bfs/face/4bbcdc27f3b227322c87bb5cb30600c371828e73.jpg'),
+('c020', 100007, '84511479', '@南望书斋', 1764069270000, 1, 0, 0, 'https://i0.hdslb.com/bfs/face/f22d4da7b46c34c572c72f0d7ede76d34004d5ea.jpg'),
+('c021', 100007, '3546745751472938', '见K-ON必赞[星星眼][星星眼][给心心]', 1764034685000, 2, 0, 0, 'https://i2.hdslb.com/bfs/face/d19a97fdd3430fab5df61d7ada433ae3a38b8eef.jpg'),
 
--- 插入观看历史聚合数据
-INSERT INTO beatu_watch_history (
-    user_id, video_id, last_watch_at, watch_count, last_seek_ms,
-    last_duration_ms, total_duration_ms, completion_rate
-) VALUES
--- ✅ 修改：视频 ID 从字符串改为数字
-('demo-user', 1, NOW() - INTERVAL 2 DAY, 3, 12000, 42000, 126000, 0.84),  -- video_0011 -> 1
-('demo-user', 2, NOW() - INTERVAL 1 DAY, 2, 8000, 30000, 60000, 0.65),  -- video_0012 -> 2
-('demo-user', 8, NOW() - INTERVAL 3 DAY, 4, 0, 60000, 180000, 1.00),  -- video_007 -> 8
-('user_002', 3, NOW() - INTERVAL 4 DAY, 1, 5000, 45000, 45000, 0.50);  -- video_002 -> 3
+-- 视频100008 的评论 (3条)
+('c022', 100008, '11822935', '才刚开始降温我就要怀念起盛夏了[大哭]', 1729545571000, 23, 0, 0, 'https://i1.hdslb.com/bfs/baselabs/b84a4cb7eb0dc883e67c4766603e6c5b1e58421e.png'),
+('c023', 100008, '96640975', '夏天有种生命力。', 1730520114000, 20, 0, 0, 'https://i1.hdslb.com/bfs/face/816dc5224a4f5f2a1b351f6e18e4cd247ea4093b.jpg'),
+('c024', 100008, '225444889', '为什么呢', 1729832863000, 17, 0, 0, 'https://i1.hdslb.com/bfs/face/ba268a6647eac4a07570e9e1b976512986951782.jpg'),
 
--- 插入播放指标数据（示例）
-INSERT INTO beatu_metrics_playback (
-    video_id, fps, start_up_ms, rebuffer_count, memory_mb, channel, created_at
-) VALUES
--- ✅ 修改：视频 ID 从字符串改为数字
-(1, 30.0, 1200, 0, 256.5, 'recommend', NOW() - INTERVAL 1 DAY),  -- video_0011 -> 1
-(2, 30.0, 1500, 1, 320.8, 'recommend', NOW() - INTERVAL 2 DAY),  -- video_0012 -> 2
-(3, 60.0, 800, 0, 512.3, 'follow', NOW() - INTERVAL 1 DAY),  -- video_002 -> 3
-(4, 30.0, 2000, 2, 456.7, 'recommend', NOW() - INTERVAL 3 DAY),  -- video_003 -> 4
-(8, 30.0, 1800, 0, 380.2, 'recommend', NOW() - INTERVAL 1 DAY);  -- video_007 -> 8
+-- 视频100009 的评论 (3条)
+('c025', 100009, '377572568', 'on last kiss 响起时候真哭了[Mygo表情包_大哭][Mygo表情包_大哭][Mygo表情包_大哭]', 1761889794000, 167, 0, 0, 'https://i2.hdslb.com/bfs/face/0a8e6fbd90335c5de2235731f9e9b9b617bdef11.jpg'),
+('c026', 100009, '501483', '神会说：欧咩得多', 1761885542000, 147, 0, 0, 'https://i0.hdslb.com/bfs/face/3e9d09fccb015a00a3057f2b0f9f6ca096b31377.jpg'),
+('c027', 100009, '104243347', '和女朋友一起去的，我俩包场了[呲牙]', 1761919033000, 74, 0, 0, 'https://i1.hdslb.com/bfs/face/d196dd031dc8ceb6b328812aacdaf441d28656dc.jpg'),
+
+-- 视频100010 的评论 (3条)
+('c028', 100010, '148957839', '目前 B 站看到最用心的一个，花了不少功夫吧', 1761542269000, 8420, 0, 0, 'https://i0.hdslb.com/bfs/face/733d8422f24f91fda9a95b6097a693dda2de1d24.jpg'),
+('c029', 100010, '389685337', '只要做的足够诚意，瑕疵就不会成为减分项，因为那叫成长空间。', 1761683544000, 5786, 0, 0, 'https://i1.hdslb.com/bfs/face/b28a351b7deea124b98c24486a2bb3c4a2deac0b.jpg'),
+('c030', 100010, '379390855', '谁说的校园跑路线[无语]', 1761643204000, 3754, 0, 0, 'https://i1.hdslb.com/bfs/face/1cc39f40dfe0ae89270e7c9b4e4063ee5e348dda.jpg'),
+
+-- 视频100011 的评论 (3条)
+('c031', 100011, '3494361033608001', '我发现崩铁男角色老有魅力了，原神厨女角色多，崩铁厨男角色多[doge]', 1713027683000, 1361, 0, 0, 'https://i0.hdslb.com/bfs/face/f9963184a9bb5e65d75a04d7fc7a3ffcb33c5a0e.jpg'),
+('c032', 100011, '519801151', '好耶，老师剪的好棒，这首歌感觉真的超适合砂金大人！[初音未来三连快乐表情包_三连快乐][初音未来三连快乐表情包_三连快乐][初音未来三连快乐表情包_三连快乐]', 1713024463000, 150, 0, 0, 'https://i1.hdslb.com/bfs/face/9df3c067507afcc99ad540bd9fdc38bb766c39cb.webp'),
+('c033', 100011, '598581575', '砂金新作品！！BV1At42177Pe[星星眼]', 1713795906000, 68, 0, 0, 'https://i2.hdslb.com/bfs/face/8dcf9575286a3a6ae8b124d4b38c082c208d8a8e.jpg'),
+
+-- 视频100012 的评论 (3条)
+('c034', 100012, '360606596', 'OK了，官方还特意把尼克救溺水朱迪的画面闪了三回，很难让人不注意，是搭档是情侣我自有定夺[doge]', 1761621602000, 2888, 0, 0, 'https://i2.hdslb.com/bfs/face/4c324330f2e1f76b1d72d780d8908cf94d1a8a88.jpg'),
+('c035', 100012, '3546390502312149', '[doge][思考]', 1761653215000, 1910, 0, 0, 'https://i0.hdslb.com/bfs/face/member/noface.jpg'),
+('c036', 100012, '20301524', '注意到时候电影票别买成国语版[doge]', 1761620519000, 4106, 0, 0, 'https://i2.hdslb.com/bfs/face/dfa3dc4b52039c86774687bf7b49428a8c175958.jpg'),
+
+-- 视频100013 的评论 (3条)
+('c037', 100013, '213820482', '这（MV)莫名想到，那个''吹牛老爹''的事件', 1731223971000, 28, 0, 0, 'https://i0.hdslb.com/bfs/face/2b4cfc2b6671ff201d7e69f975f268e1db47655b.jpg'),
+('c038', 100013, '499471102', '怎么没人', 1757747862000, 4, 0, 0, 'https://i1.hdslb.com/bfs/face/f089e0bae1801e859caae60f1667e04b7337a315.jpg'),
+('c039', 100013, '3461567819549658', '有种经济上行的感觉', 1764442867000, 2, 0, 0, 'https://i0.hdslb.com/bfs/face/fd8681f451ed967e615f3632f72b9525737bb266.jpg'),
+
+-- 视频100014 的评论 (3条)
+('c040', 100014, '3546771223481092', '好可爱QWQ心血来潮画了一下', 1764684296000, 1961, 0, 0, 'https://i1.hdslb.com/bfs/face/192983acc366c0e035bc3dbdce74120641e9cdcc.jpg'),
+('c041', 100014, '1326922374', '求做这个', 1764668875000, 890, 0, 0, 'https://i0.hdslb.com/bfs/face/84739ad43064d322acdfe5389593a33f51087686.jpg'),
+('c042', 100014, '693576322', '菌老师，求这个[打call]', 1764684134000, 389, 0, 0, 'https://i1.hdslb.com/bfs/face/1b9d5c5f9f7ffe5be04241702610db6e063460ad.jpg'),
+
+-- 视频100015 的评论 (3条)
+('c043', 100015, '179319934', '[妙啊]虽然模仿的很像，但是感觉没有很好的模仿出她对于钱如痴如狂的情感呢', 1764390768000, 107, 0, 0, 'https://i1.hdslb.com/bfs/face/6e1da67e693a19cc9d468a21e2c8bd30fe05c9b7.jpg'),
+('c044', 100015, '1069344105', '歌词大意：来财，来，来财[doge]', 1764383515000, 1113, 0, 0, 'https://i0.hdslb.com/bfs/face/b461e0beb28bdeda355a4919b3a1c7b24a6ec8db.jpg'),
+('c045', 100015, '176618655', '原版是老阿姨装嫩，这个是小可爱装老阿姨。非常有意思[doge_金箍]', 1764391082000, 2877, 0, 0, 'http://i0.hdslb.com/bfs/face/0e8212a0b68957b400fbaae570f58c686eebc205.jpg');
 
 -- ============================================
 -- 4. 验证数据
 -- ============================================
 SELECT '数据库初始化完成！' AS message;
-SELECT COUNT(*) AS video_count FROM beatu_videos;
-SELECT COUNT(*) AS comment_count FROM beatu_comments;
-SELECT COUNT(*) AS interaction_count FROM beatu_interactions;
-
+SELECT COUNT(*) AS user_count FROM beatu_user;
+SELECT COUNT(*) AS video_count FROM beatu_video;
+SELECT COUNT(*) AS comment_count FROM beatu_comment;
+SELECT COUNT(*) AS interaction_count FROM beatu_video_interaction;
+SELECT COUNT(*) AS follow_count FROM beatu_user_follow;
+SELECT COUNT(*) AS watch_history_count FROM beatu_watch_history;

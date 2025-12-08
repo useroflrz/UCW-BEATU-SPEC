@@ -53,6 +53,7 @@ dependencies {
     // Shared modules
     implementation(project(":shared:common"))
     implementation(project(":shared:designsystem"))
+    implementation(project(":shared:database"))  // BeatUDatabase, SearchHistoryDao
     
     // AndroidX
     implementation(libs.androidx.core.ktx)
@@ -67,7 +68,14 @@ dependencies {
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
     
+    // Room (需要访问 BeatUDatabase)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    
     // Material
     implementation(libs.material)
+    
+    // Coil for image loading
+    implementation(libs.coil)
 }
 

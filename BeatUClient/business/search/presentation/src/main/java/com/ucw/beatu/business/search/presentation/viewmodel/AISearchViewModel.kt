@@ -19,8 +19,8 @@ import javax.inject.Inject
 data class AISearchUiState(
     val aiAnswer: String = "",
     val keywords: List<String> = emptyList(),
-    val videoIds: List<String> = emptyList(),
-    val localVideoIds: List<String> = emptyList(),
+    val videoIds: List<Long> = emptyList(),  // ✅ 修改：从 List<String> 改为 List<Long>
+    val localVideoIds: List<Long> = emptyList(),  // ✅ 修改：从 List<String> 改为 List<Long>
     val isLoading: Boolean = false,
     val error: String? = null
 )

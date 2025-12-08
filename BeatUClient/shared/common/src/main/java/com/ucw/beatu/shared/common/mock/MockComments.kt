@@ -7,7 +7,7 @@ package com.ucw.beatu.shared.common.mock
  */
 data class MockComment(
     val id: String,
-    val videoId: String,
+    val videoId: Long,  // ✅ 修改：从 String 改为 Long
     val userName: String,
     val isAuthor: Boolean,
     val timeDesc: String,
@@ -22,7 +22,7 @@ object MockComments {
      * 简单用固定几条样例评论，按 videoId 做一个“散列”选择，
      * 让不同视频看起来有不同的评论列表。
      */
-    fun getCommentsForVideo(videoId: String, count: Int = 20): List<MockComment> {
+    fun getCommentsForVideo(videoId: Long, count: Int = 20): List<MockComment> {  // ✅ 修改：从 String 改为 Long
         if (count <= 0) return emptyList()
 
         val base = sampleComments

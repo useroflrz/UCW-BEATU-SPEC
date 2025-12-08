@@ -45,24 +45,24 @@ fun VideoDto.toDomain(): Video {
  */
 fun VideoEntity.toDomain(): Video {
     return Video(
-        id = id, // ✅ 修改：直接使用 Long，无需转换
+        id = videoId, // ✅ 修改：使用 videoId 字段
         playUrl = playUrl,
         coverUrl = coverUrl,
         title = title,
-        tags = tags,
+        tags = emptyList(), // ✅ 修改：新表结构中没有 tags 字段
         durationMs = durationMs,
         orientation = orientation,
         authorId = authorId,
-        authorName = authorName,
-        authorAvatar = null, // Entity中没有avatar字段
+        authorName = "", // ✅ 修改：新表结构中没有 authorName 字段，需要通过 authorId 查询 UserEntity
+        authorAvatar = authorAvatar, // ✅ 修改：使用 authorAvatar 字段
         likeCount = likeCount,
         commentCount = commentCount,
         favoriteCount = favoriteCount,
-        shareCount = shareCount,
+        shareCount = 0, // ✅ 修改：新表结构中没有 shareCount 字段
         viewCount = viewCount,
-        isLiked = false,
-        isFavorited = false,
-        isFollowedAuthor = false,
+        isLiked = false, // ✅ 修改：需要通过 VideoInteractionEntity 查询
+        isFavorited = false, // ✅ 修改：需要通过 VideoInteractionEntity 查询
+        isFollowedAuthor = false, // ✅ 修改：需要通过 UserFollowEntity 查询
         createdAt = null,
         updatedAt = null,
         // 本地缓存当前不存储图文扩展字段，保持默认值
@@ -77,20 +77,40 @@ fun VideoEntity.toDomain(): Video {
  */
 fun Video.toEntity(): VideoEntity {
     return VideoEntity(
-        id = id, // ✅ 修改：直接使用 Long，无需转换
+        videoId = id, // ✅ 修改：使用 videoId 字段
         playUrl = playUrl,
         coverUrl = coverUrl,
         title = title,
-        tags = tags,
-        durationMs = durationMs,
-        orientation = orientation,
         authorId = authorId,
-        authorName = authorName,
+        orientation = orientation,
+        durationMs = durationMs,
         likeCount = likeCount,
         commentCount = commentCount,
         favoriteCount = favoriteCount,
-        shareCount = shareCount,
-        viewCount = viewCount
+        viewCount = viewCount,
+        authorAvatar = authorAvatar, // ✅ 修改：使用 authorAvatar 字段
+        shareUrl = null // ✅ 修改：新表结构中有 shareUrl 字段，但 Domain Model 中没有
+    )
+}
+
+/**
+ * DTO -> Entity (直接映射，用于快速保存到数据库)
+ */
+fun VideoDto.toEntity(): VideoEntity {
+    return VideoEntity(
+        videoId = id,
+        playUrl = playUrl,
+        coverUrl = coverUrl,
+        title = title,
+        authorId = authorId,
+        orientation = orientation,
+        durationMs = durationMs,
+        likeCount = likeCount,
+        commentCount = commentCount,
+        favoriteCount = favoriteCount,
+        viewCount = viewCount,
+        authorAvatar = authorAvatar,
+        shareUrl = null // VideoDto 中没有 shareUrl 字段
     )
 }
 

@@ -210,8 +210,8 @@ class RecommendFragment : Fragment() {
         // 检查 RecyclerView 是否在顶部（不能向上滚动）
         val canScrollUp = recyclerView.canScrollVertically(-1)
 
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
                 // 手势开始：记录起始位置
                 if (!canScrollUp && pullToRefreshState == PullToRefreshState.IDLE) {
                     pullStartY = event.y
@@ -221,7 +221,7 @@ class RecommendFragment : Fragment() {
                 }
             }
 
-            MotionEvent.ACTION_MOVE -> {
+                MotionEvent.ACTION_MOVE -> {
                 if (pullToRefreshState == PullToRefreshState.PULLING) {
                     pullCurrentY = event.y
                     val deltaY = pullCurrentY - pullStartY // 向下滑动，deltaY 为正
@@ -439,12 +439,12 @@ class RecommendFragment : Fragment() {
                                 }
                             }
 
-                            // ✅ 修复：先处理状态恢复，再处理刷新
-                            pendingRestoreIndex?.let { target ->
-                                val safeIndex = target.coerceIn(0, state.videoList.lastIndex)
-                                viewPager?.post { viewPager?.setCurrentItem(safeIndex, false) }
-                                pendingRestoreIndex = null
-                            }
+                        // ✅ 修复：先处理状态恢复，再处理刷新
+                        pendingRestoreIndex?.let { target ->
+                            val safeIndex = target.coerceIn(0, state.videoList.lastIndex)
+                            viewPager?.post { viewPager?.setCurrentItem(safeIndex, false) }
+                            pendingRestoreIndex = null
+                        }
                         }
 
                         // 首次加载完成时，手动触发当前页的播放/轮播（包括图文）
@@ -507,7 +507,7 @@ class RecommendFragment : Fragment() {
                 if (!handled) {
                     false
                 } else {
-                    handled
+                handled
                 }
             }
         }
@@ -797,12 +797,12 @@ class RecommendFragment : Fragment() {
         // ✅ 修复严重问题1：使用 getItemId 获取正确的 tag，支持无限循环模式
         val itemId = adapter?.getItemId(currentPosition) ?: currentPosition.toLong()
         val currentFragmentTag = "f$itemId"
-        val currentFragment = childFragmentManager.findFragmentByTag(currentFragmentTag)
-        
+            val currentFragment = childFragmentManager.findFragmentByTag(currentFragmentTag)
+            
         // ✅ 修复严重问题4：检查 Fragment 是否准备好（view 已创建且已 attach）
         if (currentFragment is VideoItemFragment && isFragmentReady(currentFragment)) {
             Log.d(TAG, "restorePlayerSafely: 恢复播放器，position=$currentPosition, tag=$currentFragmentTag, videoId=${sourceVideoId ?: "unknown"}, retry=$currentRetry")
-            currentFragment.restorePlayerFromLandscape()
+                currentFragment.restorePlayerFromLandscape()
         } else {
             // ✅ 修复严重问题4：Fragment 还未准备好，延迟重试
             if (currentRetry < maxRetries) {
@@ -855,7 +855,7 @@ class RecommendFragment : Fragment() {
                 scrollToVideoById(sourceVideoId)
             }
             restorePlayerSafely(sourceVideoId)
-        }, 200) // ✅ 修复方案2：延迟恢复，确保 ViewPager2 已更新
+        }, 300) // ✅ 修复方案2：延迟恢复，确保 ViewPager2 已更新
     }
     
     /**

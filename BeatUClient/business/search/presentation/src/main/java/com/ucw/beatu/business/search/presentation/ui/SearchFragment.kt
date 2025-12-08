@@ -12,6 +12,8 @@ import android.widget.TextView
 import androidx.core.os.bundleOf
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -19,22 +21,45 @@ import com.ucw.beatu.business.search.presentation.R
 import com.ucw.beatu.business.search.presentation.ui.widget.FlowLayout
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
+import com.ucw.beatu.shared.database.BeatUDatabase
+import com.ucw.beatu.shared.database.dao.SearchHistoryDao
+import com.ucw.beatu.shared.database.entity.SearchHistoryEntity
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * 搜索页面Fragment
  * 提供搜索框和搜索结果列表（抖音风格）
+ * 
+ * 功能：
+ * 1. 显示搜索历史（从 beatu_search_history 表读取，最多 5 条，LRU 策略）
+ * 2. 保存搜索历史（搜索时自动保存）
+ * 3. 清空搜索历史
+ * 4. 点击历史记录进行搜索
  */
+@AndroidEntryPoint
 class SearchFragment : Fragment() {
 
+    @Inject
+    lateinit var database: BeatUDatabase
+    
+    private lateinit var searchHistoryDao: SearchHistoryDao
+    
     private lateinit var searchEditText: EditText
     private lateinit var clearButton: View
     private lateinit var searchButton: TextView
     private lateinit var backButton: View
     private lateinit var scrollBeforeSearch: View
     private lateinit var llHotSearch: FlowLayout
+    private lateinit var llHistorySearch: FlowLayout
+    private lateinit var tvClearHistory: TextView
     private lateinit var rvSearchSuggestions: RecyclerView
     
     private lateinit var searchSuggestionAdapter: SearchSuggestionAdapter
+
+    // ✅ 当前用户ID，根据需求文档，userId "BEATU" 对应的 userName 也是 "BEATU"
+    private val currentUserId: String = "BEATU"
 
     // 搜索状态
     private enum class SearchState {
@@ -55,11 +80,15 @@ class SearchFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         
+        // ✅ 初始化搜索历史 DAO
+        searchHistoryDao = database.searchHistoryDao()
+        
         initViews(view)
         // 先初始化列表和适配器，再绑定 TextWatcher，避免 NPE
         initSearchSuggestions()
         initSearchBox(view)
         initHotSearch()
+        initSearchHistory()
     }
 
     /**
@@ -72,8 +101,15 @@ class SearchFragment : Fragment() {
         searchButton = view.findViewById(R.id.tv_search)
         scrollBeforeSearch = view.findViewById(R.id.scroll_before_search)
         llHotSearch = view.findViewById(R.id.ll_hot_search)
+        llHistorySearch = view.findViewById(R.id.ll_history_search)
+        tvClearHistory = view.findViewById(R.id.tv_clear_history)
         rvSearchSuggestions = view.findViewById(R.id.rv_search_suggestions)
         clearButton.isVisible = searchEditText.text?.isNotEmpty() == true
+        
+        // ✅ 清空历史按钮点击事件
+        tvClearHistory.setOnClickListener {
+            clearSearchHistory()
+        }
     }
 
     /**
@@ -206,11 +242,92 @@ class SearchFragment : Fragment() {
             return
         }
         
+        // ✅ 保存搜索历史
+        saveSearchHistory(query)
+        
         // 隐藏键盘
         val imm = activity?.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
         imm?.hideSoftInputFromWindow(searchEditText.windowToken, 0)
         
         navigateToSearchResult(query)
+    }
+    
+    /**
+     * ✅ 初始化搜索历史
+     */
+    private fun initSearchHistory() {
+        // 观察搜索历史变化
+        lifecycleScope.launch {
+            searchHistoryDao.observeSearchHistory(currentUserId).collect { historyList ->
+                updateSearchHistoryUI(historyList)
+            }
+        }
+    }
+    
+    /**
+     * ✅ 更新搜索历史UI
+     */
+    private fun updateSearchHistoryUI(historyList: List<SearchHistoryEntity>) {
+        llHistorySearch.removeAllViews()
+        
+        if (historyList.isEmpty()) {
+            // 如果没有历史记录，隐藏历史搜索区域
+            llHistorySearch.isVisible = false
+            view?.findViewById<TextView>(R.id.tv_history_search_title)?.isVisible = false
+            tvClearHistory.isVisible = false
+            return
+        }
+        
+        // 显示历史搜索区域
+        llHistorySearch.isVisible = true
+        view?.findViewById<TextView>(R.id.tv_history_search_title)?.isVisible = true
+        tvClearHistory.isVisible = true
+        
+        // 创建历史记录标签
+        historyList.forEach { history ->
+            val tagView = createTagView(history.query) {
+                searchEditText.setText(history.query)
+                performSearch(history.query)
+            }
+            llHistorySearch.addView(tagView)
+        }
+    }
+    
+    /**
+     * ✅ 保存搜索历史
+     */
+    private fun saveSearchHistory(query: String) {
+        lifecycleScope.launch {
+            try {
+                val history = SearchHistoryEntity(
+                    query = query.trim(),
+                    userId = currentUserId,
+                    createdAt = System.currentTimeMillis()
+                )
+                searchHistoryDao.insert(history)
+                // 删除超出限制的旧记录（保留最新的 5 条，LRU 策略）
+                // LRU 策略：删除超出限制的旧记录（保留最新的 5 条）
+                while (searchHistoryDao.getHistoryCount(currentUserId) > 5) {
+                    searchHistoryDao.deleteOldestRecord(currentUserId)
+                }
+            } catch (e: Exception) {
+                // 静默失败，不影响搜索功能
+                android.util.Log.e("SearchFragment", "保存搜索历史失败", e)
+            }
+        }
+    }
+    
+    /**
+     * ✅ 清空搜索历史
+     */
+    private fun clearSearchHistory() {
+        lifecycleScope.launch {
+            try {
+                searchHistoryDao.deleteByUserId(currentUserId)
+            } catch (e: Exception) {
+                android.util.Log.e("SearchFragment", "清空搜索历史失败", e)
+            }
+        }
     }
 
     /**

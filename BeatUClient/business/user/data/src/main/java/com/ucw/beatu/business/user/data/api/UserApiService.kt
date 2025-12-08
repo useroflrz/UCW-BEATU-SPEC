@@ -39,5 +39,19 @@ interface UserApiService {
      */
     @POST("api/users/{id}/unfollow")
     suspend fun unfollowUser(@Path("id") userId: String): ApiResponse<Any?>
+
+    /**
+     * 获取所有用户信息（首次启动时全量加载）
+     * GET /api/users
+     */
+    @GET("api/users")
+    suspend fun getAllUsers(): ApiResponse<List<UserDto>>
+
+    /**
+     * 获取指定用户的所有关注关系（首次启动时全量加载）
+     * GET /api/users/{id}/follows
+     */
+    @GET("api/users/{id}/follows")
+    suspend fun getUserFollows(@Path("id") userId: String): ApiResponse<List<Map<String, Any>>>
 }
 

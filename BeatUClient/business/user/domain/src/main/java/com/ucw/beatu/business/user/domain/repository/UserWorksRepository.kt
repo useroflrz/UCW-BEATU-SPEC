@@ -8,9 +8,9 @@ import kotlinx.coroutines.flow.Flow
  */
 interface UserWorksRepository {
     /**
-     * 订阅指定用户的作品列表（使用authorName查询）
+     * 订阅指定用户的作品列表（使用authorId查询）
      */
-    fun observeUserWorks(authorName: String, limit: Int = DEFAULT_LIMIT): Flow<List<UserWork>>
+    fun observeUserWorks(authorId: String, limit: Int = DEFAULT_LIMIT): Flow<List<UserWork>>
 
     /**
      * 订阅收藏的视频列表（需要userId，JOIN user_interactions表）

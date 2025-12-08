@@ -29,6 +29,7 @@ import com.ucw.beatu.business.search.presentation.viewmodel.SearchResultVideoVie
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
 import com.ucw.beatu.shared.common.model.VideoItem
+import coil.load
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -220,14 +221,16 @@ class SearchResultFragment : Fragment() {
     data class SearchResultUiModel(
         val title: String,
         val description: String,
-        val author: String
+        val author: String,
+        val coverUrl: String? // 视频封面URL
     )
 
     private fun VideoItem.toUiModel(): SearchResultUiModel {
         return SearchResultUiModel(
             title = title,
             description = "点赞 $likeCount · 评论 $commentCount",
-            author = authorName
+            author = authorName,
+            coverUrl = coverUrl
         )
     }
 
@@ -258,6 +261,7 @@ class SearchResultFragment : Fragment() {
             itemView: View,
             private val onClick: (SearchResultUiModel) -> Unit
         ) : RecyclerView.ViewHolder(itemView) {
+            private val thumbnail: android.widget.ImageView = itemView.findViewById(R.id.iv_thumbnail)
             private val title: TextView = itemView.findViewById(R.id.tv_title)
             private val desc: TextView = itemView.findViewById(R.id.tv_description)
             private val author: TextView = itemView.findViewById(R.id.tv_author)
@@ -274,6 +278,18 @@ class SearchResultFragment : Fragment() {
                 title.text = model.title
                 desc.text = model.description
                 author.text = model.author
+                
+                // 加载视频封面缩略图
+                if (!model.coverUrl.isNullOrBlank()) {
+                    thumbnail.load(model.coverUrl) {
+                        crossfade(true)
+                        placeholder(android.R.color.darker_gray)
+                        error(android.R.color.darker_gray)
+                    }
+                } else {
+                    // 如果封面URL为空，显示占位图
+                    thumbnail.setImageResource(android.R.color.darker_gray)
+                }
             }
         }
     }

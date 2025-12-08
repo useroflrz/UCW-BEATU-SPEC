@@ -1,6 +1,8 @@
 package com.ucw.beatu.business.videofeed.data.di
 
 import com.ucw.beatu.business.videofeed.data.api.VideoFeedApiService
+import com.ucw.beatu.business.videofeed.data.local.VideoInteractionLocalDataSource
+import com.ucw.beatu.business.videofeed.data.local.VideoInteractionLocalDataSourceImpl
 import com.ucw.beatu.business.videofeed.data.local.VideoLocalDataSource
 import com.ucw.beatu.business.videofeed.data.local.VideoLocalDataSourceImpl
 import com.ucw.beatu.business.videofeed.data.remote.VideoRemoteDataSource
@@ -47,6 +49,12 @@ abstract class VideoDataBindsModule {
     abstract fun bindVideoLocalDataSource(
         impl: VideoLocalDataSourceImpl
     ): VideoLocalDataSource
+
+    @Binds
+    @Singleton
+    abstract fun bindVideoInteractionLocalDataSource(
+        impl: VideoInteractionLocalDataSourceImpl
+    ): VideoInteractionLocalDataSource
 
     @Binds
     @Singleton

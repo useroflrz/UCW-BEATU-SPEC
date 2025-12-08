@@ -9,11 +9,17 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CommentDao {
-    @Query("SELECT * FROM comments WHERE videoId = :videoId ORDER BY createdAt DESC")
-    fun observeComments(videoId: String): Flow<List<CommentEntity>>
+    @Query("SELECT * FROM beatu_comment WHERE videoId = :videoId ORDER BY createdAt DESC")
+    fun observeComments(videoId: Long): Flow<List<CommentEntity>>
 
-    @Query("SELECT * FROM comments WHERE id = :commentId LIMIT 1")
+    @Query("SELECT * FROM beatu_comment WHERE commentId = :commentId LIMIT 1")
     suspend fun getCommentById(commentId: String): CommentEntity?
+
+    /**
+     * 查询所有待同步的评论
+     */
+    @Query("SELECT * FROM beatu_comment WHERE isPending = 1")
+    suspend fun getPendingComments(): List<CommentEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(items: List<CommentEntity>)
@@ -21,10 +27,10 @@ interface CommentDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(item: CommentEntity)
 
-    @Query("DELETE FROM comments WHERE videoId = :videoId")
-    suspend fun clear(videoId: String)
+    @Query("DELETE FROM beatu_comment WHERE videoId = :videoId")
+    suspend fun clear(videoId: Long)
 
-    @Query("DELETE FROM comments WHERE id = :commentId")
+    @Query("DELETE FROM beatu_comment WHERE commentId = :commentId")
     suspend fun deleteById(commentId: String)
 }
 

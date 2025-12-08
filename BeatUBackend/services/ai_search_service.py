@@ -193,7 +193,7 @@ class AISearchService:
         db: Session,
         keywords: List[str],
         limit: int = 20
-    ) -> List[str]:
+    ) -> List[int]:
         """根据关键词搜索视频
         
         Args:
@@ -202,7 +202,7 @@ class AISearchService:
             limit: 返回结果数量限制
         
         Returns:
-            List[str]: 视频 ID 列表
+            List[int]: 视频 ID 列表（Long 类型）
         """
         if not keywords:
             return []
@@ -217,12 +217,12 @@ class AISearchService:
                 conditions.append(Video.title.like(f"%{keyword}%"))
             
             # 执行查询
-            query = select(Video.id).where(
+            query = select(Video.videoId).where(  # ✅ 修改：字段名从 id 改为 videoId
                 or_(*conditions)
             ).limit(limit)
             
             result = db.execute(query)
-            video_ids = [row[0] for row in result]
+            video_ids = [int(row[0]) for row in result]  # ✅ 修改：确保返回 int (Long) 类型
             
             self.logger.info(f"根据关键词 {keywords} 搜索到 {len(video_ids)} 个视频")
             return video_ids

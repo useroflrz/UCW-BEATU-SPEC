@@ -24,6 +24,7 @@ interface VideoRemoteDataSource {
     suspend fun unfavoriteVideo(videoId: Long): AppResult<Unit>  // ✅ 修改：从 String 改为 Long
     suspend fun shareVideo(videoId: Long): AppResult<Unit>  // ✅ 修改：从 String 改为 Long
     suspend fun postComment(videoId: Long, content: String): AppResult<Comment>  // ✅ 修改：从 String 改为 Long
+    suspend fun getAllVideoInteractions(): AppResult<List<Map<String, Any>>>
 }
 
 /**
@@ -55,7 +56,14 @@ class VideoRemoteDataSourceImpl @Inject constructor(
                 val data = response.data
                 when {
                     response.isSuccess && data != null -> {
-                        android.util.Log.d("VideoRemoteDataSource", "解析成功，视频数量: ${data.items.size}")
+                        android.util.Log.d("VideoRemoteDataSource", 
+                            "解析成功，视频数量: ${data.items.size}, " +
+                            "page=${data.page}, pageSize=${data.pageSize}, total=${data.total}, " +
+                            "totalPages=${data.totalPages}, hasNext=${data.hasNext}"
+                        )
+                        if (data.items.isEmpty()) {
+                            android.util.Log.w("VideoRemoteDataSource", "警告：items 列表为空！")
+                        }
                         data.items.map { it.toDomain() }
                     }
                     response.isUnauthorized -> {
@@ -288,6 +296,34 @@ class VideoRemoteDataSourceImpl @Inject constructor(
             when {
                 response.isSuccess && data != null -> {
                     data.toDomain()
+                }
+                response.isUnauthorized -> {
+                    throw DataException.AuthException(
+                        response.message,
+                        response.code
+                    )
+                }
+                else -> {
+                    throw DataException.ServerException(
+                        response.message,
+                        response.code
+                    )
+                }
+            }
+        }
+    }
+
+    override suspend fun getAllVideoInteractions(): AppResult<List<Map<String, Any>>> {
+        return runAppResult {
+            if (!connectivityObserver.isConnected()) {
+                throw DataException.NetworkException("No internet connection")
+            }
+
+            val response = apiService.getAllVideoInteractions()
+            val data = response.data
+            when {
+                response.isSuccess && data != null -> {
+                    data
                 }
                 response.isUnauthorized -> {
                     throw DataException.AuthException(

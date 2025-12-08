@@ -1242,7 +1242,7 @@
         - 所有来源支持：搜索、历史、收藏、点赞、作品等所有来源的视频列表都支持横屏切换和边界提示
 
 - [x] hotfix-regression 紧急修改
-    - 2025-12-07 - done by KJH
+    - 2025-12-07 ~ 2025-12-08 - done by KJH
     - 问题：
       - 主页横屏转竖屏黑屏的旧bug (解决)
       - 个人视频页的对应横屏功能的丢失 （解决）
@@ -1271,6 +1271,21 @@
       5. ✅ **防止生命周期冲突**：
          - 在 `VideoItemFragment.onStart()` 中添加检查，如果正在从用户弹窗返回，跳过正常逻辑
          - 确保恢复方法能够完整执行，不被生命周期方法打断
+      6. ✅ **修复播放会话提前消费问题**（2025-12-08 补充）：
+         - 在 `VideoItemViewModel` 中添加 `peekPlaybackSession()` 方法，允许检查会话存在性而不消费
+         - 在 `VideoItemFragment.restorePlayerFromLandscape()` 中使用 `peekPlaybackSession()` 检查会话，避免提前消费
+         - 在 `VideoItemFragment.onStart()` 中检测播放会话，如果存在则设置 `isRestoringFromLandscape = true`，跳过正常处理
+         - 确保 `restorePlayerFromLandscape()` 在 `onStart()` 之前被调用，避免会话被提前消费
+      7. ✅ **改进播放位置恢复精度**（2025-12-08 补充）：
+         - 在 `VideoItemViewModel.applyPlaybackSession()` 中，将位置差异阈值从 100ms 降低到 50ms，提高同步精度
+         - 如果位置差异大于 50ms，始终执行 `seekTo()`，确保位置准确
+         - 在 `restorePlayerFromLandscape()` 中添加延迟和重试机制，确保 `seekTo()` 完成
+         - 多次尝试位置同步，直到位置差异在可接受范围内
+      8. ✅ **使用视频ID定位而非相对位置**（2025-12-08 补充）：
+         - 在 `UserWorksViewerFragment` 中实现 `scrollToVideoById()` 方法，使用视频ID查找并滚动到对应位置
+         - 在 `getFragmentVideoId()` 中从 Fragment 参数提取视频ID，用于匹配
+         - 在 `handlePageSelected()` 和 `setupFragmentLifecycleCallback()` 中使用视频ID匹配，而不是相对位置或tag
+         - 确保从横屏返回时能精确定位到正确的视频，即使列表顺序发生变化
     - 技术亮点：
       - **复用横屏返回逻辑**：使用与横屏返回相同的恢复模式，保持代码一致性，便于维护
       - **Surface 检测机制**：确保 Surface 准备好后再播放，避免黑屏问题
@@ -1280,12 +1295,27 @@
       - `BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/ui/VideoItemFragment.kt`
         - `navigateToUserWorksViewer()`：导航前保存播放会话
         - `restorePlayerFromUserWorksViewer()`：添加专门的恢复方法
-        - `onStart()`：添加恢复标志检查
+        - `onStart()`：添加恢复标志检查，检测播放会话并设置 `isRestoringFromLandscape = true`
+        - `restorePlayerFromLandscape()`：改进恢复逻辑，使用 `peekPlaybackSession()` 检查会话，添加延迟和重试机制
+        - `openLandscapeMode()`：传递 `sourceDestinationId` 和 `sourceVideoId` 到横屏页面
       - `BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/ui/RecommendFragment.kt`
         - `setupNavigationListener()`：添加导航监听，检测从用户作品页面返回
         - `restorePlayerFromUserWorksViewer()`：添加恢复方法
+        - `scrollToVideoById()`：添加根据视频ID滚动到对应位置的方法
+        - `notifyExitLandscapeMode()`：接受 `sourceVideoId` 参数，用于定位视频
       - `BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/viewmodel/VideoItemViewModel.kt`
         - `onHostResume()`：改进 Surface 检测机制，即使没有会话也进行检测
+        - `peekPlaybackSession()`：新增方法，允许检查会话存在性而不消费
+        - `applyPlaybackSession()`：改进位置同步逻辑，降低阈值到 50ms，确保位置准确
+        - `preparePlayer()`：使用 `peek()` 检查会话后再 `consume()`，避免提前消费
+      - `BeatUClient/business/user/presentation/src/main/java/com/ucw/beatu/business/user/presentation/ui/UserWorksViewerFragment.kt`
+        - `scrollToVideoById()`：添加根据视频ID滚动到对应位置的方法
+        - `getFragmentVideoId()`：添加从 Fragment 参数提取视频ID的辅助方法
+        - `handlePageSelected()`：使用视频ID匹配，而不是相对位置
+        - `setupFragmentLifecycleCallback()`：使用视频ID匹配 Fragment
+        - `restorePlayerFromLandscape()`：使用 `sourceVideoId` 和 `scrollToVideoById()` 定位视频
+      - `BeatUClient/business/landscape/presentation/src/main/java/com/ucw/beatu/business/landscape/presentation/ui/LandscapeFragment.kt`
+        - `exitLandscape()`：保存 `sourceVideoId` 到 SharedPreferences，用于返回时定位
     - 量化指标：
       - 从用户弹窗返回后画面恢复成功率：从 0% → 100%
       - 自动播放成功率：从 0% → 100%
@@ -1296,6 +1326,9 @@
       - 播放位置、速度等状态都能正确恢复
       - 无需手动操作，自动恢复播放
       - 音画同步，不再出现错乱问题
+      - 个人视频页横屏转竖屏后能正确从保存的时间戳继续播放，不再从开始位置重新开始
+      - 使用视频ID精确定位视频，即使列表顺序变化也能正确恢复
+      - 播放会话不再被提前消费，确保恢复逻辑完整执行
 
 - [x] 视频页返回按钮导航逻辑优化与性能优化
     - 2025-12-08 - done by KJH
@@ -1305,6 +1338,7 @@
       3. 个人弹窗视频页又点击个人弹窗视频页的返回 → 返回个人弹窗视频页
       4. 从搜索打开的视频页的返回按钮 → 返回对应搜索的页面
       5. 解决返回按钮的卡顿问题
+      6. 横屏没有黑屏
     - 内容：
       1. ✅ **返回导航逻辑优化**：
          - 在 `UserWorksViewerFragment` 中添加 `ARG_SOURCE_DESTINATION` 参数，记录来源页面 ID
@@ -1345,24 +1379,91 @@
       - `BeatUClient/business/user/presentation/src/main/java/com/ucw/beatu/business/user/presentation/ui/helper/UserProfileNavigationHelper.kt`
       - `BeatUClient/business/search/presentation/src/main/java/com/ucw/beatu/business/search/presentation/ui/SearchResultFragment.kt`
 
-
-
-- [ ] 修改app不同情况下的数据拉取，同步远程,对客户端与后端的数据库重构，梳理业务逻辑
-    - 2025-12-07 - done by KJH
+- [x] 修改app不同情况下的数据拉取，同步远程,对客户端与后端的数据库重构，梳理业务逻辑
+    - 2025-12-08 - done by KJH
+    - 背景：
+      - 后端项目功能扩展后，原有的 Mock 数据已不再满足实际业务场景需求
+      - 客户端数据库需要正式对接后端数据库，实现数据拉取、展示、同步、定期删除
+      - 结合真实业务流程，重新设计本地数据库与后端数据库结构
+      - 清晰定义接口对接、缓存策略、刷新机制
+    - 核心原则：
+      - **远程：完整真数据** | **本地：小量缓存 + UI 必需数据 + 快速状态标记**
+      - 渲染逻辑：数据先取出，再渲染（后端数据先塞到客户端本地数据库，界面再从本地数据库读取显示）
+      - 修改数据（乐观更新）：先修改客户端数据库，UI 直接显示，异步发送后端请求
+      - APP 启动：不阻塞首屏显示；后台更新数据，UI 渐进刷新；本地未同步数据优先上传
     - 内容：详情看 docs/datatable_reconstruction_design_document.md
-        - 开始对应数据库逻辑修改
-        - 分步修改对应的逻辑
+      - 后端数据库表在 beatu_data.sql 与 init_database.sql
+      - 涉及的数据库表：
+        - `beatu_video`：视频内容（客户端 & 后端）
+        - `beatu_user`：用户信息（客户端 & 后端）
+        - `beatu_video_interaction`：用户-视频互动（点赞/收藏状态，客户端 & 后端）
+        - `beatu_user_follow`：用户-用户关注（客户端 & 后端）
+        - `beatu_watch_history`：观看历史（客户端 & 后端）
+        - `beatu_comment`：评论内容（后端）
+        - `beatu_search_history`：搜索历史（客户端，持久化 0~5，LRU 策略）
+      - 分步修改对应的逻辑：
+        1. ✅ **修改客户端数据库表与 SQL 语句**：
+           - 创建/修改 Room 数据库实体类
+           - 更新数据库迁移脚本
+           - 修改 DAO 接口和实现
+           - 更新 SQL 查询语句
+        2. ✅ **修改业务逻辑，尽可能简洁，少地修改别人的代码**：
+           - 更新 Repository 层，对接新的数据库表结构
+           - 修改数据映射逻辑（Mapper）
+           - 更新 ViewModel 中的数据获取和更新逻辑
+           - 实现乐观更新策略（点赞/收藏/关注/评论）
+           - 实现数据同步机制（本地未同步数据优先上传）
+           - 优化首屏加载逻辑（同步加载必要数据，异步加载非必要数据）
+        3. ✅ **修改后端的数据库表与需要对应修改的部分**：
+           - 更新后端数据库表结构（与客户端保持一致）
+           - 修改后端 API 接口，支持新的数据模型
+           - 更新后端数据验证逻辑
+           - 确保前后端数据模型一致性
+    - 技术要点：
+      - **乐观更新策略**：
+        - 策略 A（回滚 UI）：点赞/取消点赞、收藏/取消收藏、关注/取消关注、评论发送
+        - 策略 B（不回滚）：观看历史（弱一致性数据，自动重试同步）
+      - **数据同步机制**：
+        - 本地 `isPending = true` 标记待同步数据
+        - 后端成功（200 OK）后清除 `isPending` 标记
+        - 后端失败：策略 A 回滚 UI，策略 B 自动重试
+      - **首屏加载优化**：
+        - 同步加载：首页分页视频列表、本人用户信息、已点赞/已收藏状态
+        - 异步加载：用户-用户关注状态、历史观看记录、评论内容
+    - 修改文件：
+      - 客户端数据库相关：
+        - Room Entity 类（`beatu_video`, `beatu_user`, `beatu_video_interaction`, `beatu_user_follow`, `beatu_watch_history`, `beatu_search_history`）
+        - DAO 接口和实现
+        - 数据库迁移脚本
+      - 业务逻辑相关：
+        - Repository 实现类
+        - Mapper 类（数据映射）
+        - ViewModel 类（数据获取和更新逻辑）
+      - 后端相关：
+        - 数据库表结构（`beatu_data.sql`, `init_database.sql`）
+        - API 接口定义和实现
+        - 数据验证逻辑
 
 
+- [ ] 优化顶部导航栏的布局
+    - 后续有时间修改 - done by
+    -
+
+- [ ] 图标与开场动画
+    - 后续有时间修改 - done by
+    -
+
+- [ ] 关注页的实现
+    - 后续有时间修改 - done by
+    -
 
 - [ ] 解决点击评论与用户头像的视频不缩小放置到上面部分的问题
     - 后续有时间修改 - done by
     -
 
-
-
-
-
+- [ ] 竖屏的倍速播放
+    - 后续有时间修改 - done by
+    -
 
 - [ ] 解决横屏转竖屏时进度条跳转的卡顿的问题
     - 后续有时间修改 - done by

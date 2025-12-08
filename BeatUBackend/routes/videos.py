@@ -64,6 +64,10 @@ def list_videos(
         page=data.page,
         limit=data.limit,
     )
+    # 添加调试日志
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"返回视频列表: total={data.total}, items数量={len(mixed_items)}, page={data.page}, limit={data.limit}")
     return success_response(response_data.dict(by_alias=True))
 
 
@@ -182,3 +186,31 @@ def create_ai_comment(
 ):
     item = service.create_ai_comment(video_id, payload, user_name=user_name)
     return success_response(item.dict(by_alias=True))
+
+
+@router.get("/search/videos")
+def search_videos(
+    query: str = Query(..., min_length=1, max_length=100),
+    page: int = Query(1, ge=1),
+    limit: int = Query(settings.default_page_size, ge=1, le=settings.max_page_size),
+    service: VideoService = Depends(get_video_service),
+    user_id: str = Depends(resolve_user),
+):
+    """搜索视频（根据标题关键词）"""
+    data = service.search_videos(
+        query=query,
+        page=page,
+        limit=limit,
+        user_id=user_id,
+    )
+    return success_response(data.dict(by_alias=True))
+
+
+@router.get("/videos/interactions")
+def get_all_video_interactions(
+    service: VideoService = Depends(get_video_service),
+    user_id: str = Depends(resolve_user),
+):
+    """获取指定用户的所有视频交互（首次启动时全量加载）"""
+    interactions = service.get_all_video_interactions(user_id)
+    return success_response(interactions)

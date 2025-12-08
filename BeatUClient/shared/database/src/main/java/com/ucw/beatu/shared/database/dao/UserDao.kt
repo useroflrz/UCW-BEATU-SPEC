@@ -15,25 +15,25 @@ interface UserDao {
     /**
      * 根据用户ID查询用户信息（Flow）
      */
-    @Query("SELECT * FROM users WHERE id = :userId LIMIT 1")
+    @Query("SELECT * FROM beatu_user WHERE userId = :userId LIMIT 1")
     fun observeUserById(userId: String): Flow<UserEntity?>
 
     /**
      * 根据用户ID查询用户信息（一次性）
      */
-    @Query("SELECT * FROM users WHERE id = :userId LIMIT 1")
+    @Query("SELECT * FROM beatu_user WHERE userId = :userId LIMIT 1")
     suspend fun getUserById(userId: String): UserEntity?
 
     /**
      * 根据用户名查询用户信息（Flow）
      */
-    @Query("SELECT * FROM users WHERE name = :userName LIMIT 1")
+    @Query("SELECT * FROM beatu_user WHERE userName = :userName LIMIT 1")
     fun observeUserByName(userName: String): Flow<UserEntity?>
 
     /**
      * 根据用户名查询用户信息（一次性）
      */
-    @Query("SELECT * FROM users WHERE name = :userName LIMIT 1")
+    @Query("SELECT * FROM beatu_user WHERE userName = :userName LIMIT 1")
     suspend fun getUserByName(userName: String): UserEntity?
 
     /**
@@ -51,13 +51,13 @@ interface UserDao {
     /**
      * 删除用户
      */
-    @Query("DELETE FROM users WHERE id = :userId")
+    @Query("DELETE FROM beatu_user WHERE userId = :userId")
     suspend fun deleteById(userId: String)
 
     /**
      * 清空所有用户数据
      */
-    @Query("DELETE FROM users")
+    @Query("DELETE FROM beatu_user")
     suspend fun clear()
 }
 

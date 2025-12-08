@@ -22,6 +22,7 @@ class UserProfileDialogFragment : DialogFragment(), UserProfileVideoClickHost {
 
     private var userId: String? = null
     private var authorName: String? = null
+    private var userData: Bundle? = null
     private var onDismissListener: (() -> Unit)? = null
     private var onVideoClickListener: ((String, String, ArrayList<com.ucw.beatu.shared.common.model.VideoItem>, Int) -> Unit)? = null
 
@@ -31,6 +32,7 @@ class UserProfileDialogFragment : DialogFragment(), UserProfileVideoClickHost {
         setStyle(STYLE_NORMAL, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
         userId = arguments?.getString(ARG_USER_ID)
         authorName = arguments?.getString(ARG_AUTHOR_NAME)
+        userData = arguments?.getBundle(ARG_USER_DATA)
     }
     
     override fun onCreateDialog(savedInstanceState: Bundle?): android.app.Dialog {
@@ -57,11 +59,16 @@ class UserProfileDialogFragment : DialogFragment(), UserProfileVideoClickHost {
         super.onViewCreated(view, savedInstanceState)
 
         // 创建 UserProfileFragment 并添加到容器中（只读模式）
-        val userId = this.userId ?: authorName ?: return
         val router = RouterRegistry.getUserProfileRouter()
         if (router != null) {
-            val userProfileFragment =
+            val userProfileFragment = if (userData != null) {
+                // 如果提供了完整用户数据，使用 createUserProfileFragmentWithData
+                router.createUserProfileFragmentWithData(userData!!, readOnly = true)
+            } else {
+                // 否则使用 userId 和 authorName
+                val userId = this.userId ?: authorName ?: return
                 router.createUserProfileFragment(userId, authorName ?: "", readOnly = true)
+            }
             childFragmentManager.beginTransaction()
                 .replace(R.id.user_profile_container, userProfileFragment)
                 .commit()
@@ -141,12 +148,21 @@ class UserProfileDialogFragment : DialogFragment(), UserProfileVideoClickHost {
     companion object {
         private const val ARG_USER_ID = "user_id"
         private const val ARG_AUTHOR_NAME = "author_name"
+        private const val ARG_USER_DATA = "user_data"
 
         fun newInstance(userId: String, authorName: String): UserProfileDialogFragment {
             return UserProfileDialogFragment().apply {
                 arguments = Bundle().apply {
                     putString(ARG_USER_ID, userId)
                     putString(ARG_AUTHOR_NAME, authorName)
+                }
+            }
+        }
+        
+        fun newInstanceWithData(userData: Bundle): UserProfileDialogFragment {
+            return UserProfileDialogFragment().apply {
+                arguments = Bundle().apply {
+                    putBundle(ARG_USER_DATA, userData)
                 }
             }
         }
