@@ -121,6 +121,9 @@
 - [x] 竖/横屏交互图标接口文档  
   - 2025-12-01 - done by ZX  
   - 内容：在 `docs/interaction_icons_api.md` 统一描述竖屏 `VideoControlsView` 与横屏 `LandscapeVideoItemFragment` 的点赞/收藏/评论/分享交互事件、UseCase/Repository 契约、API 接口与降级策略，供后续业务层接入真实后端时参考。
+- [x] 点赞/收藏落库冲突修复（后端幂等 + 客户端默认用户头）  
+  - 2025-12-08 - done by ZX  
+  - 内容：后端 `VideoService._handle_interaction` 增加幂等处理与唯一键/外键重试，缺失用户时自动补全占位，避免首次互动外键失败；客户端 `NetworkModule` 默认添加 `X-User-Id: BEATU` 请求头，确保请求携带有效用户 ID。已通过公网 curl 验证 `/like`、`/unlike`、`/favorite`、`/unfavorite` 200 成功，计数与 `beatu_video_interaction` 落库正常。
 - [x] 视频分享功能后端 + 客户端落地（含封面 + 二维码分享图）  
   - 2025-12-04 - done by ZX  
   - 内容：  
@@ -923,10 +926,6 @@
       - 子模块已成功初始化，代码已克隆到本地
       - 项目文档已更新，包含子模块初始化说明
       - 开发者可通过 README 快速了解如何初始化 AgentMCP 子模块
-
-- [x] 点赞/收藏并发冲突修复（后端）
-  - 2025-12-09 - done by ZX
-  - 内容：在 `VideoService._handle_interaction` 查询 `VideoInteraction` 时加行级锁，并在唯一键冲突时回滚重试，避免高并发下出现“互动状态冲突”导致点赞/收藏落库失败。
 
 - [x] 完善点击头像后的作者的个人主页显示
     - 2025-12-04 - done by KJH

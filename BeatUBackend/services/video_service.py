@@ -180,9 +180,9 @@ class VideoService:
         """
         for attempt in range(2):
             try:
-                video = self.db.get(Video, video_id)
-                if not video:
-                    raise ValueError("视频不存在")
+        video = self.db.get(Video, video_id)
+        if not video:
+            raise ValueError("视频不存在")
 
                 # 确保用户存在，避免外键约束导致首次互动失败
                 user = self.db.get(User, user_id)
@@ -197,14 +197,14 @@ class VideoService:
                     )
                     self.db.add(placeholder_user)
 
-                interaction = (
-                    self.db.query(VideoInteraction)
-                    .filter(
-                        VideoInteraction.videoId == video_id,
-                        VideoInteraction.userId == user_id,
-                    )
-                    .one_or_none()
-                )
+        interaction = (
+            self.db.query(VideoInteraction)
+            .filter(
+                VideoInteraction.videoId == video_id,
+                VideoInteraction.userId == user_id,
+            )
+            .one_or_none()
+        )
 
                 current_liked = interaction.isLiked if interaction else False
                 current_favorited = interaction.isFavorited if interaction else False
@@ -212,15 +212,15 @@ class VideoService:
                 target_liked = current_liked
                 target_favorited = current_favorited
 
-                if action in ("LIKE", "SAVE"):
+        if action in ("LIKE", "SAVE"):
                     if interaction_type == "LIKE":
                         target_liked = True
                     elif interaction_type == "FAVORITE":
                         target_favorited = True
                 else:  # UNLIKE / REMOVE
-                    if interaction_type == "LIKE":
+                if interaction_type == "LIKE":
                         target_liked = False
-                    elif interaction_type == "FAVORITE":
+                elif interaction_type == "FAVORITE":
                         target_favorited = False
 
                 # 幂等：状态未变化直接返回
@@ -245,16 +245,16 @@ class VideoService:
                     interaction.isFavorited = target_favorited
                     if not interaction.isLiked and not interaction.isFavorited:
                         self.db.delete(interaction)
-                else:
-                    # 创建新记录
-                    interaction = VideoInteraction(
-                        videoId=video_id,
-                        userId=user_id,
+            else:
+                # 创建新记录
+                interaction = VideoInteraction(
+                    videoId=video_id,
+                    userId=user_id,
                         isLiked=target_liked,
                         isFavorited=target_favorited,
-                        isPending=False,
-                    )
-                    self.db.add(interaction)
+                    isPending=False,
+                )
+                self.db.add(interaction)
 
                 # 更新计数（保持非负）
                 if delta_like:
@@ -262,8 +262,8 @@ class VideoService:
                 if delta_fav:
                     self._bump_counter(video, "FAVORITE", delta_fav)
 
-                self.db.commit()
-                return OperationResult(success=True, message="OK")
+            self.db.commit()
+        return OperationResult(success=True, message="OK")
 
             except IntegrityError as exc:
                 # 可能是并发导致的唯一键/外键冲突，回滚后重试一次

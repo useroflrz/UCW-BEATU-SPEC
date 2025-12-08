@@ -48,8 +48,10 @@ object NetworkModule {
             enableLogging = enableLogging,
             defaultHeaders = mapOf(
                 "Content-Type" to "application/json",
-                "Accept" to "application/json"
-                // TODO: 如果需要token认证，可以在这里添加 Authorization header
+                "Accept" to "application/json",
+                // 临时默认用户ID，确保后端能识别用户并写入互动表
+                "X-User-Id" to "BEATU"
+                // TODO: 如果需要token认证，可以在这里添加 Authorization header 或改为动态用户ID
             )
         )
     }
