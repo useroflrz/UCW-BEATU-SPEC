@@ -173,96 +173,90 @@ class VideoService:
         action: str,
         interaction_type: str,
     ) -> OperationResult:
-        video = self.db.get(Video, video_id)
-        if not video:
-            raise ValueError("视频不存在")
-
-        # ✅ 修改：使用新的 VideoInteraction 表
-        interaction = (
-            self.db.query(VideoInteraction)
-            .filter(
-                VideoInteraction.videoId == video_id,
-                VideoInteraction.userId == user_id,
-            )
-            .one_or_none()
-        )
-
-        if action in ("LIKE", "SAVE"):
-            # 点赞或收藏
-            if interaction:
-                # 更新现有记录
-                if interaction_type == "LIKE":
-                    interaction.isLiked = True
-                elif interaction_type == "FAVORITE":
-                    interaction.isFavorited = True
-            else:
-                # 创建新记录
-                interaction = VideoInteraction(
-                    videoId=video_id,
-                    userId=user_id,
-                    isLiked=(interaction_type == "LIKE"),
-                    isFavorited=(interaction_type == "FAVORITE"),
-                    isPending=False,
-                )
-                self.db.add(interaction)
-            self._bump_counter(video, interaction_type, delta=1)
-        else:
-            # 取消点赞或取消收藏
-            if interaction:
-                if interaction_type == "LIKE":
-                    interaction.isLiked = False
-                elif interaction_type == "FAVORITE":
-                    interaction.isFavorited = False
-                # 如果既没有点赞也没有收藏，删除记录
-                if not interaction.isLiked and not interaction.isFavorited:
-                    self.db.delete(interaction)
-                self._bump_counter(video, interaction_type, delta=-1)
-
-        try:
-            self.db.commit()
-        except IntegrityError:
-            # 可能是唯一键竞争（同一 userId/videoId 并发插入），回滚后重试一次
-            self.db.rollback()
-            existing = (
-                self.db.query(VideoInteraction)
-                .filter(
-                    VideoInteraction.videoId == video_id,
-                    VideoInteraction.userId == user_id,
-                )
-                .one_or_none()
-            )
-            if not existing:
-                raise ValueError("互动状态冲突")
-
-            if action in ("LIKE", "SAVE"):
-                if interaction_type == "LIKE":
-                    if not existing.isLiked:
-                        existing.isLiked = True
-                        self._bump_counter(video, interaction_type, delta=1)
-                elif interaction_type == "FAVORITE":
-                    if not existing.isFavorited:
-                        existing.isFavorited = True
-                        self._bump_counter(video, interaction_type, delta=1)
-            else:
-                if interaction_type == "LIKE":
-                    if existing.isLiked:
-                        existing.isLiked = False
-                        self._bump_counter(video, interaction_type, delta=-1)
-                elif interaction_type == "FAVORITE":
-                    if existing.isFavorited:
-                        existing.isFavorited = False
-                        self._bump_counter(video, interaction_type, delta=-1)
-
-                if not existing.isLiked and not existing.isFavorited:
-                    self.db.delete(existing)
-
+        """
+        幂等处理点赞/收藏：
+        - 如果状态未变化，直接返回成功
+        - 尝试两次（遇到唯一键/外键冲突回滚后重试一次）
+        """
+        for attempt in range(2):
             try:
-                self.db.commit()
-            except IntegrityError:
-                self.db.rollback()
-                raise ValueError("互动状态冲突")
+                video = self.db.get(Video, video_id)
+                if not video:
+                    raise ValueError("视频不存在")
 
-        return OperationResult(success=True, message="OK")
+                interaction = (
+                    self.db.query(VideoInteraction)
+                    .filter(
+                        VideoInteraction.videoId == video_id,
+                        VideoInteraction.userId == user_id,
+                    )
+                    .one_or_none()
+                )
+
+                current_liked = interaction.isLiked if interaction else False
+                current_favorited = interaction.isFavorited if interaction else False
+
+                target_liked = current_liked
+                target_favorited = current_favorited
+
+                if action in ("LIKE", "SAVE"):
+                    if interaction_type == "LIKE":
+                        target_liked = True
+                    elif interaction_type == "FAVORITE":
+                        target_favorited = True
+                else:  # UNLIKE / REMOVE
+                    if interaction_type == "LIKE":
+                        target_liked = False
+                    elif interaction_type == "FAVORITE":
+                        target_favorited = False
+
+                # 幂等：状态未变化直接返回
+                if (
+                    interaction
+                    and target_liked == current_liked
+                    and target_favorited == current_favorited
+                ):
+                    return OperationResult(success=True, message="OK")
+
+                # 计算计数增量
+                delta_like = 0
+                delta_fav = 0
+                if target_liked != current_liked:
+                    delta_like = 1 if target_liked else -1
+                if target_favorited != current_favorited:
+                    delta_fav = 1 if target_favorited else -1
+
+                # 写入交互记录
+                if interaction:
+                    interaction.isLiked = target_liked
+                    interaction.isFavorited = target_favorited
+                    if not interaction.isLiked and not interaction.isFavorited:
+                        self.db.delete(interaction)
+                else:
+                    # 创建新记录
+                    interaction = VideoInteraction(
+                        videoId=video_id,
+                        userId=user_id,
+                        isLiked=target_liked,
+                        isFavorited=target_favorited,
+                        isPending=False,
+                    )
+                    self.db.add(interaction)
+
+                # 更新计数（保持非负）
+                if delta_like:
+                    self._bump_counter(video, "LIKE", delta_like)
+                if delta_fav:
+                    self._bump_counter(video, "FAVORITE", delta_fav)
+
+                self.db.commit()
+                return OperationResult(success=True, message="OK")
+
+            except IntegrityError:
+                # 可能是并发导致的唯一键/外键冲突，回滚后重试一次
+                self.db.rollback()
+                if attempt == 1:
+                    raise ValueError("互动状态冲突")
 
     def _bump_counter(self, video: Video, interaction_type: str, delta: int) -> None:
         if interaction_type == "LIKE":
