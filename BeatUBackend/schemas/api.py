@@ -88,20 +88,12 @@ class VideoList(APIModel):
 
 
 class InteractionRequest(APIModel):
-<<<<<<< Updated upstream
     action: str = Field(pattern="^(LIKE|UNLIKE|SAVE|REMOVE|FOLLOW|UNFOLLOW)$")  # �?修复：Pydantic V2 使用 pattern 替代 regex
-=======
-    action: str = Field(pattern="^(LIKE|UNLIKE|SAVE|REMOVE|FOLLOW|UNFOLLOW)$")
->>>>>>> Stashed changes
 
 
 class FollowRequest(APIModel):
     author_id: str
-<<<<<<< Updated upstream
     action: str = Field(pattern="^(FOLLOW|UNFOLLOW)$")  # �?修复：Pydantic V2 使用 pattern 替代 regex
-=======
-    action: str = Field(pattern="^(FOLLOW|UNFOLLOW)$")
->>>>>>> Stashed changes
 
 
 class OperationResult(APIModel):
