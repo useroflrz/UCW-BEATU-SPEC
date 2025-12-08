@@ -49,10 +49,13 @@ class AppStartupDataLoader @Inject constructor(
      * 每次启动都执行相同的逻辑：先读本地，再读远程
      */
     fun startLoading() {
+        Log.i(TAG, "startLoading invoked")
         startupScope.launch {
             try {
+                Log.i(TAG, "startLoading launch begin")
                 Log.d(TAG, "开始加载数据：先读本地，再读远程")
                 loadData()
+                Log.i(TAG, "startLoading launch end")
             } catch (e: Exception) {
                 Log.e(TAG, "启动数据加载失败", e)
             }
@@ -154,7 +157,7 @@ class AppStartupDataLoader @Inject constructor(
                     // 异步全量更新：视频交互数据
                     async {
                         try {
-                            Log.d(TAG, "异步全量更新：视频交互数据")
+                            Log.i(TAG, "异步全量更新：视频交互数据，开始请求 /api/videos/interactions")
                             val result = videoRemoteDataSource.getAllVideoInteractions()
                             when (result) {
                                 is com.ucw.beatu.shared.common.result.AppResult.Success -> {
@@ -173,7 +176,7 @@ class AppStartupDataLoader @Inject constructor(
                                         }
                                     }
                                     videoInteractionLocalDataSource.saveInteractions(interactions)
-                                    Log.d(TAG, "异步全量更新视频交互数据成功：${interactions.size} 条")
+                                    Log.i(TAG, "异步全量更新视频交互数据成功：${interactions.size} 条")
                                 }
                                 is com.ucw.beatu.shared.common.result.AppResult.Error -> {
                                     Log.e(TAG, "异步全量更新视频交互数据失败：${result.message}")

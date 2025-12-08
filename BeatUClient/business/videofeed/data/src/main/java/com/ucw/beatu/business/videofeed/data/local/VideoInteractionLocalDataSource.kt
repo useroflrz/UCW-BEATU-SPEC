@@ -48,6 +48,11 @@ interface VideoInteractionLocalDataSource {
     suspend fun getPendingInteractions(): List<VideoInteractionEntity>
 
     /**
+     * 获取指定用户的所有互动记录
+     */
+    suspend fun getInteractionsByUser(userId: String): List<VideoInteractionEntity>
+
+    /**
      * 批量保存视频交互数据（首次启动时全量加载）
      */
     suspend fun saveInteractions(interactions: List<VideoInteractionEntity>)
@@ -113,6 +118,10 @@ class VideoInteractionLocalDataSourceImpl @Inject constructor(
 
     override suspend fun getPendingInteractions(): List<VideoInteractionEntity> {
         return interactionDao.getPendingInteractions()
+    }
+
+    override suspend fun getInteractionsByUser(userId: String): List<VideoInteractionEntity> {
+        return interactionDao.getInteractionsByUser(userId)
     }
 
     override suspend fun saveInteractions(interactions: List<VideoInteractionEntity>) {

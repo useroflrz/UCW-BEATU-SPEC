@@ -47,6 +47,21 @@ class VideoRepositoryImpl @Inject constructor(
     // 使用 userId 而不是 userName，确保与数据库一致
     private val currentUserId: String = "BEATU"  // userId，不是 userName
 
+    private suspend fun applyInteractionState(videos: List<Video>): List<Video> {
+        if (videos.isEmpty()) return videos
+        val interactions = interactionLocalDataSource.getInteractionsByUser(currentUserId)
+        if (interactions.isEmpty()) return videos
+        val map = interactions.associateBy { it.videoId }
+        return videos.map { video ->
+            map[video.id]?.let { inter ->
+                video.copy(
+                    isLiked = inter.isLiked,
+                    isFavorited = inter.isFavorited
+                )
+            } ?: video
+        }
+    }
+
     override fun getVideoFeed(
         page: Int,
         limit: Int,
@@ -102,7 +117,7 @@ class VideoRepositoryImpl @Inject constructor(
                     "返回本地缓存数据: page=$page, limit=$limit, orientation=$orientation, " +
                     "视频数量=${localVideos.size}"
                 )
-                emit(AppResult.Success(localVideos, metadata = mapOf("source" to "local"))) // 先显示本地缓存
+                emit(AppResult.Success(applyInteractionState(localVideos), metadata = mapOf("source" to "local"))) // 先显示本地缓存
             }
 
             // 4. 获取远程数据并保存到本地数据库
@@ -178,7 +193,7 @@ class VideoRepositoryImpl @Inject constructor(
                         }
                     } ?: finalRemoteResult.data
                     // 标记数据来源为远程
-                    emit(AppResult.Success(savedVideos, metadata = mapOf("source" to "remote"))) // 用远程最新数据刷新
+                    emit(AppResult.Success(applyInteractionState(savedVideos), metadata = mapOf("source" to "remote"))) // 用远程最新数据刷新
                 }
                 is AppResult.Error -> {
                     // 记录远程请求失败的详细信息

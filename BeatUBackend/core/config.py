@@ -76,7 +76,7 @@ class Settings(BaseSettings):
     
     # 默认用户配置
     default_user_id: str = Field(default="BEATU", description="默认用户ID")
-    default_user_name: str = Field(default="BeatU 用户", description="默认用户名")
+    default_user_name: str = Field(default="BEATU", description="默认用户名")
     
     # MCP 配置（AgentMCP 相关）
     mcp_api_key: str = Field(
