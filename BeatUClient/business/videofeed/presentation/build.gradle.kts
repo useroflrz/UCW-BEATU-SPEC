@@ -32,6 +32,10 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    kapt {
+        // 避免 Hilt 处理阶段因跨模块符号暂不可见而生成 NonExistentClass 占位
+        correctErrorTypes = true
+    }
     buildFeatures {
         viewBinding = true
     }

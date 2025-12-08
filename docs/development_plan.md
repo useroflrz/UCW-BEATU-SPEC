@@ -1428,8 +1428,8 @@
         - 后端成功（200 OK）后清除 `isPending` 标记
         - 后端失败：策略 A 回滚 UI，策略 B 自动重试
       - **首屏加载优化**：
-        - 同步加载：首页分页视频列表、本人用户信息、已点赞/已收藏状态
-        - 异步加载：用户-用户关注状态、历史观看记录、评论内容
+        - 同步加载：首页分页视频列表
+        - 异步加载：本人用户信息、已点赞/已收藏状态，用户-用户关注状态、历史观看记录、评论内容
     - 修改文件：
       - 客户端数据库相关：
         - Room Entity 类（`beatu_video`, `beatu_user`, `beatu_video_interaction`, `beatu_user_follow`, `beatu_watch_history`, `beatu_search_history`）
@@ -1443,6 +1443,15 @@
         - 数据库表结构（`beatu_data.sql`, `init_database.sql`）
         - API 接口定义和实现
         - 数据验证逻辑
+
+- [x] 个人主页，用户弹窗的数据显示
+    - 2025-12-08 - done by KJH
+
+- [x] ai搜索的成功回调
+    - 2025-12-08 - done by KJH
+
+- [x] 关注页的相关视频播放
+    - 2025-12-08 - done by KJH
 
 
 - [ ] 优化顶部导航栏的布局

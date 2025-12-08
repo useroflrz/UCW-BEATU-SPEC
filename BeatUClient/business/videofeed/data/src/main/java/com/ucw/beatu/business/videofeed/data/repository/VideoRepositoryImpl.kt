@@ -23,7 +23,6 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.internal.AbortFlowException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import android.util.Log
@@ -113,17 +112,60 @@ class VideoRepositoryImpl @Inject constructor(
                 AppResult.Error(e)
             }
 
-            when (remoteResult) {
+            // 横屏接口异常或返回空数据时，退化到默认（无 orientation）接口，避免“没有更多视频”
+            val finalRemoteResult = when {
+                orientation != null &&
+                    remoteResult is AppResult.Error &&
+                    remoteResult.throwable is TimeoutCancellationException -> {
+                    android.util.Log.w(
+                        "VideoRepository",
+                        "横屏接口超时，尝试无 orientation 回退: page=$page, limit=$limit"
+                    )
+                    try {
+                        withTimeout(15000L) {
+                            remoteDataSource.getVideoFeed(page, limit, null)
+                        }
+                    } catch (fallback: Exception) {
+                        android.util.Log.e(
+                            "VideoRepository",
+                            "横屏回退请求仍失败: page=$page, limit=$limit, error=${fallback.message}",
+                            fallback
+                        )
+                        AppResult.Error(fallback)
+                    }
+                }
+                orientation != null &&
+                    remoteResult is AppResult.Success &&
+                    remoteResult.data.isEmpty() -> {
+                    android.util.Log.w(
+                        "VideoRepository",
+                        "横屏接口返回空数据，尝试无 orientation 回退: page=$page, limit=$limit"
+                    )
+                    try {
+                        remoteDataSource.getVideoFeed(page, limit, null)
+                    } catch (fallback: Exception) {
+                        android.util.Log.e(
+                            "VideoRepository",
+                            "横屏回退请求仍失败(空数据场景): page=$page, limit=$limit, error=${fallback.message}",
+                            fallback
+                        )
+                        AppResult.Error(fallback)
+                    }
+                }
+                else -> remoteResult
+            }
+
+            when (finalRemoteResult) {
                 is AppResult.Success -> {
                     // ✅ 渲染逻辑：后端把所有数据先塞到客户端本地数据库
                     android.util.Log.d("VideoRepository", 
                         "成功获取远程数据: page=$page, limit=$limit, orientation=$orientation, " +
-                        "视频数量=${remoteResult.data.size}"
+                        "视频数量=${finalRemoteResult.data.size}"
                     )
                     // 保存所有页面的数据到本地缓存，支持离线滑动
-                    localDataSource.saveVideos(remoteResult.data)
+                    localDataSource.saveVideos(finalRemoteResult.data)
                     // 异步为没有封面的视频生成缩略图
-                    localDataSource.enqueueThumbnailGeneration(remoteResult.data)
+                    localDataSource.enqueueThumbnailGeneration(finalRemoteResult.data)
                     // ✅ 然后界面再从本地数据库读出来显示
                     // 重新从本地数据库读取，确保数据一致性
                     val savedVideos = localDataSource.observeVideos(limit * page).firstOrNull()?.let { cachedVideos ->
@@ -132,16 +174,16 @@ class VideoRepositoryImpl @Inject constructor(
                         if (startIndex < cachedVideos.size) {
                             cachedVideos.subList(startIndex, minOf(endIndex, cachedVideos.size))
                         } else {
-                            remoteResult.data
+                            finalRemoteResult.data
                         }
-                    } ?: remoteResult.data
+                    } ?: finalRemoteResult.data
                     // 标记数据来源为远程
                     emit(AppResult.Success(savedVideos, metadata = mapOf("source" to "remote"))) // 用远程最新数据刷新
                 }
                 is AppResult.Error -> {
                     // 记录远程请求失败的详细信息
-                    val errorMessage = remoteResult.message ?: remoteResult.throwable.message ?: "未知错误"
-                    val errorType = remoteResult.throwable::class.java.simpleName
+                    val errorMessage = finalRemoteResult.message ?: finalRemoteResult.throwable.message ?: "未知错误"
+                    val errorType = finalRemoteResult.throwable::class.java.simpleName
                     android.util.Log.w("VideoRepository", 
                         "远程请求失败，使用fallback数据: errorType=$errorType, message=$errorMessage, " +
                         "page=$page, limit=$limit, orientation=$orientation"
@@ -151,7 +193,7 @@ class VideoRepositoryImpl @Inject constructor(
                     if (localVideos.isEmpty()) {
                         // 本地缓存为空，直接返回远程错误
                         android.util.Log.w("VideoRepository", "本地缓存为空，返回远程错误")
-                            emit(remoteResult)
+                            emit(finalRemoteResult)
                     } else {
                         // 本地已有数据时，静默失败，不发送错误，保持UI流畅
                         // 使用本地缓存数据，确保用户可以继续滑动
