@@ -184,6 +184,19 @@ class VideoService:
                 if not video:
                     raise ValueError("视频不存在")
 
+                # 确保用户存在，避免外键约束导致首次互动失败
+                user = self.db.get(User, user_id)
+                if not user:
+                    placeholder_user = User(
+                        userId=user_id,
+                        userName=user_id,
+                        avatarUrl=None,
+                        bio=None,
+                        followerCount=0,
+                        followingCount=0,
+                    )
+                    self.db.add(placeholder_user)
+
                 interaction = (
                     self.db.query(VideoInteraction)
                     .filter(
@@ -252,11 +265,12 @@ class VideoService:
                 self.db.commit()
                 return OperationResult(success=True, message="OK")
 
-            except IntegrityError:
+            except IntegrityError as exc:
                 # 可能是并发导致的唯一键/外键冲突，回滚后重试一次
                 self.db.rollback()
                 if attempt == 1:
-                    raise ValueError("互动状态冲突")
+                    detail = str(getattr(exc, "orig", exc))
+                    raise ValueError(f"互动状态冲突: {detail}")
 
     def _bump_counter(self, video: Video, interaction_type: str, delta: int) -> None:
         if interaction_type == "LIKE":
