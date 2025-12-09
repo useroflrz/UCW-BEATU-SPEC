@@ -1292,14 +1292,42 @@ class VideoItemFragment : BaseFeedItemFragment() {
         }
 
         // ✅ 新增：如果提供了视频列表，传递给横屏页面（用于固定列表模式，防止跳出列表）
+        // ✅ 修复：过滤掉 PORTRAIT 视频，只保留 LANDSCAPE 视频
         if (finalVideoList != null && finalVideoList.isNotEmpty()) {
-            val videoListParcelable = ArrayList(finalVideoList)
-            args.putParcelableArrayList(LandscapeLaunchContract.EXTRA_VIDEO_LIST, videoListParcelable)
-            val index = finalCurrentIndex ?: finalVideoList.indexOfFirst { it.id == item.id }.let {
-                if (it == -1) 0 else it
+            // 过滤掉 PORTRAIT 视频，只保留 LANDSCAPE 视频
+            val landscapeVideoList = finalVideoList.filter { it.orientation == com.ucw.beatu.shared.common.model.VideoOrientation.LANDSCAPE }
+            
+            if (landscapeVideoList.isEmpty()) {
+                Log.w(TAG, "openLandscapeMode: 视频列表中没有任何 LANDSCAPE 视频，无法进入横屏模式")
+                return
             }
-            args.putInt(LandscapeLaunchContract.EXTRA_CURRENT_INDEX, index.coerceIn(0, finalVideoList.lastIndex))
-            Log.d(TAG, "openLandscapeMode: 传递视频列表到横屏页面，数量=${finalVideoList.size}，当前索引=$index")
+            
+            // 检查当前视频是否为 LANDSCAPE
+            if (item.orientation != com.ucw.beatu.shared.common.model.VideoOrientation.LANDSCAPE) {
+                Log.w(TAG, "openLandscapeMode: 当前视频不是 LANDSCAPE 视频，无法进入横屏模式")
+                return
+            }
+            
+            val videoListParcelable = ArrayList(landscapeVideoList)
+            args.putParcelableArrayList(LandscapeLaunchContract.EXTRA_VIDEO_LIST, videoListParcelable)
+            
+            // 在过滤后的列表中找到当前视频的索引
+            val index = landscapeVideoList.indexOfFirst { it.id == item.id }.let {
+                if (it == -1) {
+                    Log.w(TAG, "openLandscapeMode: 当前视频不在过滤后的 LANDSCAPE 视频列表中")
+                    0
+                } else {
+                    it
+                }
+            }
+            args.putInt(LandscapeLaunchContract.EXTRA_CURRENT_INDEX, index.coerceIn(0, landscapeVideoList.lastIndex))
+            Log.d(TAG, "openLandscapeMode: 传递 LANDSCAPE 视频列表到横屏页面，过滤前数量=${finalVideoList.size}，过滤后数量=${landscapeVideoList.size}，当前索引=$index")
+        } else {
+            // 如果没有提供视频列表，检查当前视频是否为 LANDSCAPE
+            if (item.orientation != com.ucw.beatu.shared.common.model.VideoOrientation.LANDSCAPE) {
+                Log.w(TAG, "openLandscapeMode: 当前视频不是 LANDSCAPE 视频，无法进入横屏模式")
+                return
+            }
         }
 
         navigatingToLandscape = true
