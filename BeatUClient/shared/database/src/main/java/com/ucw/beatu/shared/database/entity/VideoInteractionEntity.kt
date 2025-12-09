@@ -1,7 +1,6 @@
 package com.ucw.beatu.shared.database.entity
 
 import androidx.room.Entity
-import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
@@ -12,20 +11,6 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "beatu_video_interaction",
     primaryKeys = ["videoId", "userId"],
-    foreignKeys = [
-        ForeignKey(
-            entity = VideoEntity::class,
-            parentColumns = ["videoId"],
-            childColumns = ["videoId"],
-            onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = UserEntity::class,
-            parentColumns = ["userId"],
-            childColumns = ["userId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ],
     indices = [
         Index(value = ["userId"]),
         Index(value = ["videoId"]),

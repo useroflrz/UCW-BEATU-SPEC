@@ -702,6 +702,10 @@ class VideoRepositoryImpl @Inject constructor(
                     isPending = true  // 标记为待同步
                 )
 
+                // 打印传输的数据
+                Log.d(TAG, "saveWatchHistory: 准备保存观看历史")
+                Log.d(TAG, "saveWatchHistory: videoId=$videoId, userId=$currentUserId, lastPlayPositionMs=$positionMs, watchedAt=${watchHistory.watchedAt}, isPending=${watchHistory.isPending}")
+
                 // 1. 先保存到本地数据库
                 database.watchHistoryDao().upsert(watchHistory)
                 Log.d(TAG, "保存观看历史到本地: videoId=$videoId, userId=$currentUserId, position=$positionMs")

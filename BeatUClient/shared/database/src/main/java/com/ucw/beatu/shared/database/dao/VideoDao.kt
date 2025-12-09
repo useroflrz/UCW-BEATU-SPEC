@@ -74,18 +74,44 @@ interface VideoDao {
     /**
      * 查询用户观看历史（JOIN beatu_watch_history表）
      * Room 要求明确指定所有字段，不能使用 v.*
+     * 按观看时间升序排列，最先观看的显示在前面
+     * 
+     * 注意：使用 INNER JOIN 意味着只有 watch_history 中的 videoId 在 beatu_video 表中存在时才会返回结果
+     * 如果 watch_history 中有 videoId 但 beatu_video 中没有对应的视频，这些记录会被过滤掉
      */
     @Query("""
-    SELECT v.videoId, v.playUrl, v.coverUrl, v.title, v.authorId, v.orientation, 
+    SELECT DISTINCT v.videoId, v.playUrl, v.coverUrl, v.title, v.authorId, v.orientation, 
            v.durationMs, v.likeCount, v.commentCount, v.favoriteCount, v.viewCount, 
            v.authorAvatar, v.shareUrl
     FROM beatu_video v
     INNER JOIN beatu_watch_history wh ON v.videoId = wh.videoId
     WHERE wh.userId = :userId
-    ORDER BY wh.watchedAt DESC
+    ORDER BY wh.watchedAt ASC
     LIMIT :limit
     """)
     fun observeHistoryVideos(userId: String, limit: Int): Flow<List<VideoEntity>>
+    
+    /**
+     * 查询用户观看历史的 videoId 列表（用于调试，检查有多少条历史记录）
+     * 这个查询不依赖 beatu_video 表，直接查询 watch_history 表
+     */
+    @Query("""
+    SELECT wh.videoId
+    FROM beatu_watch_history wh
+    WHERE wh.userId = :userId
+    ORDER BY wh.watchedAt ASC
+    """)
+    suspend fun getHistoryVideoIds(userId: String): List<Long>
+    
+    /**
+     * 统计用户观看历史数量（用于调试）
+     */
+    @Query("""
+    SELECT COUNT(*)
+    FROM beatu_watch_history
+    WHERE userId = :userId
+    """)
+    suspend fun countHistoryVideos(userId: String): Int
 
     @Query("SELECT * FROM beatu_video WHERE videoId = :videoId LIMIT 1")
     suspend fun getVideoById(videoId: Long): VideoEntity?
@@ -118,5 +144,15 @@ interface VideoDao {
     ORDER BY viewCount DESC
     """)
     fun observeSearchResults(query: String): Flow<List<VideoEntity>>
+    
+    /**
+     * 计算某个用户所有视频的点赞数总和
+     * 用于个人主页显示获赞数
+     */
+    @Query("""
+    SELECT COALESCE(SUM(likeCount), 0) FROM beatu_video
+    WHERE authorId = :authorId
+    """)
+    fun observeTotalLikesCountByAuthorId(authorId: String): Flow<Long>
 }
 

@@ -125,7 +125,22 @@ class VideoInteractionLocalDataSourceImpl @Inject constructor(
     }
 
     override suspend fun saveInteractions(interactions: List<VideoInteractionEntity>) {
-        interactionDao.insertOrUpdateAll(interactions)
+        if (interactions.isEmpty()) {
+            android.util.Log.w("VideoInteractionLocalDataSource", "saveInteractions: 列表为空，跳过保存")
+            return
+        }
+        try {
+            android.util.Log.d("VideoInteractionLocalDataSource", "saveInteractions: 准备保存 ${interactions.size} 条视频交互")
+            // 打印每条传输的数据
+            interactions.forEachIndexed { index, interaction ->
+                android.util.Log.d("VideoInteractionLocalDataSource", "saveInteractions[$index]: videoId=${interaction.videoId}, userId=${interaction.userId}, isLiked=${interaction.isLiked}, isFavorited=${interaction.isFavorited}, isPending=${interaction.isPending}")
+            }
+            interactionDao.insertOrUpdateAll(interactions)
+            android.util.Log.i("VideoInteractionLocalDataSource", "saveInteractions: 成功保存 ${interactions.size} 条视频交互")
+        } catch (e: Exception) {
+            android.util.Log.e("VideoInteractionLocalDataSource", "saveInteractions: 保存失败，错误=${e.message}", e)
+            throw e
+        }
     }
 }
 

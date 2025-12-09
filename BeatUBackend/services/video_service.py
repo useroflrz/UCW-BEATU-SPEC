@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from database.models import VideoInteraction, UserFollow, Video, User
+from database.models import VideoInteraction, UserFollow, Video, User, WatchHistory
 from schemas.api import (
     FollowRequest,
     InteractionRequest,
@@ -20,6 +20,8 @@ from services.helpers import parse_bool_map, parse_quality_list, parse_tag_list
 class VideoService:
     def __init__(self, db: Session) -> None:
         self.db = db
+        import logging
+        self.logger = logging.getLogger(__name__)
 
     def list_videos(
         self,
@@ -180,9 +182,9 @@ class VideoService:
         """
         for attempt in range(2):
             try:
-        video = self.db.get(Video, video_id)
-        if not video:
-            raise ValueError("视频不存在")
+                video = self.db.get(Video, video_id)
+                if not video:
+                    raise ValueError("视频不存在")
 
                 # 确保用户存在，避免外键约束导致首次互动失败
                 user = self.db.get(User, user_id)
@@ -197,14 +199,14 @@ class VideoService:
                     )
                     self.db.add(placeholder_user)
 
-        interaction = (
-            self.db.query(VideoInteraction)
-            .filter(
-                VideoInteraction.videoId == video_id,
-                VideoInteraction.userId == user_id,
-            )
-            .one_or_none()
-        )
+                interaction = (
+                    self.db.query(VideoInteraction)
+                    .filter(
+                        VideoInteraction.videoId == video_id,
+                        VideoInteraction.userId == user_id,
+                    )
+                    .one_or_none()
+                )
 
                 current_liked = interaction.isLiked if interaction else False
                 current_favorited = interaction.isFavorited if interaction else False
@@ -212,15 +214,15 @@ class VideoService:
                 target_liked = current_liked
                 target_favorited = current_favorited
 
-        if action in ("LIKE", "SAVE"):
+                if action in ("LIKE", "SAVE"):
                     if interaction_type == "LIKE":
                         target_liked = True
                     elif interaction_type == "FAVORITE":
                         target_favorited = True
                 else:  # UNLIKE / REMOVE
-                if interaction_type == "LIKE":
+                    if interaction_type == "LIKE":
                         target_liked = False
-                elif interaction_type == "FAVORITE":
+                    elif interaction_type == "FAVORITE":
                         target_favorited = False
 
                 # 幂等：状态未变化直接返回
@@ -245,16 +247,16 @@ class VideoService:
                     interaction.isFavorited = target_favorited
                     if not interaction.isLiked and not interaction.isFavorited:
                         self.db.delete(interaction)
-            else:
-                # 创建新记录
-                interaction = VideoInteraction(
-                    videoId=video_id,
-                    userId=user_id,
+                else:
+                    # 创建新记录
+                    interaction = VideoInteraction(
+                        videoId=video_id,
+                        userId=user_id,
                         isLiked=target_liked,
                         isFavorited=target_favorited,
-                    isPending=False,
-                )
-                self.db.add(interaction)
+                        isPending=False,
+                    )
+                    self.db.add(interaction)
 
                 # 更新计数（保持非负）
                 if delta_like:
@@ -262,8 +264,8 @@ class VideoService:
                 if delta_fav:
                     self._bump_counter(video, "FAVORITE", delta_fav)
 
-            self.db.commit()
-        return OperationResult(success=True, message="OK")
+                self.db.commit()
+                return OperationResult(success=True, message="OK")
 
             except IntegrityError as exc:
                 # 可能是并发导致的唯一键/外键冲突，回滚后重试一次
@@ -381,6 +383,140 @@ class VideoService:
             }
             for interaction in interactions
         ]
+
+    def get_all_watch_histories(self, user_id: str) -> list[dict]:
+        """获取指定用户的所有观看历史"""
+        histories = (
+            self.db.query(WatchHistory)
+            .filter(WatchHistory.userId == user_id)
+            .all()
+        )
+        return [
+            {
+                "videoId": history.videoId,
+                "userId": history.userId,
+                "lastPlayPositionMs": history.lastPlayPositionMs,
+                "watchedAt": history.watchedAt,
+                "isPending": history.isPending,
+            }
+            for history in histories
+        ]
+
+    def sync_watch_histories(self, user_id: str, histories: list[dict]) -> OperationResult:
+        """同步观看历史（批量更新或创建）"""
+        try:
+            self.logger.info(f"收到观看历史同步请求：user_id={user_id}, 历史记录数量={len(histories)}")
+            if histories:
+                self.logger.info(f"第一条历史记录示例：{histories[0]}")
+            
+            success_count = 0
+            error_count = 0
+            
+            for idx, history_data in enumerate(histories):
+                try:
+                    self.logger.debug(f"处理历史记录[{idx}]：{history_data}")
+                    
+                    # 尝试不同的字段名变体
+                    video_id = history_data.get("videoId") or history_data.get("video_id")
+                    last_play_position_ms = history_data.get("lastPlayPositionMs") or history_data.get("last_play_position_ms") or history_data.get("lastPlayPositionMs", 0)
+                    watched_at = history_data.get("watchedAt") or history_data.get("watched_at")
+                    
+                    self.logger.debug(f"解析后的值：video_id={video_id}, last_play_position_ms={last_play_position_ms}, watched_at={watched_at}")
+                    
+                    # 类型转换
+                    if video_id is not None:
+                        if isinstance(video_id, str):
+                            try:
+                                video_id = int(video_id)
+                            except (ValueError, TypeError):
+                                self.logger.warning(f"历史记录[{idx}]：videoId 无法转换为整数：{video_id}")
+                                error_count += 1
+                                continue
+                        elif isinstance(video_id, float):
+                            video_id = int(video_id)
+                    
+                    if watched_at is not None:
+                        if isinstance(watched_at, str):
+                            try:
+                                watched_at = int(watched_at)
+                            except (ValueError, TypeError):
+                                self.logger.warning(f"历史记录[{idx}]：watchedAt 无法转换为整数：{watched_at}")
+                                error_count += 1
+                                continue
+                        elif isinstance(watched_at, float):
+                            watched_at = int(watched_at)
+                    
+                    if last_play_position_ms is not None:
+                        if isinstance(last_play_position_ms, str):
+                            try:
+                                last_play_position_ms = int(last_play_position_ms)
+                            except (ValueError, TypeError):
+                                last_play_position_ms = 0
+                        elif isinstance(last_play_position_ms, float):
+                            last_play_position_ms = int(last_play_position_ms)
+                    else:
+                        last_play_position_ms = 0
+                    
+                    if not video_id or not watched_at:
+                        self.logger.warning(f"历史记录[{idx}]：缺少必要字段，video_id={video_id}, watched_at={watched_at}")
+                        error_count += 1
+                        continue
+                
+                    # 检查视频是否存在（外键约束检查）
+                    video_exists = (
+                        self.db.query(Video)
+                        .filter(Video.videoId == video_id)
+                        .first()
+                    )
+                    
+                    if not video_exists:
+                        self.logger.warning(f"历史记录[{idx}]：视频不存在，跳过同步，video_id={video_id}")
+                        error_count += 1
+                        continue
+                
+                    # 查询现有记录
+                    existing = (
+                        self.db.query(WatchHistory)
+                        .filter(
+                            WatchHistory.videoId == video_id,
+                            WatchHistory.userId == user_id
+                        )
+                        .one_or_none()
+                    )
+                    
+                    if existing:
+                        # 更新现有记录（保留最新的观看时间和进度）
+                        if watched_at > existing.watchedAt:
+                            existing.lastPlayPositionMs = last_play_position_ms
+                            existing.watchedAt = watched_at
+                            existing.isPending = False
+                            self.logger.debug(f"历史记录[{idx}]：更新现有记录，video_id={video_id}")
+                        else:
+                            self.logger.debug(f"历史记录[{idx}]：跳过更新（时间戳更旧），video_id={video_id}")
+                        success_count += 1
+                    else:
+                        # 创建新记录
+                        new_history = WatchHistory(
+                            videoId=video_id,
+                            userId=user_id,
+                            lastPlayPositionMs=last_play_position_ms,
+                            watchedAt=watched_at,
+                            isPending=False
+                        )
+                        self.db.add(new_history)
+                        self.logger.debug(f"历史记录[{idx}]：创建新记录，video_id={video_id}")
+                        success_count += 1
+                except Exception as e:
+                    self.logger.error(f"处理历史记录[{idx}]时出错：{e}", exc_info=True)
+                    error_count += 1
+                    continue
+            
+            self.db.commit()
+            self.logger.info(f"观看历史同步完成：成功={success_count}, 失败={error_count}")
+            return OperationResult(success=True, message=f"同步成功：成功={success_count}, 失败={error_count}")
+        except Exception as e:
+            self.db.rollback()
+            return OperationResult(success=False, message=f"同步失败: {str(e)}")
 
     def build_mixed_feed(self, *, page: int, items: List[VideoItem]) -> List[VideoItem]:
         """

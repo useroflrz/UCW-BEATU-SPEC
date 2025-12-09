@@ -6,11 +6,14 @@ import com.ucw.beatu.business.user.domain.model.User
 import com.ucw.beatu.business.user.domain.model.UserWork
 import com.ucw.beatu.business.user.domain.repository.UserRepository
 import com.ucw.beatu.business.user.domain.repository.UserWorksRepository
+import com.ucw.beatu.shared.database.dao.VideoDao
+import com.ucw.beatu.shared.database.dao.WatchHistoryDao
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -20,7 +23,9 @@ import javax.inject.Inject
 @HiltViewModel
 class UserProfileViewModel @Inject constructor(
     private val userRepository: UserRepository,
-    private val userWorksRepository: UserWorksRepository
+    private val userWorksRepository: UserWorksRepository,
+    private val videoDao: VideoDao,
+    private val watchHistoryDao: WatchHistoryDao
 ) : ViewModel() {
 
     private val _user = MutableStateFlow<User?>(null)
@@ -38,11 +43,16 @@ class UserProfileViewModel @Inject constructor(
     private val _followOperationError = MutableStateFlow<String?>(null)
     val followOperationError: StateFlow<String?> = _followOperationError.asStateFlow()
 
+    private val _isInteracting = MutableStateFlow(false)
+    val isInteracting: StateFlow<Boolean> = _isInteracting.asStateFlow()
+
     private var observeWorksJob: Job? = null
     private var observeFollowStatusJob: Job? = null
+    private var observeLikesCountJob: Job? = null
 
     /**
      * 直接设置用户数据（用于从弹窗传递完整用户数据）
+     * 注意：likesCount 会被自动计算（通过查询该用户所有视频的点赞数总和）
      */
     fun setUserData(
         id: String,
@@ -58,18 +68,21 @@ class UserProfileViewModel @Inject constructor(
             name = name,
             avatarUrl = avatarUrl,
             bio = bio,
-            likesCount = likesCount,
+            likesCount = likesCount, // 初始值，会被自动计算覆盖
             followingCount = followingCount,
             followersCount = followersCount
         )
         _isLoading.value = false
+        
+        // 开始观察获赞数（通过查询该用户所有视频的点赞数总和）
+        startObservingLikesCount(id)
         
         // 使用用户的ID加载作品
         viewModelScope.launch {
             switchTab(TabType.WORKS, authorId = id, currentUserId = "BEATU")
         }
     }
-    
+
     /**
      * 加载用户信息（使用用户名或用户ID）
      * 如果 userName 是 "BEATU"，则通过用户ID查询；否则通过用户名查询
@@ -92,27 +105,29 @@ class UserProfileViewModel @Inject constructor(
                     
                     // 观察用户信息变化（使用 StateFlow 自动更新）
                     try {
-                        userRepository.observeUserById(userName).collect { user ->
-                            _user.value = user
-                            if (user != null) {
+                    userRepository.observeUserById(userName).collect { user ->
+                        _user.value = user
+                        if (user != null) {
+                            _isLoading.value = false
+                                // 开始观察获赞数（通过查询该用户所有视频的点赞数总和）
+                                startObservingLikesCount(user.id)
+                        } else {
+                            // 如果本地和远程都没有，尝试从远程获取
+                                try {
+                            val remoteResult = userRepository.fetchUserFromRemote(userName)
+                            if (remoteResult is com.ucw.beatu.shared.common.result.AppResult.Success) {
+                                _user.value = remoteResult.data
                                 _isLoading.value = false
                             } else {
-                                // 如果本地和远程都没有，尝试从远程获取
-                                try {
-                                    val remoteResult = userRepository.fetchUserFromRemote(userName)
-                                    if (remoteResult is com.ucw.beatu.shared.common.result.AppResult.Success) {
-                                        _user.value = remoteResult.data
-                                        _isLoading.value = false
-                                    } else {
                                         _isLoading.value = false
                                     }
                                 } catch (e: kotlinx.coroutines.CancellationException) {
                                     throw e // 重新抛出取消异常
                                 } catch (e: Exception) {
                                     android.util.Log.e("UserProfileViewModel", "Failed to fetch user from remote: $userName", e)
-                                    _isLoading.value = false
-                                }
+                                _isLoading.value = false
                             }
+                        }
                         }
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         // 协程被取消是正常的，不需要记录错误
@@ -146,23 +161,25 @@ class UserProfileViewModel @Inject constructor(
                         }
                         
                         flow.collect { user ->
-                            _user.value = user
-                            if (user != null) {
-                                _isLoading.value = false
-                            } else {
-                                // 如果本地和远程都没有，尝试从远程获取
+                        _user.value = user
+                        if (user != null) {
+                            _isLoading.value = false
+                                // 开始观察获赞数（通过查询该用户所有视频的点赞数总和）
+                                startObservingLikesCount(user.id)
+                        } else {
+                            // 如果本地和远程都没有，尝试从远程获取
                                 try {
                                     val remoteResult = if (userName.all { it.isDigit() }) {
                                         userRepository.fetchUserFromRemote(userName)
                                     } else {
                                         userRepository.fetchUserFromRemoteByName(userName)
                                     }
-                                    if (remoteResult is com.ucw.beatu.shared.common.result.AppResult.Success) {
-                                        _user.value = remoteResult.data
-                                        _isLoading.value = false
-                                    } else {
-                                        _isLoading.value = false
-                                    }
+                            if (remoteResult is com.ucw.beatu.shared.common.result.AppResult.Success) {
+                                _user.value = remoteResult.data
+                                _isLoading.value = false
+                            } else {
+                                _isLoading.value = false
+                            }
                                 } catch (e: kotlinx.coroutines.CancellationException) {
                                     throw e // 重新抛出取消异常
                                 } catch (e: Exception) {
@@ -235,12 +252,32 @@ class UserProfileViewModel @Inject constructor(
                 }
                 TabType.HISTORY -> {
                     // 从数据库查询用户观看历史（JOIN beatu_watch_history表）
-                    android.util.Log.d("UserProfileViewModel", "从数据库查询观看历史：userId=$currentUserId")
+                    android.util.Log.d("UserProfileViewModel", "从数据库查询观看历史：userId=$currentUserId, limit=$limit")
+                    // 先验证数据库中的历史记录数量
+                    viewModelScope.launch {
+                        try {
+                            val historyCount = watchHistoryDao.getHistoryCountByUser(currentUserId)
+                            android.util.Log.i("UserProfileViewModel", "数据库中的历史记录数量：$historyCount 条（userId=$currentUserId）")
+                            val allHistories = watchHistoryDao.getAllHistoriesByUser(currentUserId)
+                            android.util.Log.d("UserProfileViewModel", "数据库中的历史记录详情：")
+                            allHistories.forEachIndexed { index, history ->
+                                android.util.Log.d("UserProfileViewModel", "  历史[$index]: videoId=${history.videoId}, watchedAt=${history.watchedAt}")
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("UserProfileViewModel", "查询历史记录数量失败", e)
+                        }
+                    }
                     userWorksRepository.observeHistoryWorks(currentUserId, limit)
                 }
             }
             flow.collect { works ->
                 android.util.Log.d("UserProfileViewModel", "用户作品数据更新：${works.size} 条")
+                if (tabType == TabType.HISTORY && works.isNotEmpty()) {
+                    android.util.Log.d("UserProfileViewModel", "历史记录详情：")
+                    works.forEachIndexed { index, work ->
+                        android.util.Log.d("UserProfileViewModel", "  历史[$index]: videoId=${work.id}, title=${work.title}")
+                    }
+                }
                 _userWorks.value = works
             }
         }
@@ -282,54 +319,80 @@ class UserProfileViewModel @Inject constructor(
 
     /**
      * 关注用户（乐观更新：先更新本地，然后异步同步到远程，失败则回滚）
+     * 使用 isInteracting 防止重复点击
      */
     fun followUser(targetUserId: String, currentUserId: String) {
+        // 防止重复点击
+        if (_isInteracting.value) {
+            android.util.Log.d("UserProfileViewModel", "Follow user already in progress, ignoring duplicate click")
+            return
+        }
+
         viewModelScope.launch {
             try {
-                android.util.Log.d("UserProfileViewModel", "Following user: targetUserId=$targetUserId, currentUserId=$currentUserId")
+            android.util.Log.d("UserProfileViewModel", "Following user: targetUserId=$targetUserId, currentUserId=$currentUserId")
+                // 设置交互状态
+                _isInteracting.value = true
+                _followOperationError.value = null
+
                 // 保存当前用户状态，用于回滚
                 val currentUser = _user.value
                 // 1. 乐观更新：先更新本地数据库（会触发 observeIsFollowing 的 Flow 更新）
                 userRepository.followUser(currentUserId, targetUserId)
                 // 2. 乐观更新粉丝数
                 currentUser?.let { user ->
-                    _user.value = user.copy(followersCount = user.followersCount + 1)
+                _user.value = user.copy(followersCount = user.followersCount + 1)
                 }
                 // 注意：远程同步和回滚逻辑在 Repository 中处理，通过 observeFollowSyncResult 监听结果
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // 协程被取消是正常的，不需要记录错误
                 android.util.Log.d("UserProfileViewModel", "Follow user cancelled: targetUserId=$targetUserId")
+                _isInteracting.value = false
             } catch (e: Exception) {
                 android.util.Log.e("UserProfileViewModel", "Failed to follow user: targetUserId=$targetUserId", e)
                 // 本地更新失败，显示错误提示
                 _followOperationError.value = "操作失败，请重试"
+                _isInteracting.value = false
             }
         }
     }
 
     /**
      * 取消关注用户（乐观更新：先更新本地，然后异步同步到远程，失败则回滚）
+     * 使用 isInteracting 防止重复点击
      */
     fun unfollowUser(targetUserId: String, currentUserId: String) {
+        // 防止重复点击
+        if (_isInteracting.value) {
+            android.util.Log.d("UserProfileViewModel", "Unfollow user already in progress, ignoring duplicate click")
+            return
+        }
+
         viewModelScope.launch {
             try {
-                android.util.Log.d("UserProfileViewModel", "Unfollowing user: targetUserId=$targetUserId, currentUserId=$currentUserId")
+            android.util.Log.d("UserProfileViewModel", "Unfollowing user: targetUserId=$targetUserId, currentUserId=$currentUserId")
+                // 设置交互状态
+                _isInteracting.value = true
+                _followOperationError.value = null
+
                 // 保存当前用户状态，用于回滚
                 val currentUser = _user.value
                 // 1. 乐观更新：先更新本地数据库（会触发 observeIsFollowing 的 Flow 更新）
-                userRepository.unfollowUser(currentUserId, targetUserId)
+            userRepository.unfollowUser(currentUserId, targetUserId)
                 // 2. 乐观更新粉丝数
                 currentUser?.let { user ->
-                    _user.value = user.copy(followersCount = (user.followersCount - 1).coerceAtLeast(0))
+                _user.value = user.copy(followersCount = (user.followersCount - 1).coerceAtLeast(0))
                 }
                 // 注意：远程同步和回滚逻辑在 Repository 中处理，通过 observeFollowSyncResult 监听结果
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // 协程被取消是正常的，不需要记录错误
                 android.util.Log.d("UserProfileViewModel", "Unfollow user cancelled: targetUserId=$targetUserId")
+                _isInteracting.value = false
             } catch (e: Exception) {
                 android.util.Log.e("UserProfileViewModel", "Failed to unfollow user: targetUserId=$targetUserId", e)
                 // 本地更新失败，显示错误提示
                 _followOperationError.value = "操作失败，请重试"
+                _isInteracting.value = false
             }
         }
     }
@@ -342,8 +405,9 @@ class UserProfileViewModel @Inject constructor(
             userRepository.observeFollowSyncResult().collect { result ->
                 when (result) {
                     is UserRepository.FollowSyncResult.Success -> {
-                        // 同步成功，清除错误信息
+                        // 同步成功，清除错误信息和交互状态
                         _followOperationError.value = null
+                        _isInteracting.value = false
                         android.util.Log.d("UserProfileViewModel", "Follow sync success: isFollow=${result.isFollow}, targetUserId=${result.targetUserId}")
                     }
                     is UserRepository.FollowSyncResult.Error -> {
@@ -361,6 +425,7 @@ class UserProfileViewModel @Inject constructor(
                         }
                         // 显示错误信息（关注状态已由 Repository 回滚，通过 observeIsFollowing 自动更新）
                         _followOperationError.value = result.error
+                        _isInteracting.value = false
                     }
                 }
             }
@@ -394,6 +459,32 @@ class UserProfileViewModel @Inject constructor(
     fun stopObservingFollowStatus() {
         observeFollowStatusJob?.cancel()
         observeFollowStatusJob = null
+    }
+    
+    /**
+     * 开始观察用户的获赞数（通过查询该用户所有视频的点赞数总和）
+     * 当视频点赞数变化时，自动更新用户的 likesCount
+     */
+    private fun startObservingLikesCount(authorId: String) {
+        observeLikesCountJob?.cancel()
+        observeLikesCountJob = viewModelScope.launch {
+            android.util.Log.d("UserProfileViewModel", "开始观察获赞数：authorId=$authorId")
+            videoDao.observeTotalLikesCountByAuthorId(authorId).collect { totalLikesCount: Long ->
+                android.util.Log.d("UserProfileViewModel", "获赞数更新：authorId=$authorId, totalLikesCount=$totalLikesCount")
+                // 更新当前用户的 likesCount
+                _user.value?.let { currentUser: User ->
+                    _user.value = currentUser.copy(likesCount = totalLikesCount)
+                }
+            }
+        }
+    }
+    
+    /**
+     * 停止观察获赞数
+     */
+    fun stopObservingLikesCount() {
+        observeLikesCountJob?.cancel()
+        observeLikesCountJob = null
     }
 }
 

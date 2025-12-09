@@ -184,7 +184,22 @@ class UserLocalDataSourceImpl @Inject constructor(
     }
 
     override suspend fun saveUserFollows(follows: List<UserFollowEntity>) {
-        userFollowDao.insertAll(follows)
+        if (follows.isEmpty()) {
+            android.util.Log.w("UserLocalDataSource", "saveUserFollows: 列表为空，跳过保存")
+            return
+        }
+        try {
+            android.util.Log.d("UserLocalDataSource", "saveUserFollows: 准备保存 ${follows.size} 条关注关系")
+            // 打印每条传输的数据
+            follows.forEachIndexed { index, follow ->
+                android.util.Log.d("UserLocalDataSource", "saveUserFollows[$index]: userId=${follow.userId}, authorId=${follow.authorId}, isFollowed=${follow.isFollowed}, isPending=${follow.isPending}")
+            }
+            userFollowDao.insertAll(follows)
+            android.util.Log.i("UserLocalDataSource", "saveUserFollows: 成功保存 ${follows.size} 条关注关系")
+        } catch (e: Exception) {
+            android.util.Log.e("UserLocalDataSource", "saveUserFollows: 保存失败，错误=${e.message}", e)
+            throw e
+        }
     }
 }
 

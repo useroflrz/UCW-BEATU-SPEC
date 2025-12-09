@@ -235,24 +235,119 @@ class DataSyncService @Inject constructor(
 
             Log.d(TAG, "开始同步 ${pendingHistories.size} 条观看历史记录")
             
-            for (history in pendingHistories) {
-                try {
-                    // 调用后端API同步观看历史
-                    // 注意：这里需要根据后端API实现，暂时先记录日志
-                    // TODO: 实现观看历史同步API调用
-                    Log.d(TAG, "同步观看历史: videoId=${history.videoId}, userId=${history.userId}, position=${history.lastPlayPositionMs}")
-                    
-                    // 模拟同步成功，清除待同步标记
-                    // 实际应该调用 videoRemoteDataSource.updateWatchHistory(...)
-                    watchHistoryDao.clearPendingStatus(history.videoId, history.userId)
-                    Log.d(TAG, "同步观看历史成功: videoId=${history.videoId}")
-                } catch (e: Exception) {
-                    Log.e(TAG, "同步观看历史异常: videoId=${history.videoId}, userId=${history.userId}", e)
-                    // 策略B：不回滚，保留待同步状态，下次启动时继续重试
+            // 批量同步观看历史
+            val historiesToSync = pendingHistories.map { history ->
+                mapOf(
+                    "videoId" to history.videoId,
+                    "userId" to history.userId,
+                    "lastPlayPositionMs" to history.lastPlayPositionMs,
+                    "watchedAt" to history.watchedAt
+                )
+            }
+            
+            // 打印要同步的数据
+            Log.d(TAG, "准备同步观看历史：${historiesToSync.size} 条")
+            if (historiesToSync.isNotEmpty()) {
+                Log.d(TAG, "第一条历史记录示例：${historiesToSync[0]}")
+            }
+            
+            try {
+                val result = videoRemoteDataSource.syncWatchHistories(historiesToSync)
+                when (result) {
+                    is AppResult.Success -> {
+                        // 同步成功，清除所有待同步标记
+                        pendingHistories.forEach { history ->
+                            watchHistoryDao.clearPendingStatus(history.videoId, history.userId)
+                        }
+                        Log.d(TAG, "批量同步观看历史成功：${pendingHistories.size} 条")
+                    }
+                    is AppResult.Error -> {
+                        Log.e(TAG, "批量同步观看历史失败：${result.message}")
+                        // 策略B：不回滚，保留待同步状态，下次启动时继续重试
+                    }
+                    else -> {
+                        Log.w(TAG, "批量同步观看历史未知结果")
+                    }
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "批量同步观看历史异常", e)
+                // 策略B：不回滚，保留待同步状态，下次启动时继续重试
             }
         } catch (e: Exception) {
             Log.e(TAG, "同步观看历史失败", e)
+        }
+    }
+    
+    /**
+     * 同步所有待同步的观看历史（退出app时调用）
+     * 同步所有 isPending=true 的观看历史记录到远程服务器
+     */
+    suspend fun syncAllWatchHistories() {
+        syncWatchHistory()
+    }
+    
+    /**
+     * 定时同步所有观看历史到远程（定时任务调用）
+     * 同步所有观看历史记录，不仅仅是 isPending=true 的
+     */
+    suspend fun syncAllWatchHistoriesPeriodically() {
+        try {
+            Log.d(TAG, "=== 开始定时同步所有观看历史 ===")
+            // 获取当前用户的所有观看历史（不仅仅是 isPending=true 的）
+            val allHistories = watchHistoryDao.getAllHistoriesByUser(currentUserId)
+            Log.d(TAG, "查询到 ${allHistories.size} 条观看历史记录（userId=$currentUserId）")
+            
+            if (allHistories.isEmpty()) {
+                Log.d(TAG, "没有观看历史需要同步")
+                return
+            }
+
+            Log.d(TAG, "定时同步所有观看历史：${allHistories.size} 条")
+            
+            // 批量同步所有观看历史
+            val historiesToSync = allHistories.map { history ->
+                mapOf(
+                    "videoId" to history.videoId,
+                    "userId" to history.userId,
+                    "lastPlayPositionMs" to history.lastPlayPositionMs,
+                    "watchedAt" to history.watchedAt
+                )
+            }
+            
+            // 打印要同步的数据
+            Log.d(TAG, "定时准备同步观看历史：${historiesToSync.size} 条")
+            if (historiesToSync.isNotEmpty()) {
+                Log.d(TAG, "第一条历史记录示例：${historiesToSync[0]}")
+            }
+            
+            try {
+                Log.d(TAG, "开始调用 videoRemoteDataSource.syncWatchHistories")
+                val result = videoRemoteDataSource.syncWatchHistories(historiesToSync)
+                Log.d(TAG, "收到同步结果：${result.javaClass.simpleName}")
+                when (result) {
+                    is AppResult.Success -> {
+                        // 同步成功，清除所有待同步标记
+                        allHistories.forEach { history ->
+                            watchHistoryDao.clearPendingStatus(history.videoId, history.userId)
+                        }
+                        Log.i(TAG, "✅ 定时批量同步观看历史成功：${allHistories.size} 条")
+                    }
+                    is AppResult.Error -> {
+                        Log.w(TAG, "⚠️ 定时批量同步观看历史失败：${result.message}，将在下次定时任务时重试")
+                        // 策略B：不回滚，保留待同步状态，下次定时任务时继续重试
+                    }
+                    else -> {
+                        Log.w(TAG, "⚠️ 定时批量同步观看历史未知结果：${result}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "⚠️ 定时批量同步观看历史异常，将在下次定时任务时重试", e)
+                // 策略B：不回滚，保留待同步状态，下次定时任务时继续重试
+            }
+            Log.d(TAG, "=== 定时同步所有观看历史完成 ===")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ 定时同步观看历史失败", e)
+            e.printStackTrace()
         }
     }
 }

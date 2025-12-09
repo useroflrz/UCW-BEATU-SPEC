@@ -56,20 +56,23 @@ class UserProfileFollowButtonManager(
 
     /**
      * 更新关注按钮状态
+     * @param isFollowing 是否已关注
+     * @param isInteracting 是否正在交互中（防止重复点击）
      */
-    fun updateFollowButton(isFollowing: Boolean?) {
+    fun updateFollowButton(isFollowing: Boolean?, isInteracting: Boolean = false) {
+        val isEnabled = !isInteracting && isFollowing != null
         when (isFollowing) {
             true -> {
                 btnFollow.text = "取消关注"
-                btnFollow.isEnabled = true
-                btnFollow.isClickable = true
-                btnFollow.alpha = 1.0f
+                btnFollow.isEnabled = isEnabled
+                btnFollow.isClickable = isEnabled
+                btnFollow.alpha = if (isEnabled) 1.0f else 0.5f
             }
             false -> {
                 btnFollow.text = "关注"
-                btnFollow.isEnabled = true
-                btnFollow.isClickable = true
-                btnFollow.alpha = 1.0f
+                btnFollow.isEnabled = isEnabled
+                btnFollow.isClickable = isEnabled
+                btnFollow.alpha = if (isEnabled) 1.0f else 0.5f
             }
             null -> {
                 btnFollow.text = "关注"
@@ -80,7 +83,7 @@ class UserProfileFollowButtonManager(
         }
         // 确保按钮可以接收点击事件
         btnFollow.bringToFront()
-        Log.d(TAG, "Follow button updated: text=${btnFollow.text}, enabled=${btnFollow.isEnabled}, clickable=${btnFollow.isClickable}")
+        Log.d(TAG, "Follow button updated: text=${btnFollow.text}, enabled=${btnFollow.isEnabled}, clickable=${btnFollow.isClickable}, isInteracting=$isInteracting")
     }
 }
 

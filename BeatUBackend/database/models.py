@@ -45,7 +45,7 @@ class Video(Base):
     playUrl = Column(String(500), nullable=False)  # ✅ 修改：字段名从 play_url 改为 playUrl
     coverUrl = Column(String(500), nullable=False)  # ✅ 修改：字段名从 cover_url 改为 coverUrl
     title = Column(String(200), nullable=False)
-    authorId = Column(String(64), ForeignKey("beatu_user.userId"), nullable=False, index=True)  # ✅ 修改：字段名从 author_id 改为 authorId，外键引用 beatu_user.userId
+    authorId = Column(String(64), nullable=False, index=True)  # ✅ 修改：字段名从 author_id 改为 authorId，移除外键约束
     orientation = Column(Enum("PORTRAIT", "LANDSCAPE", name="video_orientation"), nullable=False, default="PORTRAIT")
     durationMs = Column(BigInteger, nullable=False, default=0)  # ✅ 修改：字段名从 duration_ms 改为 durationMs
     likeCount = Column(BigInteger, nullable=False, default=0)  # ✅ 修改：字段名从 like_count 改为 likeCount
@@ -64,7 +64,7 @@ class Comment(Base):
     __tablename__ = "beatu_comment"  # ✅ 修改：表名从 beatu_comments 改为 beatu_comment
 
     commentId = Column(String(64), primary_key=True)  # ✅ 修改：字段名从 id 改为 commentId，类型从 Integer 改为 String(64)
-    videoId = Column(BigInteger, ForeignKey("beatu_video.videoId"), nullable=False)  # ✅ 修改：字段名从 video_id 改为 videoId，外键引用 beatu_video.videoId
+    videoId = Column(BigInteger, nullable=False)  # ✅ 修改：字段名从 video_id 改为 videoId，移除外键约束
     authorId = Column(String(64), nullable=False)  # ✅ 修改：字段名从 author_id 改为 authorId
     content = Column(Text, nullable=False)
     createdAt = Column(BigInteger, nullable=False)  # ✅ 修改：字段名从 created_at 改为 createdAt，类型从 DateTime 改为 BigInteger（Unix时间戳毫秒）
@@ -80,8 +80,8 @@ class VideoInteraction(Base):
     """用户-视频互动表（点赞/收藏）"""
     __tablename__ = "beatu_video_interaction"  # ✅ 修改：新表结构
 
-    videoId = Column(BigInteger, ForeignKey("beatu_video.videoId"), primary_key=True, nullable=False)  # ✅ 修改：复合主键
-    userId = Column(String(64), ForeignKey("beatu_user.userId"), primary_key=True, nullable=False)  # ✅ 修改：复合主键
+    videoId = Column(BigInteger, primary_key=True, nullable=False)  # ✅ 修改：复合主键，移除外键约束
+    userId = Column(String(64), primary_key=True, nullable=False)  # ✅ 修改：复合主键，移除外键约束
     isLiked = Column(Boolean, default=False, nullable=False)  # ✅ 新增：是否点赞
     isFavorited = Column(Boolean, default=False, nullable=False)  # ✅ 新增：是否收藏
     isPending = Column(Boolean, default=False, nullable=False)  # ✅ 新增：本地待同步状态
@@ -123,8 +123,8 @@ class InteractionMetric(Base):
 class UserFollow(Base):
     __tablename__ = "beatu_user_follow"  # ✅ 修改：表名从 beatu_user_follows 改为 beatu_user_follow
 
-    userId = Column(String(64), ForeignKey("beatu_user.userId"), primary_key=True, nullable=False)  # ✅ 修改：字段名从 follower_id 改为 userId，复合主键
-    authorId = Column(String(64), ForeignKey("beatu_user.userId"), primary_key=True, nullable=False)  # ✅ 修改：字段名从 followee_id 改为 authorId，复合主键
+    userId = Column(String(64), primary_key=True, nullable=False)  # ✅ 修改：字段名从 follower_id 改为 userId，复合主键，移除外键约束
+    authorId = Column(String(64), primary_key=True, nullable=False)  # ✅ 修改：字段名从 followee_id 改为 authorId，复合主键，移除外键约束
     isFollowed = Column(Boolean, default=False, nullable=False)  # ✅ 新增：是否关注
     isPending = Column(Boolean, default=False, nullable=False)  # ✅ 新增：本地待同步状态
 
@@ -141,8 +141,8 @@ class UserFollow(Base):
 class WatchHistory(Base):
     __tablename__ = "beatu_watch_history"
 
-    videoId = Column(BigInteger, ForeignKey("beatu_video.videoId"), primary_key=True, nullable=False)  # ✅ 修改：字段名从 video_id 改为 videoId，复合主键
-    userId = Column(String(64), ForeignKey("beatu_user.userId"), primary_key=True, nullable=False)  # ✅ 修改：字段名从 user_id 改为 userId，复合主键
+    videoId = Column(BigInteger, primary_key=True, nullable=False)  # ✅ 修改：字段名从 video_id 改为 videoId，复合主键，移除外键约束
+    userId = Column(String(64), primary_key=True, nullable=False)  # ✅ 修改：字段名从 user_id 改为 userId，复合主键，移除外键约束
     lastPlayPositionMs = Column(BigInteger, default=0, nullable=False)  # ✅ 修改：字段名从 last_seek_ms 改为 lastPlayPositionMs
     watchedAt = Column(BigInteger, nullable=False)  # ✅ 修改：字段名从 last_watch_at 改为 watchedAt，类型从 DateTime 改为 BigInteger（Unix时间戳毫秒）
     isPending = Column(Boolean, default=False, nullable=False)  # ✅ 新增：本地待同步状态（弱一致性数据）

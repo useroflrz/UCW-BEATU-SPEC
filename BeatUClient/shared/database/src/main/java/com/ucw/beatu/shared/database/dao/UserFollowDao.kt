@@ -60,6 +60,18 @@ interface UserFollowDao {
 
     @Query("DELETE FROM beatu_user_follow")
     suspend fun clear()
+
+    /**
+     * 查询所有关注关系（用于调试）
+     */
+    @Query("SELECT * FROM beatu_user_follow")
+    suspend fun getAll(): List<UserFollowEntity>
+
+    /**
+     * 查询指定用户的所有关注关系（包括 isFollowed=false 的）
+     */
+    @Query("SELECT * FROM beatu_user_follow WHERE userId = :userId")
+    suspend fun getAllByUserId(userId: String): List<UserFollowEntity>
 }
 
 

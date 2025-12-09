@@ -15,6 +15,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.flow.combine
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.navigation.fragment.findNavController
@@ -319,10 +320,16 @@ class UserProfileFragment : Fragment() {
                     }
                 }
                 launch {
-                    // 观察关注状态（从本地数据库，通过 ViewModel StateFlow）
+                    // 观察关注状态和交互状态（从本地数据库，通过 ViewModel StateFlow）
                     if (isReadOnly) {
-                        viewModel.isFollowing.collect { isFollowing ->
-                            followButtonManager.updateFollowButton(isFollowing)
+                        combine(
+                            viewModel.isFollowing,
+                            viewModel.isInteracting
+                        ) { isFollowing: Boolean?, isInteracting: Boolean ->
+                            Pair(isFollowing, isInteracting)
+                        }.collect { pair: Pair<Boolean?, Boolean> ->
+                            val (isFollowing: Boolean?, isInteracting: Boolean) = pair
+                            followButtonManager.updateFollowButton(isFollowing, isInteracting)
                         }
                     }
                 }

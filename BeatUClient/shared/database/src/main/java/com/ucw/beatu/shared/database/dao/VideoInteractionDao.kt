@@ -60,5 +60,11 @@ interface VideoInteractionDao {
      */
     @Query("DELETE FROM beatu_video_interaction")
     suspend fun clear()
+
+    /**
+     * 查询所有视频交互（用于调试）
+     */
+    @Query("SELECT * FROM beatu_video_interaction")
+    suspend fun getAll(): List<VideoInteractionEntity>
 }
 

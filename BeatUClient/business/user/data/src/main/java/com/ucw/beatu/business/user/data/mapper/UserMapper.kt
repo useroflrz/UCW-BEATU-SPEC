@@ -1,5 +1,6 @@
 package com.ucw.beatu.business.user.data.mapper
 
+import android.util.Log
 import com.ucw.beatu.business.user.data.api.dto.UserDto
 import com.ucw.beatu.business.user.domain.model.User
 import com.ucw.beatu.shared.database.entity.UserEntity
@@ -41,14 +42,19 @@ fun User.toEntity(): UserEntity {
  * UserDto -> User
  */
 fun UserDto.toDomain(): User {
+    Log.d("UserDto", "id=${id}")
+    Log.d("UserDto", "name=${name}")
+    Log.d("UserDto", "followingCount=${followingCount} (类型: ${followingCount::class.java.simpleName})")
+    Log.d("UserDto", "followersCount=${followersCount} (类型: ${followersCount::class.java.simpleName})")
+    Log.d("UserDto", "bio=${bio}")
     return User(
         id = id,
         avatarUrl = avatarUrl,
         name = name,
         bio = bio,
-        likesCount = likesCount,
         followingCount = followingCount,
-        followersCount = followersCount
+        followersCount = followersCount,
+        likesCount = likesCount
     )
 }
 

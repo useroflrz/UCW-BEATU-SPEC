@@ -3,6 +3,7 @@ package com.ucw.beatu.business.videofeed.data.api
 import com.ucw.beatu.business.videofeed.data.api.dto.CommentDto
 import com.ucw.beatu.business.videofeed.data.api.dto.CommentRequest
 import com.ucw.beatu.business.videofeed.data.api.dto.VideoDto
+import com.ucw.beatu.business.videofeed.data.api.dto.WatchHistorySyncRequest
 import com.ucw.beatu.shared.common.api.ApiResponse
 import com.ucw.beatu.shared.common.api.PageResponse
 import retrofit2.http.Body
@@ -116,5 +117,19 @@ interface VideoFeedApiService {
      */
     @GET("api/videos/interactions")
     suspend fun getAllVideoInteractions(): ApiResponse<List<Map<String, Any>>>
+    
+    /**
+     * 获取指定用户的所有观看历史（启动时全量加载）
+     * GET /api/videos/watch-history
+     */
+    @GET("api/videos/watch-history")
+    suspend fun getAllWatchHistories(): ApiResponse<List<Map<String, Any>>>
+    
+    /**
+     * 同步观看历史（定时批量提交）
+     * POST /api/videos/watch-history/sync
+     */
+    @POST("api/videos/watch-history/sync")
+    suspend fun syncWatchHistories(@Body histories: List<WatchHistorySyncRequest>): ApiResponse<Map<String, Any>>
 }
 

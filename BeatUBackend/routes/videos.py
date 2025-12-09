@@ -71,6 +71,27 @@ def list_videos(
     return success_response(response_data.dict(by_alias=True))
 
 
+# ✅ 重要：具体的路由必须放在参数化路由之前，否则会被 /videos/{video_id} 匹配
+@router.get("/videos/interactions")
+def get_all_video_interactions(
+    service: VideoService = Depends(get_video_service),
+    user_id: str = Depends(resolve_user),
+):
+    """获取指定用户的所有视频交互（首次启动时全量加载）"""
+    interactions = service.get_all_video_interactions(user_id)
+    return success_response(interactions)
+
+
+@router.get("/videos/watch-history")
+def get_all_watch_histories(
+    service: VideoService = Depends(get_video_service),
+    user_id: str = Depends(resolve_user),
+):
+    """获取指定用户的所有观看历史（启动时全量加载）"""
+    histories = service.get_all_watch_histories(user_id)
+    return success_response(histories)
+
+
 @router.get("/videos/{video_id}")
 def get_video(
     video_id: int,  # ✅ 修改：从 str 改为 int (Long)
@@ -206,11 +227,20 @@ def search_videos(
     return success_response(data.dict(by_alias=True))
 
 
-@router.get("/videos/interactions")
-def get_all_video_interactions(
+@router.post("/videos/watch-history/sync")
+def sync_watch_histories(
+    histories: list[dict],
     service: VideoService = Depends(get_video_service),
     user_id: str = Depends(resolve_user),
 ):
-    """获取指定用户的所有视频交互（首次启动时全量加载）"""
-    interactions = service.get_all_video_interactions(user_id)
-    return success_response(interactions)
+    """同步观看历史（退出app时批量提交）"""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"收到观看历史同步请求：user_id={user_id}, 历史记录数量={len(histories) if histories else 0}")
+    if histories:
+        logger.info(f"第一条历史记录示例：{histories[0]}")
+        logger.info(f"第一条历史记录的所有键：{list(histories[0].keys()) if histories[0] else []}")
+    
+    result = service.sync_watch_histories(user_id, histories)
+    logger.info(f"观看历史同步结果：success={result.success}, message={result.message}")
+    return success_response(result.dict(by_alias=True))
