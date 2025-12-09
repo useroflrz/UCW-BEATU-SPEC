@@ -43,14 +43,24 @@ class LandscapeViewModel @Inject constructor(
      */
     fun setVideoList(videoList: List<VideoItem>, currentIndex: Int) {
         _isUsingFixedVideoList = true
+        // ✅ 修复：过滤掉 PORTRAIT 视频，只保留 LANDSCAPE 视频
+        val landscapeOnlyList = videoList.filter { 
+            it.orientation == com.ucw.beatu.business.landscape.domain.model.VideoOrientation.LANDSCAPE 
+        }
+        
+        if (landscapeOnlyList.isEmpty()) {
+            AppLogger.w(TAG, "setVideoList: 视频列表中没有 LANDSCAPE 视频，无法设置，原始列表大小=${videoList.size}")
+            return
+        }
+        
         // 直接设置视频列表，保持原有顺序
         _uiState.value = _uiState.value.copy(
-            videoList = videoList,
+            videoList = landscapeOnlyList,
             isLoading = false,
             error = null,
             lastUpdated = System.currentTimeMillis()
         )
-        AppLogger.d(TAG, "Set fixed video list size=${videoList.size}, currentIndex=$currentIndex")
+        AppLogger.d(TAG, "Set fixed LANDSCAPE video list, 过滤前大小=${videoList.size}, 过滤后大小=${landscapeOnlyList.size}, currentIndex=$currentIndex")
     }
 
     fun loadVideoList() {
@@ -88,7 +98,16 @@ class LandscapeViewModel @Inject constructor(
                     }
 
                     is AppResult.Success -> {
+                        // ✅ 修复：映射后再次过滤，确保只有 LANDSCAPE 视频
                         val mapped = result.data.map { it.toPresentationModel() }
+                            .filter { it.orientation == com.ucw.beatu.business.landscape.domain.model.VideoOrientation.LANDSCAPE }
+                        
+                        if (mapped.isEmpty()) {
+                            AppLogger.w(TAG, "Loaded landscape page=$page, but no LANDSCAPE videos after filtering")
+                        } else {
+                            AppLogger.d(TAG, "Loaded landscape page=$page, filtered to ${mapped.size} LANDSCAPE videos")
+                        }
+                        
                         _uiState.update { state ->
                             val baseList = if (append) {
                                 state.videoList + mapped
@@ -142,14 +161,25 @@ class LandscapeViewModel @Inject constructor(
 
     private fun applyPendingExternalVideo(forceInsert: Boolean) {
         val external = pendingExternalVideo ?: return
+        
+        // ✅ 修复：检查外部视频是否为 LANDSCAPE，如果不是则拒绝添加
+        if (external.orientation != com.ucw.beatu.business.landscape.domain.model.VideoOrientation.LANDSCAPE) {
+            AppLogger.w(TAG, "applyPendingExternalVideo: 外部视频不是 LANDSCAPE 视频，拒绝添加，videoId=${external.id}")
+            pendingExternalVideo = null
+            shouldReapplyExternalVideo = false
+            return
+        }
+        
         val currentList = _uiState.value.videoList
         if (currentList.isEmpty() && !forceInsert) return
 
         val merged = buildList {
             add(external)
-            currentList.forEach { item ->
-                if (item.id != external.id) add(item)
-            }
+            // ✅ 修复：过滤当前列表，只保留 LANDSCAPE 视频
+            currentList.filter { it.orientation == com.ucw.beatu.business.landscape.domain.model.VideoOrientation.LANDSCAPE }
+                .forEach { item ->
+                    if (item.id != external.id) add(item)
+                }
         }.take(maxCachedItems)
 
         _uiState.value = _uiState.value.copy(

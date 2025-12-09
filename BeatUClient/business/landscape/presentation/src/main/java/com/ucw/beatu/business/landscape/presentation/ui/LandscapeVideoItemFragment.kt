@@ -1003,6 +1003,13 @@ class LandscapeVideoItemFragment : Fragment() {
 
         try {
             val item = videoItem!!
+            
+            // ✅ 修复：检查视频是否为 LANDSCAPE，如果不是则拒绝加载
+            if (item.orientation != com.ucw.beatu.business.landscape.domain.model.VideoOrientation.LANDSCAPE) {
+                Log.w(TAG, "loadVideo: 视频不是 LANDSCAPE 视频，拒绝加载，videoId=${item.id}, orientation=${item.orientation}")
+                return
+            }
+            
             Log.d(TAG, "Loading landscape video: ${item.id} - ${item.videoUrl}")
 
             viewModel.bindVideoMeta(item)
@@ -1028,8 +1035,12 @@ class LandscapeVideoItemFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        if (isAdded && viewModel.uiState.value.currentVideoId != null) {
+        // ✅ 修复：onResume 时也要检查可见性，只有可见时才播放
+        if (isAdded && viewModel.uiState.value.currentVideoId != null && isCurrentlyVisibleToUser) {
+            Log.d(TAG, "onResume: Fragment 可见，恢复播放 videoId=${viewModel.uiState.value.currentVideoId}")
             viewModel.resume()
+        } else {
+            Log.d(TAG, "onResume: Fragment 不可见，不播放 videoId=${viewModel.uiState.value.currentVideoId}, isCurrentlyVisibleToUser=$isCurrentlyVisibleToUser")
         }
     }
 
