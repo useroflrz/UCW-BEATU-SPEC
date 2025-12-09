@@ -14,6 +14,8 @@ data class UserWork(
     val commentCount: Long,
     val favoriteCount: Long,
     val shareCount: Long,
-    val orientation: String = "PORTRAIT"  // ✅ 新增：视频方向，默认为 PORTRAIT
+    val orientation: String = "PORTRAIT",  // ✅ 新增：视频方向，默认为 PORTRAIT
+    val authorId: String = "",  // ✅ 新增：作者ID，用于获取用户详细信息
+    val authorAvatar: String? = null  // ✅ 新增：作者头像URL
 )
 

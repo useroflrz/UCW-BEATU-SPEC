@@ -331,12 +331,15 @@ class UserProfileViewModel @Inject constructor(
         viewModelScope.launch {
             try {
             android.util.Log.d("UserProfileViewModel", "Following user: targetUserId=$targetUserId, currentUserId=$currentUserId")
-                // 设置交互状态
-                _isInteracting.value = true
-                _followOperationError.value = null
-
                 // 保存当前用户状态，用于回滚
                 val currentUser = _user.value
+                
+                // ✅ 修复：乐观更新 - 立即更新UI状态，让用户看到"取消关注"
+                _isFollowing.value = true
+                _followOperationError.value = null
+                // 设置交互状态（用于防止重复点击，但不禁用按钮）
+                _isInteracting.value = true
+                
                 // 1. 乐观更新：先更新本地数据库（会触发 observeIsFollowing 的 Flow 更新）
                 userRepository.followUser(currentUserId, targetUserId)
                 // 2. 乐观更新粉丝数
@@ -347,9 +350,13 @@ class UserProfileViewModel @Inject constructor(
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // 协程被取消是正常的，不需要记录错误
                 android.util.Log.d("UserProfileViewModel", "Follow user cancelled: targetUserId=$targetUserId")
+                // ✅ 修复：回滚乐观更新的关注状态
+                _isFollowing.value = false
                 _isInteracting.value = false
             } catch (e: Exception) {
                 android.util.Log.e("UserProfileViewModel", "Failed to follow user: targetUserId=$targetUserId", e)
+                // ✅ 修复：本地更新失败，回滚乐观更新的关注状态
+                _isFollowing.value = false
                 // 本地更新失败，显示错误提示
                 _followOperationError.value = "操作失败，请重试"
                 _isInteracting.value = false
@@ -371,12 +378,15 @@ class UserProfileViewModel @Inject constructor(
         viewModelScope.launch {
             try {
             android.util.Log.d("UserProfileViewModel", "Unfollowing user: targetUserId=$targetUserId, currentUserId=$currentUserId")
-                // 设置交互状态
-                _isInteracting.value = true
-                _followOperationError.value = null
-
                 // 保存当前用户状态，用于回滚
                 val currentUser = _user.value
+                
+                // ✅ 修复：乐观更新 - 立即更新UI状态，让用户看到"关注"
+                _isFollowing.value = false
+                _followOperationError.value = null
+                // 设置交互状态（用于防止重复点击，但不禁用按钮）
+                _isInteracting.value = true
+                
                 // 1. 乐观更新：先更新本地数据库（会触发 observeIsFollowing 的 Flow 更新）
             userRepository.unfollowUser(currentUserId, targetUserId)
                 // 2. 乐观更新粉丝数
@@ -387,9 +397,13 @@ class UserProfileViewModel @Inject constructor(
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // 协程被取消是正常的，不需要记录错误
                 android.util.Log.d("UserProfileViewModel", "Unfollow user cancelled: targetUserId=$targetUserId")
+                // ✅ 修复：回滚乐观更新的关注状态
+                _isFollowing.value = true
                 _isInteracting.value = false
             } catch (e: Exception) {
                 android.util.Log.e("UserProfileViewModel", "Failed to unfollow user: targetUserId=$targetUserId", e)
+                // ✅ 修复：本地更新失败，回滚乐观更新的关注状态
+                _isFollowing.value = true
                 // 本地更新失败，显示错误提示
                 _followOperationError.value = "操作失败，请重试"
                 _isInteracting.value = false
@@ -411,19 +425,21 @@ class UserProfileViewModel @Inject constructor(
                         android.util.Log.d("UserProfileViewModel", "Follow sync success: isFollow=${result.isFollow}, targetUserId=${result.targetUserId}")
                     }
                     is UserRepository.FollowSyncResult.Error -> {
-                        // 同步失败，回滚乐观更新的粉丝数
+                        // 同步失败，回滚乐观更新的粉丝数和关注状态
                         android.util.Log.e("UserProfileViewModel", "Follow sync error: ${result.error}, isFollow=${result.isFollow}, targetUserId=${result.targetUserId}")
                         _user.value?.let { user ->
                             // 根据操作类型回滚粉丝数
                             if (result.isFollow) {
-                                // 关注失败，回滚：粉丝数 -1
+                                // 关注失败，回滚：粉丝数 -1，关注状态回滚为 false
                                 _user.value = user.copy(followersCount = (user.followersCount - 1).coerceAtLeast(0))
+                                _isFollowing.value = false  // ✅ 修复：回滚关注状态
                             } else {
-                                // 取消关注失败，回滚：粉丝数 +1
+                                // 取消关注失败，回滚：粉丝数 +1，关注状态回滚为 true
                                 _user.value = user.copy(followersCount = user.followersCount + 1)
+                                _isFollowing.value = true  // ✅ 修复：回滚关注状态
                             }
                         }
-                        // 显示错误信息（关注状态已由 Repository 回滚，通过 observeIsFollowing 自动更新）
+                        // 显示错误信息（关注状态已回滚）
                         _followOperationError.value = result.error
                         _isInteracting.value = false
                     }

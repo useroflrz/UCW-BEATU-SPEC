@@ -47,9 +47,9 @@ dependencies {
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
     
-    // Room
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
+    // Room（对外暴露 Room API，避免上层模块缺失 RoomDatabase 依赖）
+    api(libs.androidx.room.runtime)
+    api(libs.androidx.room.ktx)
     kapt(libs.androidx.room.compiler)
     
     // DataStore

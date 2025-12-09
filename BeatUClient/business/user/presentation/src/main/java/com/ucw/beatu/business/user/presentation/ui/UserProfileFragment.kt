@@ -33,9 +33,11 @@ import com.ucw.beatu.business.user.presentation.ui.helper.UserProfileNavigationH
 import com.ucw.beatu.business.user.presentation.ui.helper.UserProfileTabManager
 import com.ucw.beatu.business.user.presentation.viewmodel.UserProfileViewModel
 import com.ucw.beatu.shared.common.util.NumberFormatter
+import com.ucw.beatu.shared.database.BeatUDatabase
 import com.ucw.beatu.shared.designsystem.util.IOSButtonEffect
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * 用户主页Fragment
@@ -45,6 +47,9 @@ import kotlinx.coroutines.launch
 class UserProfileFragment : Fragment() {
 
     private val viewModel: UserProfileViewModel by viewModels()
+    
+    @Inject
+    lateinit var database: BeatUDatabase  // ✅ 新增：注入数据库依赖，用于查询用户视频交互状态
 
     // UI 元素
     private lateinit var ivAvatar: ImageView
@@ -198,7 +203,8 @@ class UserProfileFragment : Fragment() {
             fragment = this,
             isReadOnly = isReadOnly,
             getUser = { latestUser },
-            getUserWorks = { latestUserWorks }
+            getUserWorks = { latestUserWorks },
+            database = database  // ✅ 新增：传入数据库依赖，用于查询用户视频交互状态
         )
 
         tabManager = UserProfileTabManager(

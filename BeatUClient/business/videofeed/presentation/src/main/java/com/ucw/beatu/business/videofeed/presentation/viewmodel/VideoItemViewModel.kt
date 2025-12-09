@@ -11,7 +11,11 @@ import com.ucw.beatu.business.videofeed.domain.usecase.SaveWatchHistoryUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.UnfavoriteVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.ShareVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.UnlikeVideoUseCase
+import com.ucw.beatu.business.videofeed.data.local.VideoInteractionLocalDataSource
+import com.ucw.beatu.business.videofeed.domain.repository.VideoInteractionError
+import com.ucw.beatu.business.videofeed.domain.repository.VideoRepository
 import com.ucw.beatu.shared.common.result.AppResult
+import com.ucw.beatu.shared.database.BeatUDatabase
 import com.ucw.beatu.shared.player.VideoPlayer
 import com.ucw.beatu.shared.player.model.VideoSource
 import com.ucw.beatu.shared.player.pool.VideoPlayerPool
@@ -23,6 +27,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -57,7 +62,10 @@ class VideoItemViewModel @Inject constructor(
     private val favoriteVideoUseCase: FavoriteVideoUseCase,
     private val unfavoriteVideoUseCase: UnfavoriteVideoUseCase,
     private val shareVideoUseCase: ShareVideoUseCase,
-    private val saveWatchHistoryUseCase: SaveWatchHistoryUseCase
+    private val saveWatchHistoryUseCase: SaveWatchHistoryUseCase,
+    private val interactionLocalDataSource: VideoInteractionLocalDataSource,  // ✅ 新增：用于观察数据库变化
+    private val database: BeatUDatabase,  // ✅ 新增：用于观察视频表变化
+    private val videoRepository: VideoRepository  // ✅ 新增：用于监听错误
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(VideoItemUiState())
@@ -71,6 +79,12 @@ class VideoItemViewModel @Inject constructor(
     private var exoPlayerListener: Player.Listener? = null
     private var handoffInProgress = false
     private var pendingSession: PlaybackSession? = null // 保存会话信息，在 onReady 中使用
+    private var interactionObservationJob: Job? = null  // ✅ 新增：观察数据库变化的 Job
+    private var videoObservationJob: Job? = null  // ✅ 新增：观察视频表变化的 Job
+    private var errorObservationJob: Job? = null  // ✅ 新增：观察错误事件的 Job
+    
+    // ✅ 新增：当前用户ID（固定为 BEATU）
+    private val currentUserId: String = "BEATU"
 
     /**
      * 播放视频
@@ -90,6 +104,12 @@ class VideoItemViewModel @Inject constructor(
                 releaseCurrentPlayer()
             } else {
                 android.util.Log.d("VideoItemViewModel", "playVideo: 从横屏返回，跳过释放播放器，videoId=$videoId")
+            }
+
+            // ✅ 修复：如果切换了视频，停止之前的观察并重新启动（会在 initInteractionState 中启动）
+            if (currentVideoId != null && currentVideoId != videoId) {
+                stopObservingInteraction()
+                stopObservingVideo()
             }
 
             // 更新状态
@@ -666,6 +686,9 @@ class VideoItemViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        stopObservingInteraction()  // ✅ 修复：停止观察数据库变化
+        stopObservingVideo()  // ✅ 修复：停止观察视频表变化
+        stopObservingErrors()  // ✅ 修复：停止观察错误事件
         releaseCurrentPlayer()
     }
 
@@ -837,6 +860,7 @@ class VideoItemViewModel @Inject constructor(
     /**
      * 初始化互动状态（从 VideoItem 传入）
      * 同时记录当前 videoId，保证在播放器尚未准备时也能执行点赞/收藏操作。
+     * ✅ 修复：启动观察数据库变化，实时同步点赞/收藏状态
      */
     fun initInteractionState(
         videoId: Long,  // ✅ 修改：从 String 改为 Long
@@ -852,6 +876,133 @@ class VideoItemViewModel @Inject constructor(
             likeCount = likeCount,
             favoriteCount = favoriteCount
         )
+        
+        // ✅ 修复：启动观察数据库变化，实时同步点赞/收藏状态
+        startObservingInteraction(videoId)
+        // ✅ 修复：启动观察视频表变化，实时同步点赞数/收藏数
+        startObservingVideo(videoId)
+        // ✅ 修复：启动观察错误事件
+        startObservingErrors()
+    }
+    
+    /**
+     * 开始观察数据库中的互动状态变化
+     * 当数据库中的点赞/收藏状态变化时（比如在其他页面点赞/收藏），自动更新 UI
+     */
+    private fun startObservingInteraction(videoId: Long) {
+        // 取消之前的观察
+        interactionObservationJob?.cancel()
+        
+        interactionObservationJob = viewModelScope.launch {
+            interactionLocalDataSource.observeInteraction(videoId, currentUserId)
+                .catch { e ->
+                    android.util.Log.e("VideoItemViewModel", "观察互动状态失败: videoId=$videoId", e)
+                }
+                .collect { interaction ->
+                    if (interaction != null) {
+                        // ✅ 修复：数据库变化时，更新 UI 状态（但保留当前的 likeCount 和 favoriteCount，因为它们可能已经乐观更新）
+                        val currentState = _uiState.value
+                        _uiState.value = currentState.copy(
+                            isLiked = interaction.isLiked,
+                            isFavorited = interaction.isFavorited
+                        )
+                        android.util.Log.d("VideoItemViewModel", "数据库互动状态更新: videoId=$videoId, isLiked=${interaction.isLiked}, isFavorited=${interaction.isFavorited}")
+                    } else {
+                        // 数据库中没有记录，说明未点赞/未收藏
+                        val currentState = _uiState.value
+                        _uiState.value = currentState.copy(
+                            isLiked = false,
+                            isFavorited = false
+                        )
+                        android.util.Log.d("VideoItemViewModel", "数据库中没有互动记录: videoId=$videoId，设置为未点赞/未收藏")
+                    }
+                }
+        }
+    }
+    
+    /**
+     * 停止观察数据库变化（当视频切换或 Fragment 销毁时调用）
+     */
+    private fun stopObservingInteraction() {
+        interactionObservationJob?.cancel()
+        interactionObservationJob = null
+    }
+    
+    /**
+     * 开始观察视频表中的点赞数/收藏数变化
+     * 当视频表的计数变化时（比如在其他页面点赞/收藏），自动更新 UI
+     */
+    private fun startObservingVideo(videoId: Long) {
+        // 取消之前的观察
+        videoObservationJob?.cancel()
+        
+        videoObservationJob = viewModelScope.launch {
+            database.videoDao().observeVideoById(videoId)
+                .catch { e ->
+                    android.util.Log.e("VideoItemViewModel", "观察视频表失败: videoId=$videoId", e)
+                }
+                .collect { videoEntity ->
+                    if (videoEntity != null) {
+                        // ✅ 修复：视频表变化时，更新 UI 的点赞数/收藏数
+                        val currentState = _uiState.value
+                        _uiState.value = currentState.copy(
+                            likeCount = videoEntity.likeCount,
+                            favoriteCount = videoEntity.favoriteCount
+                        )
+                        android.util.Log.d("VideoItemViewModel", "视频表计数更新: videoId=$videoId, likeCount=${videoEntity.likeCount}, favoriteCount=${videoEntity.favoriteCount}")
+                    }
+                }
+        }
+    }
+    
+    /**
+     * 停止观察视频表变化
+     */
+    private fun stopObservingVideo() {
+        videoObservationJob?.cancel()
+        videoObservationJob = null
+    }
+    
+    /**
+     * 开始观察点赞/收藏操作错误
+     */
+    private fun startObservingErrors() {
+        // 如果已经启动，不需要重复启动（全局观察，不需要为每个视频启动）
+        if (errorObservationJob != null) {
+            return
+        }
+        
+        errorObservationJob = viewModelScope.launch {
+            videoRepository.observeInteractionErrors()
+                .catch { e ->
+                    android.util.Log.e("VideoItemViewModel", "观察错误事件失败", e)
+                }
+                .collect { error ->
+                    // 只处理当前视频的错误
+                    if (error.videoId == _uiState.value.currentVideoId) {
+                        val errorMessage = when (error.operation) {
+                            "like" -> "点赞失败：${error.errorMessage}"
+                            "unlike" -> "取消点赞失败：${error.errorMessage}"
+                            "favorite" -> "收藏失败：${error.errorMessage}"
+                            "unfavorite" -> "取消收藏失败：${error.errorMessage}"
+                            else -> error.errorMessage
+                        }
+                        android.util.Log.e("VideoItemViewModel", "收到错误事件: videoId=${error.videoId}, operation=${error.operation}, message=$errorMessage")
+                        _uiState.value = _uiState.value.copy(
+                            error = errorMessage,
+                            isInteracting = false
+                        )
+                    }
+                }
+        }
+    }
+    
+    /**
+     * 停止观察错误事件
+     */
+    private fun stopObservingErrors() {
+        errorObservationJob?.cancel()
+        errorObservationJob = null
     }
 
     /**
@@ -930,6 +1081,13 @@ class VideoItemViewModel @Inject constructor(
         android.util.Log.d("VideoItemViewModel", "setSpeed: 设置倍速=$speed")
     }
 
+    /**
+     * 清除错误信息
+     */
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(error = null)
+    }
+    
     /**
      * 切换收藏状态
      */

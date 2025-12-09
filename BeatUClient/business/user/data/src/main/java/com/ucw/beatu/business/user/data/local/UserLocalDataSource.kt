@@ -139,6 +139,17 @@ class UserLocalDataSourceImpl @Inject constructor(
             isPending = true // ✅ 修改：设置 isPending = true（乐观更新）
         )
         userFollowDao.insert(relation)
+        
+        // ✅ 修复：更新用户表的关注数和粉丝数
+        try {
+            // 当前用户的关注数 +1
+            userDao.updateFollowingCount(currentUserId, 1)
+            // 被关注用户的粉丝数 +1
+            userDao.updateFollowerCount(targetUserId, 1)
+            android.util.Log.d("UserLocalDataSource", "Follow user: currentUserId=$currentUserId, targetUserId=$targetUserId, counts updated")
+        } catch (e: Exception) {
+            android.util.Log.e("UserLocalDataSource", "Failed to update user counts: currentUserId=$currentUserId, targetUserId=$targetUserId", e)
+        }
     }
 
     override suspend fun unfollowUser(currentUserId: String, targetUserId: String) {
@@ -154,6 +165,17 @@ class UserLocalDataSourceImpl @Inject constructor(
                 isFollowed = false,
                 isPending = true
             ))
+        }
+        
+        // ✅ 修复：更新用户表的关注数和粉丝数（减少）
+        try {
+            // 当前用户的关注数 -1
+            userDao.updateFollowingCount(currentUserId, -1)
+            // 被取消关注用户的粉丝数 -1
+            userDao.updateFollowerCount(targetUserId, -1)
+            android.util.Log.d("UserLocalDataSource", "Unfollow user: currentUserId=$currentUserId, targetUserId=$targetUserId, counts updated")
+        } catch (e: Exception) {
+            android.util.Log.e("UserLocalDataSource", "Failed to update user counts: currentUserId=$currentUserId, targetUserId=$targetUserId", e)
         }
     }
 
@@ -180,6 +202,22 @@ class UserLocalDataSourceImpl @Inject constructor(
         } else {
             // 如果不存在且不应该关注，删除记录（如果存在）
             userFollowDao.delete(currentUserId, targetUserId)
+        }
+        
+        // ✅ 修复：回滚用户表的关注数和粉丝数
+        try {
+            if (shouldFollow) {
+                // 回滚到关注状态：当前用户的关注数 +1，被关注用户的粉丝数 +1
+                userDao.updateFollowingCount(currentUserId, 1)
+                userDao.updateFollowerCount(targetUserId, 1)
+            } else {
+                // 回滚到未关注状态：当前用户的关注数 -1，被取消关注用户的粉丝数 -1
+                userDao.updateFollowingCount(currentUserId, -1)
+                userDao.updateFollowerCount(targetUserId, -1)
+            }
+            android.util.Log.d("UserLocalDataSource", "Rollback follow status: currentUserId=$currentUserId, targetUserId=$targetUserId, shouldFollow=$shouldFollow, counts rolled back")
+        } catch (e: Exception) {
+            android.util.Log.e("UserLocalDataSource", "Failed to rollback user counts: currentUserId=$currentUserId, targetUserId=$targetUserId", e)
         }
     }
 

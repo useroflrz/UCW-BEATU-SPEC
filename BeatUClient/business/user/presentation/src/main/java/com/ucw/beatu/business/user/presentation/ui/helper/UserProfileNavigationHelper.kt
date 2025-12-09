@@ -4,6 +4,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.ucw.beatu.business.user.domain.model.UserWork
 import com.ucw.beatu.business.user.presentation.ui.UserWorksViewerFragment
@@ -11,7 +12,9 @@ import com.ucw.beatu.shared.common.model.VideoItem
 import com.ucw.beatu.shared.common.model.VideoOrientation
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
+import com.ucw.beatu.shared.database.BeatUDatabase
 import com.ucw.beatu.shared.router.UserProfileVideoClickHost
+import kotlinx.coroutines.launch
 
 /**
  * 管理用户主页的导航相关逻辑
@@ -20,7 +23,8 @@ class UserProfileNavigationHelper(
     private val fragment: Fragment,
     private val isReadOnly: Boolean,
     private val getUser: () -> com.ucw.beatu.business.user.domain.model.User?,
-    private val getUserWorks: () -> List<UserWork>
+    private val getUserWorks: () -> List<UserWork>,
+    private val database: BeatUDatabase? = null  // ✅ 新增：数据库依赖，用于查询用户视频交互状态
 ) {
     companion object {
         private const val TAG = "UserProfileNavigationHelper"
@@ -36,17 +40,78 @@ class UserProfileNavigationHelper(
             return
         }
 
-        val authorName = getUser()?.name ?: "BeatU 用户"
-        val videoItems = ArrayList(works.map { it.toVideoItem(authorName) })
-        val initialIndex = works.indexOfFirst { it.id == selectedWorkId }.let { index ->
-            if (index == -1) 0 else index
+        val currentUserId = getUser()?.id ?: "BEATU"
+        
+        // ✅ 修复：使用协程查询用户视频交互状态，并转换为 VideoItem
+        fragment.lifecycleScope.launch {
+            val videoItems = ArrayList<VideoItem>()
+            val interactionDao = database?.videoInteractionDao()
+            val userDao = database?.userDao()
+            
+            works.forEach { work ->
+                // ✅ 修复：通过视频的 authorId 查询用户信息，获取正确的 authorName
+                val videoAuthorId = work.authorId.ifEmpty { currentUserId }
+                var videoAuthorName = "BeatU 用户"
+                var videoAuthorAvatar = work.authorAvatar
+                
+                // 通过 authorId 查询用户信息
+                if (videoAuthorId.isNotEmpty()) {
+                    try {
+                        val userEntity = userDao?.getUserById(videoAuthorId)
+                        if (userEntity != null) {
+                            videoAuthorName = userEntity.userName
+                            // 如果 work.authorAvatar 为空，使用用户表中的 avatarUrl
+                            if (videoAuthorAvatar.isNullOrBlank() && !userEntity.avatarUrl.isNullOrBlank()) {
+                                videoAuthorAvatar = userEntity.avatarUrl
+                            }
+                            Log.d(TAG, "通过authorId查询到用户信息: authorId=$videoAuthorId, authorName=$videoAuthorName")
+                        } else {
+                            Log.w(TAG, "未查询到用户信息: authorId=$videoAuthorId，使用默认值")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "查询用户信息失败: authorId=$videoAuthorId", e)
+                    }
+                }
+                
+                // 查询用户视频交互状态
+                val interaction = interactionDao?.getInteraction(work.id, currentUserId)
+                val isLiked = interaction?.isLiked ?: false
+                val isFavorited = interaction?.isFavorited ?: false
+                
+                // 转换为 VideoItem，包含点赞/收藏状态和用户信息
+                val videoItem = work.toVideoItem(
+                    authorName = videoAuthorName,  // ✅ 修复：使用通过 videoId 查询到的 authorName
+                    authorId = videoAuthorId,
+                    authorAvatar = videoAuthorAvatar,
+                    isLiked = isLiked,
+                    isFavorited = isFavorited
+                )
+                videoItems.add(videoItem)
+            }
+            
+            val initialIndex = works.indexOfFirst { it.id == selectedWorkId }.let { index ->
+                if (index == -1) 0 else index
+            }
+            
+            // 继续导航逻辑（authorName 不再需要，因为每个 VideoItem 都有自己的 authorName）
+            navigateToUserWorksViewerInternal(videoItems, initialIndex, currentUserId, "")
         }
+    }
+    
+    /**
+     * 内部导航方法（在协程中调用）
+     */
+    private fun navigateToUserWorksViewerInternal(
+        videoItems: ArrayList<VideoItem>,
+        initialIndex: Int,
+        currentUserId: String,
+        authorName: String
+    ) {
 
         // 在只读模式下（从DialogFragment中显示），通过接口回调父 Fragment；否则使用findNavController()导航
         if (isReadOnly) {
             val host = fragment.parentFragment as? UserProfileVideoClickHost
             if (host != null) {
-                val currentUserId = getUser()?.id ?: "BEATU"
                 host.onUserWorkClicked(currentUserId, authorName, videoItems, initialIndex)
                 Log.d(TAG, "Notified parent fragment via UserProfileVideoClickHost")
             } else {
@@ -70,7 +135,6 @@ class UserProfileNavigationHelper(
                 return
             }
 
-            val currentUserId = getUser()?.id ?: "current_user"
             // ✅ 修复：记录来源页面 ID，用于返回时决定返回到哪里
             val currentDestinationId = navController.currentDestination?.id ?: 0
             val bundle = bundleOf(
@@ -86,8 +150,15 @@ class UserProfileNavigationHelper(
 
     /**
      * 将 UserWork 转换为 VideoItem
+     * ✅ 修复：添加 authorId、authorAvatar、isLiked、isFavorited 参数
      */
-    private fun UserWork.toVideoItem(authorName: String): VideoItem {
+    private fun UserWork.toVideoItem(
+        authorName: String,
+        authorId: String,
+        authorAvatar: String?,
+        isLiked: Boolean,
+        isFavorited: Boolean
+    ): VideoItem {
         // ✅ 修复：从 UserWork 中读取真实的 orientation，而不是硬编码为 PORTRAIT
         val videoOrientation = when (orientation.uppercase()) {
             "LANDSCAPE", "HORIZONTAL" -> VideoOrientation.LANDSCAPE
@@ -99,10 +170,14 @@ class UserProfileNavigationHelper(
             videoUrl = playUrl,
             title = title,
             authorName = authorName,
+            authorId = authorId,  // ✅ 新增：使用传入的 authorId
+            authorAvatar = authorAvatar,  // ✅ 新增：使用传入的 authorAvatar
             likeCount = likeCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             commentCount = commentCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             favoriteCount = favoriteCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             shareCount = shareCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            isLiked = isLiked,  // ✅ 新增：使用查询到的点赞状态
+            isFavorited = isFavorited,  // ✅ 新增：使用查询到的收藏状态
             orientation = videoOrientation  // ✅ 修复：使用真实的 orientation 值
         )
     }

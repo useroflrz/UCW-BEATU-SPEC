@@ -19,6 +19,8 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
@@ -27,6 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import android.util.Log
 import javax.inject.Inject
+import com.ucw.beatu.business.videofeed.domain.repository.VideoInteractionError
 
 /**
  * 视频仓储实现
@@ -46,6 +49,10 @@ class VideoRepositoryImpl @Inject constructor(
     // ✅ 修改：当前用户ID，根据SQL，userId "BEATU" 对应的 userName 也是 "BEATU"
     // 使用 userId 而不是 userName，确保与数据库一致
     private val currentUserId: String = "BEATU"  // userId，不是 userName
+    
+    // ✅ 新增：错误通知 Flow，用于通知点赞/收藏操作失败
+    private val _interactionErrorFlow = MutableSharedFlow<VideoInteractionError>(replay = 0)
+    val interactionErrorFlow: Flow<VideoInteractionError> = _interactionErrorFlow.asSharedFlow()
 
     private suspend fun applyInteractionState(videos: List<Video>): List<Video> {
         if (videos.isEmpty()) return videos
@@ -285,12 +292,21 @@ class VideoRepositoryImpl @Inject constructor(
     override suspend fun likeVideo(videoId: Long): AppResult<Unit> {
         // 1. 先更新本地数据库（乐观更新）
         interactionLocalDataSource.updateLikeStatus(videoId, currentUserId, isLiked = true, isPending = true)
+        // ✅ 修复：更新视频表的点赞数
+        try {
+            database.videoDao().updateLikeCount(videoId, 1)
+            Log.d(TAG, "Like video: videoId=$videoId, likeCount incremented (local updated)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update video likeCount: videoId=$videoId", e)
+        }
         Log.d(TAG, "Like video: videoId=$videoId, userId=$currentUserId (local updated)")
 
-        // 2. 异步同步到远程服务器
+        // 2. 异步同步到远程服务器（使用5秒超时）
         syncScope.launch {
             try {
-                val result = remoteDataSource.likeVideo(videoId)
+                val result = withTimeout(5000L) {  // ✅ 修复：缩短超时时间到5秒
+                    remoteDataSource.likeVideo(videoId)
+                }
                 when (result) {
                     is AppResult.Success -> {
                         Log.d(TAG, "Like video sync success: videoId=$videoId")
@@ -298,8 +314,10 @@ class VideoRepositoryImpl @Inject constructor(
                         interactionLocalDataSource.clearPendingStatus(videoId, currentUserId)
                     }
                     is AppResult.Error -> {
-                        val errorMessage = result.message ?: result.throwable.message ?: "网络异常"
+                        val errorMessage = result.message ?: result.throwable.message ?: "网络异常，请稍后重试"
                         Log.e(TAG, "Like video sync failed: videoId=$videoId, error: $errorMessage")
+                        // ✅ 修复：通知错误
+                        _interactionErrorFlow.emit(VideoInteractionError(videoId, "like", errorMessage))
                         // 同步失败，回滚本地状态
                         try {
                             val existing = interactionLocalDataSource.getInteraction(videoId, currentUserId)
@@ -310,6 +328,8 @@ class VideoRepositoryImpl @Inject constructor(
                                 // 如果没有其他状态，删除记录
                                 interactionLocalDataSource.deleteInteraction(videoId, currentUserId)
                             }
+                            // ✅ 修复：回滚视频表的点赞数
+                            database.videoDao().updateLikeCount(videoId, -1)
                             Log.d(TAG, "Like video local state rolled back: videoId=$videoId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback like video local state: videoId=$videoId", e)
@@ -317,20 +337,46 @@ class VideoRepositoryImpl @Inject constructor(
                     }
                     else -> {
                         Log.w(TAG, "Like video sync unknown result: videoId=$videoId")
+                        // ✅ 修复：通知错误
+                        _interactionErrorFlow.emit(VideoInteractionError(videoId, "like", "网络异常，请稍后重试"))
                         // 未知结果，也回滚本地状态
                         try {
                             interactionLocalDataSource.deleteInteraction(videoId, currentUserId)
+                            // ✅ 修复：回滚视频表的点赞数
+                            database.videoDao().updateLikeCount(videoId, -1)
                             Log.d(TAG, "Like video local state rolled back (unknown result): videoId=$videoId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback like video local state: videoId=$videoId", e)
                         }
                     }
                 }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                Log.e(TAG, "Like video sync timeout: videoId=$videoId", e)
+                // ✅ 修复：通知超时错误
+                _interactionErrorFlow.emit(VideoInteractionError(videoId, "like", "请求超时，请稍后重试"))
+                // 超时情况，回滚本地状态
+                try {
+                    interactionLocalDataSource.deleteInteraction(videoId, currentUserId)
+                    // ✅ 修复：回滚视频表的点赞数
+                    database.videoDao().updateLikeCount(videoId, -1)
+                    Log.d(TAG, "Like video local state rolled back (timeout): videoId=$videoId")
+                } catch (rollbackException: Exception) {
+                    Log.e(TAG, "Failed to rollback like video local state: videoId=$videoId", rollbackException)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Like video sync exception: videoId=$videoId", e)
+                // ✅ 修复：通知错误
+                val errorMessage = if (e is kotlinx.coroutines.TimeoutCancellationException) {
+                    "请求超时，请稍后重试"
+                } else {
+                    e.message ?: "网络异常，请稍后重试"
+                }
+                _interactionErrorFlow.emit(VideoInteractionError(videoId, "like", errorMessage))
                 // 异常情况，回滚本地状态
                 try {
                     interactionLocalDataSource.deleteInteraction(videoId, currentUserId)
+                    // ✅ 修复：回滚视频表的点赞数
+                    database.videoDao().updateLikeCount(videoId, -1)
                     Log.d(TAG, "Like video local state rolled back (exception): videoId=$videoId")
                 } catch (rollbackException: Exception) {
                     Log.e(TAG, "Failed to rollback like video local state: videoId=$videoId", rollbackException)
@@ -345,12 +391,21 @@ class VideoRepositoryImpl @Inject constructor(
     override suspend fun unlikeVideo(videoId: Long): AppResult<Unit> {
         // 1. 先更新本地数据库（乐观更新）
         interactionLocalDataSource.updateLikeStatus(videoId, currentUserId, isLiked = false, isPending = true)
+        // ✅ 修复：更新视频表的点赞数（减少）
+        try {
+            database.videoDao().updateLikeCount(videoId, -1)
+            Log.d(TAG, "Unlike video: videoId=$videoId, likeCount decremented (local updated)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update video likeCount: videoId=$videoId", e)
+        }
         Log.d(TAG, "Unlike video: videoId=$videoId, userId=$currentUserId (local updated)")
 
-        // 2. 异步同步到远程服务器
+        // 2. 异步同步到远程服务器（使用5秒超时）
         syncScope.launch {
             try {
-                val result = remoteDataSource.unlikeVideo(videoId)
+                val result = withTimeout(5000L) {  // ✅ 修复：缩短超时时间到5秒
+                    remoteDataSource.unlikeVideo(videoId)
+                }
                 when (result) {
                     is AppResult.Success -> {
                         Log.d(TAG, "Unlike video sync success: videoId=$videoId")
@@ -358,11 +413,15 @@ class VideoRepositoryImpl @Inject constructor(
                         interactionLocalDataSource.clearPendingStatus(videoId, currentUserId)
                     }
                     is AppResult.Error -> {
-                        val errorMessage = result.message ?: result.throwable.message ?: "网络异常"
+                        val errorMessage = result.message ?: result.throwable.message ?: "网络异常，请稍后重试"
                         Log.e(TAG, "Unlike video sync failed: videoId=$videoId, error: $errorMessage")
+                        // ✅ 修复：通知错误
+                        _interactionErrorFlow.emit(VideoInteractionError(videoId, "unlike", errorMessage))
                         // 同步失败，回滚本地状态（恢复点赞）
                         try {
                             interactionLocalDataSource.updateLikeStatus(videoId, currentUserId, isLiked = true, isPending = false)
+                            // ✅ 修复：回滚视频表的点赞数（恢复）
+                            database.videoDao().updateLikeCount(videoId, 1)
                             Log.d(TAG, "Unlike video local state rolled back: videoId=$videoId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback unlike video local state: videoId=$videoId", e)
@@ -370,20 +429,46 @@ class VideoRepositoryImpl @Inject constructor(
                     }
                     else -> {
                         Log.w(TAG, "Unlike video sync unknown result: videoId=$videoId")
+                        // ✅ 修复：通知错误
+                        _interactionErrorFlow.emit(VideoInteractionError(videoId, "unlike", "网络异常，请稍后重试"))
                         // 未知结果，也回滚本地状态
                         try {
                             interactionLocalDataSource.updateLikeStatus(videoId, currentUserId, isLiked = true, isPending = false)
+                            // ✅ 修复：回滚视频表的点赞数（恢复）
+                            database.videoDao().updateLikeCount(videoId, 1)
                             Log.d(TAG, "Unlike video local state rolled back (unknown result): videoId=$videoId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback unlike video local state: videoId=$videoId", e)
                         }
                     }
                 }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                Log.e(TAG, "Unlike video sync timeout: videoId=$videoId", e)
+                // ✅ 修复：通知超时错误
+                _interactionErrorFlow.emit(VideoInteractionError(videoId, "unlike", "请求超时，请稍后重试"))
+                // 超时情况，回滚本地状态
+                try {
+                    interactionLocalDataSource.updateLikeStatus(videoId, currentUserId, isLiked = true, isPending = false)
+                    // ✅ 修复：回滚视频表的点赞数（恢复）
+                    database.videoDao().updateLikeCount(videoId, 1)
+                    Log.d(TAG, "Unlike video local state rolled back (timeout): videoId=$videoId")
+                } catch (rollbackException: Exception) {
+                    Log.e(TAG, "Failed to rollback unlike video local state: videoId=$videoId", rollbackException)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Unlike video sync exception: videoId=$videoId", e)
+                // ✅ 修复：通知错误
+                val errorMessage = if (e is kotlinx.coroutines.TimeoutCancellationException) {
+                    "请求超时，请稍后重试"
+                } else {
+                    e.message ?: "网络异常，请稍后重试"
+                }
+                _interactionErrorFlow.emit(VideoInteractionError(videoId, "unlike", errorMessage))
                 // 异常情况，回滚本地状态
                 try {
                     interactionLocalDataSource.updateLikeStatus(videoId, currentUserId, isLiked = true, isPending = false)
+                    // ✅ 修复：回滚视频表的点赞数（恢复）
+                    database.videoDao().updateLikeCount(videoId, 1)
                     Log.d(TAG, "Unlike video local state rolled back (exception): videoId=$videoId")
                 } catch (rollbackException: Exception) {
                     Log.e(TAG, "Failed to rollback unlike video local state: videoId=$videoId", rollbackException)
@@ -398,12 +483,21 @@ class VideoRepositoryImpl @Inject constructor(
     override suspend fun favoriteVideo(videoId: Long): AppResult<Unit> {
         // 1. 先更新本地数据库（乐观更新）
         interactionLocalDataSource.updateFavoriteStatus(videoId, currentUserId, isFavorited = true, isPending = true)
+        // ✅ 修复：更新视频表的收藏数
+        try {
+            database.videoDao().updateFavoriteCount(videoId, 1)
+            Log.d(TAG, "Favorite video: videoId=$videoId, favoriteCount incremented (local updated)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update video favoriteCount: videoId=$videoId", e)
+        }
         Log.d(TAG, "Favorite video: videoId=$videoId, userId=$currentUserId (local updated)")
 
-        // 2. 异步同步到远程服务器
+        // 2. 异步同步到远程服务器（使用5秒超时）
         syncScope.launch {
             try {
-                val result = remoteDataSource.favoriteVideo(videoId)
+                val result = withTimeout(5000L) {  // ✅ 修复：缩短超时时间到5秒
+                    remoteDataSource.favoriteVideo(videoId)
+                }
                 when (result) {
                     is AppResult.Success -> {
                         Log.d(TAG, "Favorite video sync success: videoId=$videoId")
@@ -411,8 +505,10 @@ class VideoRepositoryImpl @Inject constructor(
                         interactionLocalDataSource.clearPendingStatus(videoId, currentUserId)
                     }
                     is AppResult.Error -> {
-                        val errorMessage = result.message ?: result.throwable.message ?: "网络异常"
+                        val errorMessage = result.message ?: result.throwable.message ?: "网络异常，请稍后重试"
                         Log.e(TAG, "Favorite video sync failed: videoId=$videoId, error: $errorMessage")
+                        // ✅ 修复：通知错误
+                        _interactionErrorFlow.emit(VideoInteractionError(videoId, "favorite", errorMessage))
                         // 同步失败，回滚本地状态
                         try {
                             val existing = interactionLocalDataSource.getInteraction(videoId, currentUserId)
@@ -423,6 +519,8 @@ class VideoRepositoryImpl @Inject constructor(
                                 // 如果没有其他状态，删除记录
                                 interactionLocalDataSource.deleteInteraction(videoId, currentUserId)
                             }
+                            // ✅ 修复：回滚视频表的收藏数
+                            database.videoDao().updateFavoriteCount(videoId, -1)
                             Log.d(TAG, "Favorite video local state rolled back: videoId=$videoId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback favorite video local state: videoId=$videoId", e)
@@ -430,20 +528,46 @@ class VideoRepositoryImpl @Inject constructor(
                     }
                     else -> {
                         Log.w(TAG, "Favorite video sync unknown result: videoId=$videoId")
+                        // ✅ 修复：通知错误
+                        _interactionErrorFlow.emit(VideoInteractionError(videoId, "favorite", "网络异常，请稍后重试"))
                         // 未知结果，也回滚本地状态
                         try {
                             interactionLocalDataSource.deleteInteraction(videoId, currentUserId)
+                            // ✅ 修复：回滚视频表的收藏数
+                            database.videoDao().updateFavoriteCount(videoId, -1)
                             Log.d(TAG, "Favorite video local state rolled back (unknown result): videoId=$videoId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback favorite video local state: videoId=$videoId", e)
                         }
                     }
                 }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                Log.e(TAG, "Favorite video sync timeout: videoId=$videoId", e)
+                // ✅ 修复：通知超时错误
+                _interactionErrorFlow.emit(VideoInteractionError(videoId, "favorite", "请求超时，请稍后重试"))
+                // 超时情况，回滚本地状态
+                try {
+                    interactionLocalDataSource.deleteInteraction(videoId, currentUserId)
+                    // ✅ 修复：回滚视频表的收藏数
+                    database.videoDao().updateFavoriteCount(videoId, -1)
+                    Log.d(TAG, "Favorite video local state rolled back (timeout): videoId=$videoId")
+                } catch (rollbackException: Exception) {
+                    Log.e(TAG, "Failed to rollback favorite video local state: videoId=$videoId", rollbackException)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Favorite video sync exception: videoId=$videoId", e)
+                // ✅ 修复：通知错误
+                val errorMessage = if (e is kotlinx.coroutines.TimeoutCancellationException) {
+                    "请求超时，请稍后重试"
+                } else {
+                    e.message ?: "网络异常，请稍后重试"
+                }
+                _interactionErrorFlow.emit(VideoInteractionError(videoId, "favorite", errorMessage))
                 // 异常情况，回滚本地状态
                 try {
                     interactionLocalDataSource.deleteInteraction(videoId, currentUserId)
+                    // ✅ 修复：回滚视频表的收藏数
+                    database.videoDao().updateFavoriteCount(videoId, -1)
                     Log.d(TAG, "Favorite video local state rolled back (exception): videoId=$videoId")
                 } catch (rollbackException: Exception) {
                     Log.e(TAG, "Failed to rollback favorite video local state: videoId=$videoId", rollbackException)
@@ -458,12 +582,21 @@ class VideoRepositoryImpl @Inject constructor(
     override suspend fun unfavoriteVideo(videoId: Long): AppResult<Unit> {
         // 1. 先更新本地数据库（乐观更新）
         interactionLocalDataSource.updateFavoriteStatus(videoId, currentUserId, isFavorited = false, isPending = true)
+        // ✅ 修复：更新视频表的收藏数（减少）
+        try {
+            database.videoDao().updateFavoriteCount(videoId, -1)
+            Log.d(TAG, "Unfavorite video: videoId=$videoId, favoriteCount decremented (local updated)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update video favoriteCount: videoId=$videoId", e)
+        }
         Log.d(TAG, "Unfavorite video: videoId=$videoId, userId=$currentUserId (local updated)")
 
-        // 2. 异步同步到远程服务器
+        // 2. 异步同步到远程服务器（使用5秒超时）
         syncScope.launch {
             try {
-                val result = remoteDataSource.unfavoriteVideo(videoId)
+                val result = withTimeout(5000L) {  // ✅ 修复：缩短超时时间到5秒
+                    remoteDataSource.unfavoriteVideo(videoId)
+                }
                 when (result) {
                     is AppResult.Success -> {
                         Log.d(TAG, "Unfavorite video sync success: videoId=$videoId")
@@ -471,11 +604,15 @@ class VideoRepositoryImpl @Inject constructor(
                         interactionLocalDataSource.clearPendingStatus(videoId, currentUserId)
                     }
                     is AppResult.Error -> {
-                        val errorMessage = result.message ?: result.throwable.message ?: "网络异常"
+                        val errorMessage = result.message ?: result.throwable.message ?: "网络异常，请稍后重试"
                         Log.e(TAG, "Unfavorite video sync failed: videoId=$videoId, error: $errorMessage")
+                        // ✅ 修复：通知错误
+                        _interactionErrorFlow.emit(VideoInteractionError(videoId, "unfavorite", errorMessage))
                         // 同步失败，回滚本地状态（恢复收藏）
                         try {
                             interactionLocalDataSource.updateFavoriteStatus(videoId, currentUserId, isFavorited = true, isPending = false)
+                            // ✅ 修复：回滚视频表的收藏数（恢复）
+                            database.videoDao().updateFavoriteCount(videoId, 1)
                             Log.d(TAG, "Unfavorite video local state rolled back: videoId=$videoId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback unfavorite video local state: videoId=$videoId", e)
@@ -483,20 +620,46 @@ class VideoRepositoryImpl @Inject constructor(
                     }
                     else -> {
                         Log.w(TAG, "Unfavorite video sync unknown result: videoId=$videoId")
+                        // ✅ 修复：通知错误
+                        _interactionErrorFlow.emit(VideoInteractionError(videoId, "unfavorite", "网络异常，请稍后重试"))
                         // 未知结果，也回滚本地状态
                         try {
                             interactionLocalDataSource.updateFavoriteStatus(videoId, currentUserId, isFavorited = true, isPending = false)
+                            // ✅ 修复：回滚视频表的收藏数（恢复）
+                            database.videoDao().updateFavoriteCount(videoId, 1)
                             Log.d(TAG, "Unfavorite video local state rolled back (unknown result): videoId=$videoId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback unfavorite video local state: videoId=$videoId", e)
                         }
                     }
                 }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                Log.e(TAG, "Unfavorite video sync timeout: videoId=$videoId", e)
+                // ✅ 修复：通知超时错误
+                _interactionErrorFlow.emit(VideoInteractionError(videoId, "unfavorite", "请求超时，请稍后重试"))
+                // 超时情况，回滚本地状态
+                try {
+                    interactionLocalDataSource.updateFavoriteStatus(videoId, currentUserId, isFavorited = true, isPending = false)
+                    // ✅ 修复：回滚视频表的收藏数（恢复）
+                    database.videoDao().updateFavoriteCount(videoId, 1)
+                    Log.d(TAG, "Unfavorite video local state rolled back (timeout): videoId=$videoId")
+                } catch (rollbackException: Exception) {
+                    Log.e(TAG, "Failed to rollback unfavorite video local state: videoId=$videoId", rollbackException)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Unfavorite video sync exception: videoId=$videoId", e)
+                // ✅ 修复：通知错误
+                val errorMessage = if (e is kotlinx.coroutines.TimeoutCancellationException) {
+                    "请求超时，请稍后重试"
+                } else {
+                    e.message ?: "网络异常，请稍后重试"
+                }
+                _interactionErrorFlow.emit(VideoInteractionError(videoId, "unfavorite", errorMessage))
                 // 异常情况，回滚本地状态
                 try {
                     interactionLocalDataSource.updateFavoriteStatus(videoId, currentUserId, isFavorited = true, isPending = false)
+                    // ✅ 修复：回滚视频表的收藏数（恢复）
+                    database.videoDao().updateFavoriteCount(videoId, 1)
                     Log.d(TAG, "Unfavorite video local state rolled back (exception): videoId=$videoId")
                 } catch (rollbackException: Exception) {
                     Log.e(TAG, "Failed to rollback unfavorite video local state: videoId=$videoId", rollbackException)
@@ -689,6 +852,10 @@ class VideoRepositoryImpl @Inject constructor(
         emit(AppResult.Error(it))
     }
 
+    override fun observeInteractionErrors(): Flow<VideoInteractionError> {
+        return interactionErrorFlow
+    }
+    
     override suspend fun saveWatchHistory(videoId: Long, positionMs: Long) {
         // ✅ 观看历史异步写入：用户点击开始观看视频时，按照文档的异步写入数据库，上传远程
         // 策略B：不回滚（弱一致性数据，自动重试同步）

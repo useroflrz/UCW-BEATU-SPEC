@@ -59,5 +59,17 @@ interface UserDao {
      */
     @Query("DELETE FROM beatu_user")
     suspend fun clear()
+    
+    /**
+     * 更新用户的粉丝数（乐观更新）
+     */
+    @Query("UPDATE beatu_user SET followerCount = followerCount + :delta WHERE userId = :userId")
+    suspend fun updateFollowerCount(userId: String, delta: Long)
+    
+    /**
+     * 更新用户的关注数（乐观更新）
+     */
+    @Query("UPDATE beatu_user SET followingCount = followingCount + :delta WHERE userId = :userId")
+    suspend fun updateFollowingCount(userId: String, delta: Long)
 }
 

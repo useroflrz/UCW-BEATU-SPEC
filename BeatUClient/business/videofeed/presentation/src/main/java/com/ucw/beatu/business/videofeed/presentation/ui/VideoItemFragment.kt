@@ -19,6 +19,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.ui.PlayerView
+import android.widget.Toast
 import androidx.viewpager2.widget.ViewPager2
 import androidx.navigation.NavController
 import androidx.navigation.fragment.findNavController
@@ -47,6 +48,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import com.ucw.beatu.business.user.domain.repository.UserRepository
 import com.ucw.beatu.business.user.domain.model.User
+import com.ucw.beatu.shared.database.BeatUDatabase
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -54,6 +56,9 @@ class VideoItemFragment : BaseFeedItemFragment() {
     
     @Inject
     lateinit var userRepository: UserRepository
+    
+    @Inject
+    lateinit var database: BeatUDatabase  // ✅ 新增：数据库依赖，用于通过视频ID查询用户信息
 
     companion object {
         private const val TAG = "VideoItemFragment"
@@ -163,7 +168,71 @@ class VideoItemFragment : BaseFeedItemFragment() {
                 clipToOutline = true
             }
             val placeholderRes = com.ucw.beatu.shared.designsystem.R.drawable.ic_avatar_placeholder
-            val authorAvatarUrl = item.authorAvatar
+            var authorAvatarUrl = item.authorAvatar
+            var authorId = item.authorId
+            var authorName = item.authorName  // ✅ 修复：添加 authorName 变量，用于后续更新
+            
+            // ✅ 修复：如果 authorId 或 authorAvatar 为空，通过视频ID从数据库查询用户信息
+            if (authorId.isEmpty() || authorAvatarUrl.isNullOrBlank() || authorName.isEmpty() || authorName == "BeatU 用户") {
+                lifecycleScope.launch {
+                    try {
+                        val videoEntity = database.videoDao().getVideoById(item.id)
+                        if (videoEntity != null) {
+                            if (authorId.isEmpty()) {
+                                authorId = videoEntity.authorId
+                                Log.d(TAG, "onViewCreated: 通过视频ID查询到authorId=${authorId}, 视频ID=${item.id}")
+                            }
+                            
+                            // ✅ 修复：通过 authorId 查询用户信息，获取 authorName 和 authorAvatar
+                            if (authorId.isNotEmpty()) {
+                                try {
+                                    val userEntity = database.userDao().getUserById(authorId)
+                                    if (userEntity != null) {
+                                        // 更新 authorName
+                                        if (authorName.isEmpty() || authorName == "BeatU 用户") {
+                                            authorName = userEntity.userName
+                                            Log.d(TAG, "onViewCreated: 通过authorId查询到authorName=${authorName}, authorId=${authorId}")
+                                            // 更新UI中的用户名
+                                            channelNameView?.text = authorName
+                                        }
+                                        // 更新 authorAvatar
+                                        if (authorAvatarUrl.isNullOrBlank() && !userEntity.avatarUrl.isNullOrBlank()) {
+                                            authorAvatarUrl = userEntity.avatarUrl
+                                            Log.d(TAG, "onViewCreated: 通过authorId查询到authorAvatar=${authorAvatarUrl}, authorId=${authorId}")
+                                            // 更新UI
+                                            channelAvatarView?.load(authorAvatarUrl) {
+                                                crossfade(true)
+                                                placeholder(placeholderRes)
+                                                error(placeholderRes)
+                                            }
+                                        }
+                                    } else {
+                                        Log.w(TAG, "onViewCreated: 通过authorId未查询到用户信息，authorId=${authorId}")
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "onViewCreated: 通过authorId查询用户信息失败，authorId=${authorId}", e)
+                                }
+                            }
+                            
+                            // 如果通过用户表查询失败，尝试使用 videoEntity 中的 authorAvatar
+                            if (authorAvatarUrl.isNullOrBlank() && !videoEntity.authorAvatar.isNullOrBlank()) {
+                                authorAvatarUrl = videoEntity.authorAvatar
+                                Log.d(TAG, "onViewCreated: 通过视频ID查询到authorAvatar=${authorAvatarUrl}, 视频ID=${item.id}")
+                                // 更新UI
+                                channelAvatarView?.load(authorAvatarUrl) {
+                                    crossfade(true)
+                                    placeholder(placeholderRes)
+                                    error(placeholderRes)
+                                }
+                            }
+                        } else {
+                            Log.w(TAG, "onViewCreated: 通过视频ID未查询到视频信息，视频ID=${item.id}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "onViewCreated: 通过视频ID查询用户信息失败，视频ID=${item.id}", e)
+                    }
+                }
+            }
             
             // 尝试获取数据来源（通过 parentFragment 获取 RecommendViewModel）
             val videoSource = try {
@@ -182,7 +251,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
             }
             
             // 打印作者头像和数据来源信息
-            Log.d(TAG, "onViewCreated: 视频ID=${item.id}, 标题=${item.title}, 数据来源=$videoSource, authorAvatar=${authorAvatarUrl ?: "null"}, authorName=${item.authorName}")
+            Log.d(TAG, "onViewCreated: 视频ID=${item.id}, 标题=${item.title}, 数据来源=$videoSource, authorAvatar=${authorAvatarUrl ?: "null"}, authorName=${item.authorName}, authorId=$authorId")
             
             if (authorAvatarUrl.isNullOrBlank()) {
                 Log.w(TAG, "onViewCreated: 作者头像为空，使用占位图，视频ID=${item.id}, 数据来源=$videoSource")
@@ -201,7 +270,10 @@ class VideoItemFragment : BaseFeedItemFragment() {
                 com.ucw.beatu.shared.designsystem.R.id.iv_channel_avatar
             )
             val authorClickListener = View.OnClickListener {
-                showUserInfoOverlay(item.authorId, item.authorName)
+                // ✅ 修复：使用查询到的 authorId 和 authorName，如果为空则使用 item 中的值
+                val finalAuthorId = if (authorId.isNotEmpty()) authorId else item.authorId
+                val finalAuthorName = if (authorName.isNotEmpty() && authorName != "BeatU 用户") authorName else item.authorName
+                showUserInfoOverlay(finalAuthorId, finalAuthorName)
             }
             avatarView?.setOnClickListener(authorClickListener)
             channelNameView?.setOnClickListener(authorClickListener)
@@ -856,7 +928,13 @@ class VideoItemFragment : BaseFeedItemFragment() {
                     }
                     previousIsPlaying = state.isPlaying
 
-                    state.error?.let { error -> Log.e(TAG, "播放错误: $error") }
+                    // ✅ 修复：显示错误提示（点赞/收藏失败）
+                    state.error?.let { error ->
+                        Log.e(TAG, "操作错误: $error")
+                        Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show()
+                        // 清除错误，避免重复显示
+                        viewModel.clearError()
+                    }
                 }
             }
         }

@@ -154,5 +154,17 @@ interface VideoDao {
     WHERE authorId = :authorId
     """)
     fun observeTotalLikesCountByAuthorId(authorId: String): Flow<Long>
+    
+    /**
+     * 更新视频的点赞数（乐观更新）
+     */
+    @Query("UPDATE beatu_video SET likeCount = likeCount + :delta WHERE videoId = :videoId")
+    suspend fun updateLikeCount(videoId: Long, delta: Long)
+    
+    /**
+     * 更新视频的收藏数（乐观更新）
+     */
+    @Query("UPDATE beatu_video SET favoriteCount = favoriteCount + :delta WHERE videoId = :videoId")
+    suspend fun updateFavoriteCount(videoId: Long, delta: Long)
 }
 
