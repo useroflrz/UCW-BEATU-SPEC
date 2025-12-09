@@ -59,5 +59,10 @@ dependencies {
     // Hilt  
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
+    
+    // Moshi (需要代码生成器来生成适配器)
+    implementation(libs.moshi)
+    implementation(libs.moshi.kotlin)
+    kapt(libs.moshi.kotlin.codegen)
 }
 

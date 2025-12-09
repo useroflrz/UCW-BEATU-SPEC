@@ -61,15 +61,8 @@ class AISearchApiService @Inject constructor(
         
         okHttpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                // ✅ 改进错误消息，使其更用户友好
-                val errorMessage = when (response.code) {
-                    500 -> "AI 搜索服务暂时不可用，请稍后重试"
-                    503 -> "AI 搜索服务暂时不可用，请稍后重试"
-                    404 -> "AI 搜索功能暂时不可用"
-                    403 -> "AI 搜索功能暂时不可用"
-                    401 -> "AI 搜索功能暂时不可用"
-                    else -> "AI 搜索功能暂时不可用，请稍后重试"
-                }
+                // ✅ 统一错误消息：AI搜索不可用
+                val errorMessage = "AI 搜索不可用"
                 emit(
                     AISearchStreamChunk(
                         chunkType = "error",
@@ -94,11 +87,11 @@ class AISearchApiService @Inject constructor(
                                         val chunk = chunkAdapter.fromJson(data)
                                         chunk?.let { emit(it) }
                                     } catch (e: Exception) {
-                                        // ✅ 解析失败，发送用户友好的错误消息
+                                        // ✅ 解析失败，统一错误消息：AI搜索不可用
                                         emit(
                                             AISearchStreamChunk(
                                                 chunkType = "error",
-                                                content = "AI 搜索功能暂时不可用，请稍后重试",
+                                                content = "AI 搜索不可用",
                                                 isFinal = true
                                             )
                                         )
@@ -114,18 +107,8 @@ class AISearchApiService @Inject constructor(
             }
         }
     }.catch { e ->
-        // ✅ 处理网络异常，提供用户友好的错误消息
-        val errorMessage = when (e) {
-            is UnknownHostException -> "网络连接失败，请检查网络设置"
-            is IOException -> {
-                if (e.message?.contains("timeout", ignoreCase = true) == true) {
-                    "请求超时，请稍后重试"
-                } else {
-                    "网络连接失败，请检查网络设置"
-                }
-            }
-            else -> "AI 搜索功能暂时不可用，请稍后重试"
-        }
+        // ✅ 统一错误消息：AI搜索不可用
+        val errorMessage = "AI 搜索不可用"
         emit(
             AISearchStreamChunk(
                 chunkType = "error",

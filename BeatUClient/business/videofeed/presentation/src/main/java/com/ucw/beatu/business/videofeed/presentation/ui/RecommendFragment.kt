@@ -34,6 +34,43 @@ import kotlin.math.abs
  */
 @AndroidEntryPoint
 class RecommendFragment : Fragment() {
+    
+    /**
+     * 禁止ViewPager2滑动
+     */
+    fun disableViewPagerScrolling() {
+        isSpeedAdjusting = true
+        viewPager?.isUserInputEnabled = false
+        // 同时禁用内部的 RecyclerView 的嵌套滚动，防止触摸事件被拦截
+        viewPager?.getChildAt(0)?.let { recyclerView ->
+            (recyclerView as? RecyclerView)?.apply {
+                isNestedScrollingEnabled = false
+                overScrollMode = View.OVER_SCROLL_NEVER // 禁用过度滚动效果
+                // 请求父视图不要拦截触摸事件
+                parent?.requestDisallowInterceptTouchEvent(true)
+                Log.d(TAG, "disableViewPagerScrolling: 禁用 RecyclerView 嵌套滚动")
+            }
+        }
+        Log.d(TAG, "disableViewPagerScrolling: 禁用 ViewPager2 用户输入，倍速调节模式")
+    }
+    
+    /**
+     * 恢复ViewPager2滑动
+     */
+    fun enableViewPagerScrolling() {
+        isSpeedAdjusting = false
+        viewPager?.isUserInputEnabled = true
+        // 恢复内部的 RecyclerView 的嵌套滚动
+        viewPager?.getChildAt(0)?.let { recyclerView ->
+            (recyclerView as? RecyclerView)?.apply {
+                isNestedScrollingEnabled = true
+                overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS // 恢复过度滚动效果
+                parent?.requestDisallowInterceptTouchEvent(false)
+                Log.d(TAG, "enableViewPagerScrolling: 恢复 RecyclerView 嵌套滚动")
+            }
+        }
+        Log.d(TAG, "enableViewPagerScrolling: 恢复 ViewPager2 用户输入，退出倍速调节模式")
+    }
 
     companion object {
         private const val TAG = "RecommendFragment"
@@ -47,6 +84,7 @@ class RecommendFragment : Fragment() {
     private var viewPager: ViewPager2? = null
     private var adapter: VideoFeedAdapter? = null
     private var isRefreshing = false
+    private var isSpeedAdjusting = false // 是否正在倍速调节
     private var pendingRestoreIndex: Int? = null
     private var pendingResumeRequest = false
 
@@ -201,6 +239,11 @@ class RecommendFragment : Fragment() {
         recyclerView: RecyclerView,
         event: MotionEvent
     ): Boolean {
+        // 如果正在倍速调节，不拦截触摸事件，让 VideoItemFragment 处理
+        if (isSpeedAdjusting) {
+            return false
+        }
+        
         // 只在第一个视频时处理下拉刷新
         if (viewPager.currentItem != 0) {
             resetPullToRefreshState()

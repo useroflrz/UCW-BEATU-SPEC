@@ -11,7 +11,9 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 import javax.inject.Inject
 
 /**
@@ -23,6 +25,11 @@ class BeatUApp : Application() {
 
     companion object {
         private const val TAG = "BeatUApp"
+        /**
+         * 观看历史定时同步间隔（毫秒）
+         * 默认60秒（1分钟），可根据需要调整
+         */
+        private const val WATCH_HISTORY_SYNC_INTERVAL_MS = 60_000L // 60秒（1分钟）
     }
 
     @Inject
@@ -56,10 +63,33 @@ class BeatUApp : Application() {
             dataSyncService.startSync()
             // 启动应用启动数据加载器（按照策略加载数据）
             appStartupDataLoader.startLoading()
+            // 启动定时同步观看历史任务（每分钟同步一次）
+            startPeriodicWatchHistorySync()
             Log.d(TAG, "onCreate: Application initialized successfully")
         } catch (e: Exception) {
             Log.e(TAG, "onCreate: Error initializing application", e)
             throw e
+        }
+    }
+    
+    /**
+     * 启动定时同步观看历史任务
+     * 自动同步观看历史到远程服务器
+     */
+    private fun startPeriodicWatchHistorySync() {
+        appScope.launch {
+            val intervalSeconds = WATCH_HISTORY_SYNC_INTERVAL_MS / 1000
+            Log.d(TAG, "启动定时同步观看历史任务（每${intervalSeconds}秒同步一次）")
+            while (isActive) {
+                try {
+                    delay(WATCH_HISTORY_SYNC_INTERVAL_MS)
+                    Log.d(TAG, "定时任务触发：开始同步观看历史")
+                    dataSyncService.syncAllWatchHistoriesPeriodically()
+                } catch (e: Exception) {
+                    Log.e(TAG, "定时同步观看历史失败", e)
+                    // 继续执行，不中断定时任务
+                }
+            }
         }
     }
 

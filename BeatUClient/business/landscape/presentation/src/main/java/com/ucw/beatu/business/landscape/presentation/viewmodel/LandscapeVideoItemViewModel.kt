@@ -132,34 +132,74 @@ class LandscapeVideoItemViewModel @Inject constructor(
                     override fun onReady(videoId: Long) {  // ✅ 修改：从 String 改为 Long
                         val startUp = startUpStopwatch.elapsedMillis()
                         
-                        // ✅ 修复：如果是从竖屏切换过来的，需要确保位置和播放状态正确
+                        // ✅ 修复：如果是从竖屏切换过来的，需要确保位置正确，并根据会话状态决定是否播放
                         val session = pendingSession
-                        val shouldPlay = if (handoffFromPortrait && session != null) {
-                            // 从竖屏切换过来，使用会话中的播放状态
-                            AppLogger.d(TAG, "onReady: 从竖屏切换过来，再次确认位置=${session.positionMs}ms，是否准备播放=${session.playWhenReady}")
+                        var shouldAutoPlay = false
+                        
+                        if (handoffFromPortrait && session != null) {
+                            // 从竖屏切换过来，确保位置正确
+                            AppLogger.d(TAG, "onReady: 从竖屏切换过来，再次确认位置=${session.positionMs}ms，会话中 playWhenReady=${session.playWhenReady}")
                             // 再次确认位置（因为可能在 prepare 过程中位置发生了变化）
                             player.seekTo(session.positionMs)
-                            session.playWhenReady
-                        } else {
-                            true
+                            
+                            // ✅ 修复：从竖屏切换到横屏时，如果会话中 playWhenReady=true，应该自动播放
+                            // 注意：这里不能直接播放，因为 Fragment 的可见性可能还没设置
+                            // 但是，如果 Fragment 已经可见，应该自动播放
+                            shouldAutoPlay = session.playWhenReady
+                            AppLogger.d(TAG, "onReady: 从竖屏切换过来，播放器已准备好，会话中 playWhenReady=${session.playWhenReady}，shouldAutoPlay=$shouldAutoPlay")
                         }
                         
                         // 清除会话信息（已经使用完毕）
                         pendingSession = null
                         
+                        // ✅ 修复：如果应该自动播放，等待一小段时间让 Fragment 设置可见性，然后播放
+                        // 否则保持暂停状态，等待 Fragment 调用 resume()
+                        if (shouldAutoPlay) {
+                            // 延迟一小段时间，让 Fragment 的 onParentVisibilityChanged 先执行
+                            viewModelScope.launch {
+                                kotlinx.coroutines.delay(100)
+                                // 检查视频尺寸，如果有尺寸说明 Surface 已准备好
+                                if (player.player.videoSize.width > 0 && player.player.videoSize.height > 0) {
+                                    AppLogger.d(TAG, "onReady: Surface 已准备好，自动播放")
+                                    player.play()
+                                } else {
+                                    // 等待首帧渲染
+                                    var surfaceReady = false
+                                    val surfaceListener = object : Player.Listener {
+                                        override fun onRenderedFirstFrame() {
+                                            if (!surfaceReady) {
+                                                surfaceReady = true
+                                                AppLogger.d(TAG, "onReady: Surface 准备好，首帧已渲染，自动播放")
+                                                player.player.removeListener(this)
+                                                player.play()
+                                            }
+                                        }
+                                    }
+                                    player.player.addListener(surfaceListener)
+                                    
+                                    // 延迟检查，如果 300ms 后还没有首帧，也尝试播放
+                                    kotlinx.coroutines.delay(300)
+                                    if (!surfaceReady && player.player.videoSize.width > 0) {
+                                        surfaceReady = true
+                                        AppLogger.d(TAG, "onReady: 300ms后检测到视频尺寸，自动播放")
+                                        player.player.removeListener(surfaceListener)
+                                        player.play()
+                                    }
+                                }
+                            }
+                        } else {
+                            // 保持暂停状态，等待 Fragment 调用 resume()
+                            player.pause()
+                        }
+                        
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             showPlaceholder = false,
-                            isPlaying = shouldPlay,
+                            isPlaying = shouldAutoPlay, // ✅ 修复：根据会话状态设置初始播放状态
                             durationMs = player.player.duration.takeIf { it > 0 } ?: 0L,
                             startUpTimeMs = startUp
                         )
-                        AppLogger.d(TAG, "Landscape video ready startUp=${startUp}ms, shouldPlay=$shouldPlay, handoffFromPortrait=$handoffFromPortrait, currentPosition=${player.player.currentPosition}ms")
-                        
-                        // 如果应该播放，确保播放器正在播放
-                        if (shouldPlay) {
-                            player.play()
-                        }
+                        AppLogger.d(TAG, "Landscape video ready startUp=${startUp}ms, shouldAutoPlay=$shouldAutoPlay，currentPosition=${player.player.currentPosition}ms")
                         
                         startProgressUpdates()
                     }
@@ -189,14 +229,15 @@ class LandscapeVideoItemViewModel @Inject constructor(
                     AppLogger.d(TAG, "preparePlayer: 检测到播放会话，视频ID=${session.videoId}，位置=${session.positionMs}ms，倍速=${session.speed}，是否准备播放=${session.playWhenReady}")
                     applyPlaybackSession(player, session)
                 } else {
-                    AppLogger.d(TAG, "preparePlayer: 未检测到播放会话，从头开始播放，视频ID=$videoId")
+                    AppLogger.d(TAG, "preparePlayer: 未检测到播放会话，准备播放器但不自动播放，视频ID=$videoId")
                     player.prepare(source)
-                    player.play()
+                    // ✅ 修复：不要在准备时直接播放，让 Fragment 根据可见性决定是否播放
+                    player.pause()
                 }
 
                 _uiState.value = _uiState.value.copy(
                     currentVideoId = videoId,
-                    isPlaying = true
+                    isPlaying = false // ✅ 修复：初始状态设为暂停，等待可见时再播放
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -441,31 +482,38 @@ class LandscapeVideoItemViewModel @Inject constructor(
         AppLogger.d(TAG, "applyPlaybackSession: 跳转到位置=${session.positionMs}ms")
         player.seekTo(session.positionMs)
         
+        // ✅ 修复：根据会话的 playWhenReady 状态和播放器状态决定是否播放
+        // 如果播放器已经准备好，根据会话状态决定是否播放
+        // 如果播放器还没准备好，会在 onReady 中处理
+        val shouldPlay = if (player.player.playbackState == Player.STATE_READY) {
+            // 播放器已准备好，检查 Surface 是否准备好
+            val hasVideoSize = player.player.videoSize.width > 0 && player.player.videoSize.height > 0
+            if (hasVideoSize && session.playWhenReady) {
+                AppLogger.d(TAG, "applyPlaybackSession: 播放器已准备好，Surface 已准备好，会话中 playWhenReady=true，开始播放")
+                player.play()
+                true
+            } else {
+                AppLogger.d(TAG, "applyPlaybackSession: 播放器已准备好，但 Surface 未准备好或会话中 playWhenReady=false，保持暂停")
+                player.pause()
+                false
+            }
+        } else {
+            // 播放器还没准备好，先暂停，等待 onReady 后由 Fragment 根据可见性决定
+            AppLogger.d(TAG, "applyPlaybackSession: 播放器未准备好，保持暂停状态，等待 onReady 后由 Fragment 决定是否播放")
+            player.pause()
+            false
+        }
+        
         // 更新 UI 状态
         _uiState.value = _uiState.value.copy(
             isLoading = needsPrepare,
             showPlaceholder = false,
-            isPlaying = session.playWhenReady && !needsPrepare, // 如果需要准备，先不播放
+            isPlaying = shouldPlay,
             currentPositionMs = session.positionMs,
             durationMs = player.player.duration.takeIf { it > 0 } ?: _uiState.value.durationMs
         )
         
-        // 设置播放状态（如果需要准备，会在 onReady 中处理）
-        if (!needsPrepare) {
-            if (session.playWhenReady) {
-                AppLogger.d(TAG, "applyPlaybackSession: 恢复播放")
-                player.play()
-            } else {
-                AppLogger.d(TAG, "applyPlaybackSession: 保持暂停状态")
-                player.pause()
-            }
-        } else {
-            // 如果需要准备，保存播放状态，在 onReady 中恢复
-            AppLogger.d(TAG, "applyPlaybackSession: 等待播放器准备好后再恢复播放状态")
-            // 在 listener 的 onReady 中会处理播放状态
-        }
-        
-        AppLogger.d(TAG, "applyPlaybackSession: 播放会话已应用，当前播放位置=${player.player.currentPosition}ms，播放状态=${player.player.playbackState}")
+        AppLogger.d(TAG, "applyPlaybackSession: 播放会话已应用，当前播放位置=${player.player.currentPosition}ms，播放状态=${player.player.playbackState}，是否播放=$shouldPlay")
     }
 
     fun isHandoffFromPortrait(): Boolean = handoffFromPortrait

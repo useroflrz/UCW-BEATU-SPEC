@@ -1,5 +1,6 @@
 package com.ucw.beatu.business.user.data.remote
 
+import android.util.Log
 import com.ucw.beatu.business.user.data.api.UserApiService
 import com.ucw.beatu.business.user.data.api.dto.UserDto
 import com.ucw.beatu.business.user.data.mapper.toDomain
@@ -177,19 +178,30 @@ class UserRemoteDataSourceImpl @Inject constructor(
                 throw DataException.NetworkException("No internet connection")
             }
 
+            Log.d("UserRemoteDataSource", "开始请求 getUserFollows: userId=$userId")
             val response = apiService.getUserFollows(userId)
-            val data = response.data
+            val dataSize = (response.data as? List<*>)?.size ?: 0
+            Log.d("UserRemoteDataSource", "收到响应: code=${response.code}, message=${response.message}, data=${if (response.data != null) "有数据(${dataSize}条)" else "无数据"}")
+            
+            val data = response.data as? List<Map<String, Any>>
             when {
                 response.isSuccess && data != null -> {
+                    Log.d("UserRemoteDataSource", "解析成功，数据条数: ${data.size}")
+                    // 打印第一条数据用于调试
+                    if (data.isNotEmpty()) {
+                        Log.d("UserRemoteDataSource", "第一条数据示例: ${data[0]}")
+                    }
                     data
                 }
                 response.isUnauthorized -> {
+                    Log.e("UserRemoteDataSource", "认证失败: code=${response.code}, message=${response.message}")
                     throw DataException.AuthException(
                         response.message,
                         response.code
                     )
                 }
                 else -> {
+                    Log.e("UserRemoteDataSource", "服务器错误: code=${response.code}, message=${response.message}")
                     throw DataException.ServerException(
                         response.message,
                         response.code

@@ -42,6 +42,7 @@ dependencies {
     
     // Shared modules
     implementation(project(":shared:common"))
+    implementation(project(":shared:database"))  // VideoDao for calculating likes count
     implementation(project(":shared:designsystem"))
     implementation(project(":shared:router"))
     

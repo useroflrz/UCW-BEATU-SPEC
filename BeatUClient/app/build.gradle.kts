@@ -79,6 +79,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.livedata.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation("androidx.lifecycle:lifecycle-process:2.7.0")  // ProcessLifecycleOwner
     
     // Navigation
     implementation(libs.androidx.navigation.fragment.ktx)

@@ -62,9 +62,16 @@ class UserWorksLocalDataSourceImpl @Inject constructor(
     }
 
     override fun observeHistoryWorks(userId: String, limit: Int): Flow<List<UserWork>> {
-        // 查询播放历史：JOIN watch_history表，按 lastWatchAt 降序排序，符合数据库表逻辑
+        // 查询播放历史：JOIN watch_history表，按 watchedAt 升序排序，最先观看的显示在前面
+        android.util.Log.d("UserWorksLocalDataSource", "查询观看历史：userId=$userId, limit=$limit")
         return videoDao.observeHistoryVideos(userId, limit)
-            .map { entities -> entities.map { it.toUserWork() } }
+            .map { entities -> 
+                android.util.Log.d("UserWorksLocalDataSource", "从数据库查询到 ${entities.size} 条历史视频数据")
+                if (entities.isNotEmpty()) {
+                    android.util.Log.d("UserWorksLocalDataSource", "第一条历史视频：videoId=${entities[0].videoId}, title=${entities[0].title}")
+                }
+                entities.map { it.toUserWork() } 
+            }
             .distinctUntilChanged()
     }
 }

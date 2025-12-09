@@ -1,5 +1,6 @@
 package com.ucw.beatu.business.videofeed.data.remote
 
+import android.util.Log
 import com.ucw.beatu.business.videofeed.data.api.VideoFeedApiService
 import com.ucw.beatu.business.videofeed.data.api.dto.CommentRequest
 import com.ucw.beatu.business.videofeed.data.mapper.toDomain
@@ -25,6 +26,8 @@ interface VideoRemoteDataSource {
     suspend fun shareVideo(videoId: Long): AppResult<Unit>  // ✅ 修改：从 String 改为 Long
     suspend fun postComment(videoId: Long, content: String): AppResult<Comment>  // ✅ 修改：从 String 改为 Long
     suspend fun getAllVideoInteractions(): AppResult<List<Map<String, Any>>>
+    suspend fun getAllWatchHistories(): AppResult<List<Map<String, Any>>>
+    suspend fun syncWatchHistories(histories: List<Map<String, Any>>): AppResult<Unit>
 }
 
 /**
@@ -319,12 +322,103 @@ class VideoRemoteDataSourceImpl @Inject constructor(
                 throw DataException.NetworkException("No internet connection")
             }
 
+            Log.d("VideoRemoteDataSource", "开始请求 getAllVideoInteractions")
             val response = apiService.getAllVideoInteractions()
-            val data = response.data
+            val dataSize = (response.data as? List<*>)?.size ?: 0
+            Log.d("VideoRemoteDataSource", "收到响应: code=${response.code}, message=${response.message}, data=${if (response.data != null) "有数据(${dataSize}条)" else "无数据"}")
+            
+            val data = response.data as? List<Map<String, Any>>
             when {
                 response.isSuccess && data != null -> {
+                    Log.d("VideoRemoteDataSource", "解析成功，数据条数: ${data.size}")
+                    // 打印第一条数据用于调试
+                    if (data.isNotEmpty()) {
+                        Log.d("VideoRemoteDataSource", "第一条数据示例: ${data[0]}")
+                    }
                     data
                 }
+                response.isUnauthorized -> {
+                    android.util.Log.e("VideoRemoteDataSource", "认证失败: code=${response.code}, message=${response.message}")
+                    throw DataException.AuthException(
+                        response.message,
+                        response.code
+                    )
+                }
+                else -> {
+                    android.util.Log.e("VideoRemoteDataSource", "服务器错误: code=${response.code}, message=${response.message}")
+                    throw DataException.ServerException(
+                        response.message,
+                        response.code
+                    )
+                }
+            }
+        }
+    }
+
+    override suspend fun getAllWatchHistories(): AppResult<List<Map<String, Any>>> {
+        return runAppResult {
+            if (!connectivityObserver.isConnected()) {
+                throw DataException.NetworkException("No internet connection")
+            }
+
+            Log.d("VideoRemoteDataSource", "开始请求 getAllWatchHistories")
+            val response = apiService.getAllWatchHistories()
+            val dataSize = (response.data as? List<*>)?.size ?: 0
+            Log.d("VideoRemoteDataSource", "收到响应: code=${response.code}, message=${response.message}, data=${if (response.data != null) "有数据(${dataSize}条)" else "无数据"}")
+            
+            val data = response.data as? List<Map<String, Any>>
+            when {
+                response.isSuccess && data != null -> {
+                    Log.d("VideoRemoteDataSource", "解析成功，数据条数: ${data.size}")
+                    // 打印第一条数据用于调试
+                    if (data.isNotEmpty()) {
+                        Log.d("VideoRemoteDataSource", "第一条数据示例: ${data[0]}")
+                    }
+                    data
+                }
+                response.isUnauthorized -> {
+                    Log.e("VideoRemoteDataSource", "认证失败: code=${response.code}, message=${response.message}")
+                    throw DataException.AuthException(
+                        response.message,
+                        response.code
+                    )
+                }
+                else -> {
+                    Log.e("VideoRemoteDataSource", "服务器错误: code=${response.code}, message=${response.message}")
+                    throw DataException.ServerException(
+                        response.message,
+                        response.code
+                    )
+                }
+            }
+        }
+    }
+
+    override suspend fun syncWatchHistories(histories: List<Map<String, Any>>): AppResult<Unit> {
+        return runAppResult {
+            if (!connectivityObserver.isConnected()) {
+                throw DataException.NetworkException("No internet connection")
+            }
+
+            Log.d("VideoRemoteDataSource", "开始同步观看历史：${histories.size} 条")
+            if (histories.isNotEmpty()) {
+                Log.d("VideoRemoteDataSource", "第一条历史记录示例：${histories[0]}")
+            }
+
+            // 转换为 DTO 对象列表
+            val historyDtos = histories.map { map ->
+                com.ucw.beatu.business.videofeed.data.api.dto.WatchHistorySyncRequest(
+                    videoId = (map["videoId"] as? Number)?.toLong() ?: 0L,
+                    userId = map["userId"] as? String ?: "",
+                    lastPlayPositionMs = (map["lastPlayPositionMs"] as? Number)?.toLong() ?: 0L,
+                    watchedAt = (map["watchedAt"] as? Number)?.toLong() ?: 0L
+                )
+            }
+
+            val response = apiService.syncWatchHistories(historyDtos)
+            Log.d("VideoRemoteDataSource", "观看历史同步响应：code=${response.code}, message=${response.message}, isSuccess=${response.isSuccess}")
+            when {
+                response.isSuccess -> Unit
                 response.isUnauthorized -> {
                     throw DataException.AuthException(
                         response.message,

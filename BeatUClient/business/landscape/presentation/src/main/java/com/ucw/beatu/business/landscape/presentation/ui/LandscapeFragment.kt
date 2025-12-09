@@ -58,8 +58,18 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
             BundleCompat.getParcelableArrayList(it, LandscapeLaunchContract.EXTRA_VIDEO_LIST, CommonVideoItem::class.java)
         }
         if (videoList != null && videoList.isNotEmpty()) {
+            // ✅ 修复：过滤掉 PORTRAIT 视频，只保留 LANDSCAPE 视频
+            val landscapeOnlyList = videoList.filter { it.orientation == com.ucw.beatu.shared.common.model.VideoOrientation.LANDSCAPE }
+            
+            if (landscapeOnlyList.isEmpty()) {
+                Log.w(TAG, "LandscapeFragment: 传入的视频列表中没有任何 LANDSCAPE 视频，加载所有横屏视频")
+                handleExternalVideoArgs()
+                viewModel.loadVideoList()
+                return
+            }
+            
             // ✅ 修复：转换为横屏页面的 VideoItem 模型，确保 ID 类型正确
-            val landscapeVideoList = videoList.map { commonItem ->
+            val landscapeVideoList = landscapeOnlyList.map { commonItem ->
                 VideoItem(
                     id = commonItem.id,  // ✅ 修复：commonItem.id 已经是 Long 类型
                     videoUrl = commonItem.videoUrl,
@@ -79,22 +89,31 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
                 if (providedIndex >= 0 && providedIndex < landscapeVideoList.size) {
                     providedIndex
                 } else {
-                    // 根据视频ID查找索引
+                    // 根据视频ID查找索引（在过滤后的列表中）
                     landscapeVideoList.indexOfFirst { it.id == targetVideoId }.let {
-                        if (it == -1) 0 else it
+                        if (it == -1) {
+                            Log.w(TAG, "LandscapeFragment: 目标视频ID=$targetVideoId 不在过滤后的 LANDSCAPE 视频列表中")
+                            0
+                        } else {
+                            it
+                        }
                     }
                 }
             } else {
                 args.getInt(LandscapeLaunchContract.EXTRA_CURRENT_INDEX, 0)
             }
-            Log.d(TAG, "LandscapeFragment: Using fixed video list, size=${landscapeVideoList.size}, targetVideoId=$targetVideoId, currentIndex=$currentIndex")
+            Log.d(TAG, "LandscapeFragment: Using fixed LANDSCAPE video list, 过滤前数量=${videoList.size}，过滤后数量=${landscapeVideoList.size}, targetVideoId=$targetVideoId, currentIndex=$currentIndex")
             viewModel.setVideoList(landscapeVideoList, currentIndex)
-            // 设置视频列表后，跳转到当前索引
-            viewPager?.post {
+            // ✅ 修复：设置视频列表后，跳转到当前索引，并延迟触发 handlePageSelected 确保 Fragment 已加载视频
+            viewPager?.postDelayed({
                 val boundedIndex = currentIndex.coerceIn(0, landscapeVideoList.lastIndex)
                 Log.d(TAG, "LandscapeFragment: Setting ViewPager to index $boundedIndex, videoId=${landscapeVideoList.getOrNull(boundedIndex)?.id}")
                 viewPager?.setCurrentItem(boundedIndex, false)
-            }
+                // ✅ 修复：延迟调用 handlePageSelected，确保 Fragment 已加载视频并准备好播放器
+                viewPager?.postDelayed({
+                    handlePageSelected(boundedIndex)
+                }, 150) // 延迟150ms，确保 Fragment 的 loadVideo() 已执行
+            }, 50) // 先延迟50ms，确保 ViewPager 已设置好适配器
         } else {
             // 没有视频列表时，处理外部视频参数并加载所有横屏视频
             Log.d(TAG, "LandscapeFragment: No fixed video list, loading all landscape videos")
@@ -130,10 +149,11 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
                 }
             })
         }
-        // 首次创建时手动触发一次，确保第一个页面播放/其他暂停
-        viewPager?.post {
+        // ✅ 修复：首次创建时手动触发一次，确保第一个页面播放/其他暂停
+        // 延迟执行，确保 ViewPager2 和 Fragment 都已完全初始化
+        viewPager?.postDelayed({
             handlePageSelected(viewPager?.currentItem ?: 0)
-        }
+        }, 100) // 延迟100ms，确保 Fragment 已加载视频
 
         // 顶部返回按钮（需要确保在 ViewPager 之上且可点击）
         root.findViewById<View>(R.id.btn_exit_landscape)?.apply {
@@ -195,7 +215,15 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
-                    adapter?.updateVideoList(state.videoList)
+                    // ✅ 修复：在更新 Adapter 之前，再次过滤确保只有 LANDSCAPE 视频
+                    // 虽然 ViewModel 已经过滤，但这里再加一层防护
+                    val landscapeOnlyList = state.videoList.filter { 
+                        it.orientation == com.ucw.beatu.business.landscape.domain.model.VideoOrientation.LANDSCAPE 
+                    }
+                    if (landscapeOnlyList.size != state.videoList.size) {
+                        Log.w(TAG, "observeUiState: 检测到非 LANDSCAPE 视频，已过滤，原始数量=${state.videoList.size}，过滤后数量=${landscapeOnlyList.size}")
+                    }
+                    adapter?.updateVideoList(landscapeOnlyList)
                 }
             }
         }
@@ -210,6 +238,19 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
             Log.w(TAG, "handleExternalVideoArgs: videoId not found in arguments")
             return
         }
+        
+        // ✅ 新增：检查视频列表中是否包含该视频，如果包含则检查其 orientation
+        // 如果从视频列表传入，会包含 EXTRA_VIDEO_LIST，此时应该已经在上层过滤过了
+        // 但为了安全，这里也做一次检查
+        val videoList = args.getParcelableArrayList<CommonVideoItem>(LandscapeLaunchContract.EXTRA_VIDEO_LIST)
+        if (videoList != null && videoList.isNotEmpty()) {
+            val targetVideo = videoList.find { it.id == videoId }
+            if (targetVideo != null && targetVideo.orientation != com.ucw.beatu.shared.common.model.VideoOrientation.LANDSCAPE) {
+                Log.w(TAG, "handleExternalVideoArgs: 外部视频不是 LANDSCAPE 视频，无法进入横屏模式，videoId=$videoId")
+                return
+            }
+        }
+
         val videoUrl = args.getString(LandscapeLaunchContract.EXTRA_VIDEO_URL) ?: return
 
         val videoItem = VideoItem(
@@ -222,7 +263,7 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
             favoriteCount = args.getInt(LandscapeLaunchContract.EXTRA_VIDEO_FAVORITE),
             shareCount = args.getInt(LandscapeLaunchContract.EXTRA_VIDEO_SHARE)
         )
-        Log.d(TAG, "handleExternalVideoArgs: 处理外部视频，videoId=$videoId, videoUrl=$videoUrl")
+        Log.d(TAG, "handleExternalVideoArgs: 处理外部 LANDSCAPE 视频，videoId=$videoId, videoUrl=$videoUrl")
         viewModel.showExternalVideo(videoItem)
         externalVideoHandled = true
     }
@@ -291,13 +332,31 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
     }
 
     private fun handlePageSelected(position: Int) {
-        val currentTag = "f$position"
+        val adapter = this.adapter ?: return
+        val total = adapter.itemCount
+        if (position < 0 || position >= total) {
+            Log.w(TAG, "handlePageSelected: invalid position=$position, total=$total")
+            return
+        }
+        
+        Log.d(TAG, "handlePageSelected: position=$position, total=$total")
+        
+        // ✅ 修复：遍历所有 Fragment，根据位置决定可见性
+        // ViewPager2 的 FragmentStateAdapter 使用的 tag 格式是 "f$position"
         childFragmentManager.fragments
             .filterIsInstance<LandscapeVideoItemFragment>()
             .forEach { fragment ->
-                if (fragment.tag == currentTag && fragment.isVisible) {
+                // 从 tag 中提取位置（格式为 "f$position"）
+                val fragmentTag = fragment.tag ?: ""
+                val fragmentPosition = fragmentTag.removePrefix("f").toIntOrNull()
+                
+                if (fragmentPosition == position) {
+                    // 当前选中的 Fragment，设置为可见
+                    Log.d(TAG, "handlePageSelected: Fragment at position=$fragmentPosition is visible")
                     fragment.onParentVisibilityChanged(true)
                 } else {
+                    // 其他 Fragment，设置为不可见并暂停
+                    Log.d(TAG, "handlePageSelected: Fragment at position=$fragmentPosition is hidden (current=$position)")
                     fragment.onParentVisibilityChanged(false)
                 }
             }

@@ -31,7 +31,7 @@ import com.ucw.beatu.shared.database.entity.SearchHistoryEntity
         WatchHistoryEntity::class,
         SearchHistoryEntity::class
     ],
-    version = 9,  // ✅ 修改：数据库版本从 8 升级到 9（为 WatchHistoryEntity 添加 isPending 字段）
+    version = 10,  // ✅ 修改：数据库版本从 9 升级到 10（移除所有外键约束）
     exportSchema = true
 )
 @TypeConverters(Converters::class)

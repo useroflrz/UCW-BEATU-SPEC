@@ -48,6 +48,11 @@ interface VideoInteractionLocalDataSource {
     suspend fun getPendingInteractions(): List<VideoInteractionEntity>
 
     /**
+     * 获取指定用户的所有互动记录
+     */
+    suspend fun getInteractionsByUser(userId: String): List<VideoInteractionEntity>
+
+    /**
      * 批量保存视频交互数据（首次启动时全量加载）
      */
     suspend fun saveInteractions(interactions: List<VideoInteractionEntity>)
@@ -115,8 +120,27 @@ class VideoInteractionLocalDataSourceImpl @Inject constructor(
         return interactionDao.getPendingInteractions()
     }
 
+    override suspend fun getInteractionsByUser(userId: String): List<VideoInteractionEntity> {
+        return interactionDao.getInteractionsByUser(userId)
+    }
+
     override suspend fun saveInteractions(interactions: List<VideoInteractionEntity>) {
-        interactionDao.insertOrUpdateAll(interactions)
+        if (interactions.isEmpty()) {
+            android.util.Log.w("VideoInteractionLocalDataSource", "saveInteractions: 列表为空，跳过保存")
+            return
+        }
+        try {
+            android.util.Log.d("VideoInteractionLocalDataSource", "saveInteractions: 准备保存 ${interactions.size} 条视频交互")
+            // 打印每条传输的数据
+            interactions.forEachIndexed { index, interaction ->
+                android.util.Log.d("VideoInteractionLocalDataSource", "saveInteractions[$index]: videoId=${interaction.videoId}, userId=${interaction.userId}, isLiked=${interaction.isLiked}, isFavorited=${interaction.isFavorited}, isPending=${interaction.isPending}")
+            }
+            interactionDao.insertOrUpdateAll(interactions)
+            android.util.Log.i("VideoInteractionLocalDataSource", "saveInteractions: 成功保存 ${interactions.size} 条视频交互")
+        } catch (e: Exception) {
+            android.util.Log.e("VideoInteractionLocalDataSource", "saveInteractions: 保存失败，错误=${e.message}", e)
+            throw e
+        }
     }
 }
 

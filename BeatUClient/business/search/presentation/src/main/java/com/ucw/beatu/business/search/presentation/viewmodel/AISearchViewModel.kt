@@ -72,21 +72,8 @@ class AISearchViewModel @Inject constructor(
                 }
             }
             .catch { e ->
-                // ✅ 改进错误消息，使其更用户友好
-                val errorMessage = when {
-                    e.message?.contains("Unable to resolve host", ignoreCase = true) == true -> 
-                        "网络连接失败，请检查网络设置"
-                    e.message?.contains("timeout", ignoreCase = true) == true -> 
-                        "请求超时，请稍后重试"
-                    e.message?.contains("500", ignoreCase = true) == true -> 
-                        "AI 搜索服务暂时不可用，请稍后重试"
-                    e.message?.contains("404", ignoreCase = true) == true -> 
-                        "AI 搜索功能暂时不可用"
-                    e.message?.contains("403", ignoreCase = true) == true -> 
-                        "AI 搜索功能暂时不可用"
-                    else -> 
-                        "AI 搜索功能暂时不可用，请稍后重试"
-                }
+                // ✅ 统一错误消息：AI搜索不可用
+                val errorMessage = "AI 搜索不可用"
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = errorMessage

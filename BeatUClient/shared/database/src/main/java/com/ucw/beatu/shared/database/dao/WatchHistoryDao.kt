@@ -13,6 +13,12 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface WatchHistoryDao {
 
+    /**
+     * 查询指定用户的观看历史记录数量（用于调试）
+     */
+    @Query("SELECT COUNT(*) FROM beatu_watch_history WHERE userId = :userId")
+    suspend fun getHistoryCountByUser(userId: String): Int
+    
     @Query("SELECT * FROM beatu_watch_history WHERE userId = :userId ORDER BY watchedAt DESC LIMIT :limit")
     fun observeHistory(userId: String, limit: Int): Flow<List<WatchHistoryEntity>>
 
@@ -47,10 +53,22 @@ interface WatchHistoryDao {
     suspend fun clearAll()
 
     /**
+     * 查询所有观看历史（用于调试）
+     */
+    @Query("SELECT * FROM beatu_watch_history")
+    suspend fun getAll(): List<WatchHistoryEntity>
+
+    /**
      * 查询所有待同步的观看历史（用于数据同步服务）
      */
     @Query("SELECT * FROM beatu_watch_history WHERE isPending = 1")
     suspend fun getPendingHistories(): List<WatchHistoryEntity>
+
+    /**
+     * 查询指定用户的所有观看历史（退出app时同步所有历史记录）
+     */
+    @Query("SELECT * FROM beatu_watch_history WHERE userId = :userId")
+    suspend fun getAllHistoriesByUser(userId: String): List<WatchHistoryEntity>
 
     /**
      * 清除待同步标记（用于同步成功后）

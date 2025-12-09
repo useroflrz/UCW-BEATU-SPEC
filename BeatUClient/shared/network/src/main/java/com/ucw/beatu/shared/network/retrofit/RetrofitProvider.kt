@@ -19,7 +19,8 @@ object RetrofitProvider {
     ): Retrofit = Retrofit.Builder()
         .baseUrl(config.baseUrl)
         .client(okHttpClient)
-        .addConverterFactory(MoshiConverterFactory.create(moshi))
+        // ✅ 使用 lenient() 模式，允许更宽松的 JSON 解析
+        .addConverterFactory(MoshiConverterFactory.create(moshi).asLenient())
         .build()
 
     inline fun <reified T> createService(retrofit: Retrofit): T = retrofit.create(T::class.java)

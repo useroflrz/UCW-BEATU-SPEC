@@ -44,6 +44,12 @@ interface VideoInteractionDao {
     suspend fun insertOrUpdateAll(interactions: List<VideoInteractionEntity>)
 
     /**
+     * 查询指定用户的所有互动记录
+     */
+    @Query("SELECT * FROM beatu_video_interaction WHERE userId = :userId")
+    suspend fun getInteractionsByUser(userId: String): List<VideoInteractionEntity>
+
+    /**
      * 删除互动记录
      */
     @Query("DELETE FROM beatu_video_interaction WHERE videoId = :videoId AND userId = :userId")
@@ -54,5 +60,11 @@ interface VideoInteractionDao {
      */
     @Query("DELETE FROM beatu_video_interaction")
     suspend fun clear()
+
+    /**
+     * 查询所有视频交互（用于调试）
+     */
+    @Query("SELECT * FROM beatu_video_interaction")
+    suspend fun getAll(): List<VideoInteractionEntity>
 }
 
