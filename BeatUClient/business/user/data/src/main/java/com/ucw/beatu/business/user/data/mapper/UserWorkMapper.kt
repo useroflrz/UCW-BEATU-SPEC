@@ -14,6 +14,8 @@ fun VideoEntity.toUserWork(): UserWork = UserWork(
     commentCount = commentCount,
     favoriteCount = favoriteCount,
     shareCount = 0, // ✅ 修改：新表结构中没有 shareCount 字段
-    orientation = orientation
+    orientation = orientation,
+    authorId = authorId,  // ✅ 新增：从 VideoEntity 中提取 authorId
+    authorAvatar = authorAvatar  // ✅ 新增：从 VideoEntity 中提取 authorAvatar
 )
 

@@ -44,6 +44,7 @@ android {
 dependencies {
     // Business Domain
     implementation(project(":business:videofeed:domain"))
+    implementation(project(":business:videofeed:data"))  // ✅ 新增：用于注入 VideoInteractionLocalDataSource
     
     // User domain and data (for getting user data in VideoItemFragment)
     implementation(project(":business:user:domain"))
@@ -54,6 +55,7 @@ dependencies {
     
     // Shared modules
     implementation(project(":shared:common"))
+    implementation(project(":shared:database"))  // ✅ 新增：用于 VideoItemFragment 中通过视频ID查询用户信息
     implementation(project(":shared:player"))
     implementation(project(":shared:designsystem"))
     implementation(project(":shared:router"))

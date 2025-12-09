@@ -60,18 +60,22 @@ class UserProfileFollowButtonManager(
      * @param isInteracting 是否正在交互中（防止重复点击）
      */
     fun updateFollowButton(isFollowing: Boolean?, isInteracting: Boolean = false) {
-        val isEnabled = !isInteracting && isFollowing != null
+        // ✅ 修复：乐观更新 - 即使 isInteracting = true，也保持按钮可用，只防止重复点击
+        // isInteracting 只用于防止重复点击，不用于禁用按钮
+        val isEnabled = isFollowing != null
         when (isFollowing) {
             true -> {
-                btnFollow.text = "取消关注"
+                // ✅ 修复：如果正在同步，显示"取消关注"文本，让用户知道状态已更新
+                btnFollow.text = if (isInteracting) "取消关注..." else "取消关注"
                 btnFollow.isEnabled = isEnabled
-                btnFollow.isClickable = isEnabled
+                btnFollow.isClickable = isEnabled && !isInteracting  // ✅ 修复：isInteracting 时禁用点击，防止重复操作
                 btnFollow.alpha = if (isEnabled) 1.0f else 0.5f
             }
             false -> {
-                btnFollow.text = "关注"
+                // ✅ 修复：如果正在同步，显示"关注"文本，让用户知道状态已更新
+                btnFollow.text = if (isInteracting) "关注..." else "关注"
                 btnFollow.isEnabled = isEnabled
-                btnFollow.isClickable = isEnabled
+                btnFollow.isClickable = isEnabled && !isInteracting  // ✅ 修复：isInteracting 时禁用点击，防止重复操作
                 btnFollow.alpha = if (isEnabled) 1.0f else 0.5f
             }
             null -> {

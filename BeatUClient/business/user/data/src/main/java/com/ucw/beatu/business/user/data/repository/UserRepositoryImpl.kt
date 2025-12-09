@@ -9,10 +9,12 @@ import com.ucw.beatu.shared.common.result.AppResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import android.util.Log
 import javax.inject.Inject
 
@@ -108,10 +110,12 @@ class UserRepositoryImpl @Inject constructor(
         localDataSource.followUser(currentUserId, targetUserId)
         Log.d(TAG, "Follow user: currentUserId=$currentUserId, targetUserId=$targetUserId (local updated)")
 
-        // 2. 异步同步到远程服务器
+        // 2. 异步同步到远程服务器（使用5秒超时）
         syncScope.launch {
             try {
-                val result = remoteDataSource.followUser(targetUserId)
+                val result = withTimeout(5000L) {  // ✅ 修复：缩短超时时间到5秒
+                    remoteDataSource.followUser(targetUserId)
+                }
                 when (result) {
                     is AppResult.Success -> {
                         Log.d(TAG, "Follow user sync success: targetUserId=$targetUserId")
@@ -120,10 +124,11 @@ class UserRepositoryImpl @Inject constructor(
                         _followSyncResult.emit(UserRepository.FollowSyncResult.Success(isFollow = true, targetUserId))
                     }
                     is AppResult.Error -> {
-                        val errorMessage = when (result.throwable) {
-                            is DataException.NetworkException -> "网络异常，该服务不可用"
-                            else -> result.message ?: result.throwable.message ?: "网络异常，该服务不可用"
+                        val baseErrorMessage = when (result.throwable) {
+                            is DataException.NetworkException -> "网络异常，请稍后重试"
+                            else -> result.message ?: result.throwable.message ?: "网络异常，请稍后重试"
                         }
+                        val errorMessage = "关注失败：$baseErrorMessage"  // ✅ 修复：明确显示"关注失败"
                         Log.e(TAG, "Follow user sync failed: targetUserId=$targetUserId, error: $errorMessage")
                         // ✅ 修改：同步失败，回滚本地状态（设置为未关注且已同步）
                         try {
@@ -145,9 +150,20 @@ class UserRepositoryImpl @Inject constructor(
                             Log.e(TAG, "Failed to rollback follow user local state: targetUserId=$targetUserId", e)
                         }
                         // 发送错误通知
-                        _followSyncResult.emit(UserRepository.FollowSyncResult.Error(isFollow = true, targetUserId, "网络异常，该服务不可用"))
+                        _followSyncResult.emit(UserRepository.FollowSyncResult.Error(isFollow = true, targetUserId, "关注失败：网络异常，请稍后重试"))
                     }
                 }
+            } catch (e: TimeoutCancellationException) {
+                Log.e(TAG, "Follow user sync timeout: targetUserId=$targetUserId", e)
+                // ✅ 修复：超时情况，回滚本地状态
+                try {
+                    localDataSource.rollbackFollowStatus(currentUserId, targetUserId, shouldFollow = false)
+                    Log.d(TAG, "Follow user local state rolled back (timeout): targetUserId=$targetUserId")
+                } catch (rollbackException: Exception) {
+                    Log.e(TAG, "Failed to rollback follow user local state: targetUserId=$targetUserId", rollbackException)
+                }
+                // 发送超时错误通知
+                _followSyncResult.emit(UserRepository.FollowSyncResult.Error(isFollow = true, targetUserId, "关注失败：请求超时，请稍后重试"))
             } catch (e: Exception) {
                 Log.e(TAG, "Follow user sync exception: targetUserId=$targetUserId", e)
                 // ✅ 修改：异常情况，回滚本地状态
@@ -158,11 +174,12 @@ class UserRepositoryImpl @Inject constructor(
                     Log.e(TAG, "Failed to rollback follow user local state: targetUserId=$targetUserId", rollbackException)
                 }
                 // 发送错误通知
-                val errorMessage = if (e is DataException.NetworkException) {
-                    "网络异常，该服务不可用"
-                } else {
-                    "网络异常，该服务不可用"
+                val baseErrorMessage = when {
+                    e is TimeoutCancellationException -> "请求超时，请稍后重试"
+                    e is DataException.NetworkException -> "网络异常，请稍后重试"
+                    else -> e.message ?: "网络异常，请稍后重试"
                 }
+                val errorMessage = "关注失败：$baseErrorMessage"  // ✅ 修复：明确显示"关注失败"
                 _followSyncResult.emit(UserRepository.FollowSyncResult.Error(isFollow = true, targetUserId, errorMessage))
             }
         }
@@ -173,10 +190,12 @@ class UserRepositoryImpl @Inject constructor(
         localDataSource.unfollowUser(currentUserId, targetUserId)
         Log.d(TAG, "Unfollow user: currentUserId=$currentUserId, targetUserId=$targetUserId (local updated)")
 
-        // 2. 异步同步到远程服务器
+        // 2. 异步同步到远程服务器（使用5秒超时）
         syncScope.launch {
             try {
-                val result = remoteDataSource.unfollowUser(targetUserId)
+                val result = withTimeout(5000L) {  // ✅ 修复：缩短超时时间到5秒
+                    remoteDataSource.unfollowUser(targetUserId)
+                }
                 when (result) {
                     is AppResult.Success -> {
                         Log.d(TAG, "Unfollow user sync success: targetUserId=$targetUserId")
@@ -185,10 +204,11 @@ class UserRepositoryImpl @Inject constructor(
                         _followSyncResult.emit(UserRepository.FollowSyncResult.Success(isFollow = false, targetUserId))
                     }
                     is AppResult.Error -> {
-                        val errorMessage = when (result.throwable) {
-                            is DataException.NetworkException -> "网络异常，该服务不可用"
-                            else -> result.message ?: result.throwable.message ?: "网络异常，该服务不可用"
+                        val baseErrorMessage = when (result.throwable) {
+                            is DataException.NetworkException -> "网络异常，请稍后重试"
+                            else -> result.message ?: result.throwable.message ?: "网络异常，请稍后重试"
                         }
+                        val errorMessage = "取消关注失败：$baseErrorMessage"  // ✅ 修复：明确显示"取消关注失败"
                         Log.e(TAG, "Unfollow user sync failed: targetUserId=$targetUserId, error: $errorMessage")
                         // ✅ 修改：同步失败，回滚本地状态（设置为已关注且已同步）
                         try {
@@ -210,9 +230,20 @@ class UserRepositoryImpl @Inject constructor(
                             Log.e(TAG, "Failed to rollback unfollow user local state: targetUserId=$targetUserId", e)
                         }
                         // 发送错误通知
-                        _followSyncResult.emit(UserRepository.FollowSyncResult.Error(isFollow = false, targetUserId, "网络异常，该服务不可用"))
+                        _followSyncResult.emit(UserRepository.FollowSyncResult.Error(isFollow = false, targetUserId, "取消关注失败：网络异常，请稍后重试"))
                     }
                 }
+            } catch (e: TimeoutCancellationException) {
+                Log.e(TAG, "Unfollow user sync timeout: targetUserId=$targetUserId", e)
+                // ✅ 修复：超时情况，回滚本地状态
+                try {
+                    localDataSource.rollbackFollowStatus(currentUserId, targetUserId, shouldFollow = true)
+                    Log.d(TAG, "Unfollow user local state rolled back (timeout): targetUserId=$targetUserId")
+                } catch (rollbackException: Exception) {
+                    Log.e(TAG, "Failed to rollback unfollow user local state: targetUserId=$targetUserId", rollbackException)
+                }
+                // 发送超时错误通知
+                _followSyncResult.emit(UserRepository.FollowSyncResult.Error(isFollow = false, targetUserId, "取消关注失败：请求超时，请稍后重试"))
             } catch (e: Exception) {
                 Log.e(TAG, "Unfollow user sync exception: targetUserId=$targetUserId", e)
                 // ✅ 修改：异常情况，回滚本地状态
@@ -223,14 +254,16 @@ class UserRepositoryImpl @Inject constructor(
                     Log.e(TAG, "Failed to rollback unfollow user local state: targetUserId=$targetUserId", rollbackException)
                 }
                 // 发送错误通知
-                val errorMessage = if (e is DataException.NetworkException) {
-                    "网络异常，该服务不可用"
-                } else {
-                    "网络异常，该服务不可用"
+                val baseErrorMessage = when {
+                    e is TimeoutCancellationException -> "请求超时，请稍后重试"
+                    e is DataException.NetworkException -> "网络异常，请稍后重试"
+                    else -> e.message ?: "网络异常，请稍后重试"
                 }
+                val errorMessage = "取消关注失败：$baseErrorMessage"  // ✅ 修复：明确显示"取消关注失败"
                 _followSyncResult.emit(UserRepository.FollowSyncResult.Error(isFollow = false, targetUserId, errorMessage))
             }
         }
     }
 }
+
 

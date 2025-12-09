@@ -6,6 +6,15 @@ import com.ucw.beatu.shared.common.result.AppResult
 import kotlinx.coroutines.flow.Flow
 
 /**
+ * 点赞/收藏操作错误事件
+ */
+data class VideoInteractionError(
+    val videoId: Long,
+    val operation: String, // "like", "unlike", "favorite", "unfavorite"
+    val errorMessage: String
+)
+
+/**
  * 视频仓储接口
  * 定义业务层需要的数据访问接口
  */
@@ -79,5 +88,11 @@ interface VideoRepository {
      * @param positionMs 播放位置（毫秒）
      */
     suspend fun saveWatchHistory(videoId: Long, positionMs: Long = 0L)
+    
+    /**
+     * 观察点赞/收藏操作错误
+     * @return Flow<VideoInteractionError> 错误事件流
+     */
+    fun observeInteractionErrors(): Flow<VideoInteractionError>
 }
 

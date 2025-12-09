@@ -1519,6 +1519,48 @@
         - 同步所有观看历史记录（不仅仅是 `isPending=true` 的）
         - 失败时保留待同步状态，下次定时任务时继续重试
 
+
+- [x] 用户弹窗的点击视频都没有用户是否点赞，是否收藏的显示
+    - 2025-12-09 - done by KJH
+    - 原因：没有用户是否点赞，是否收藏，用户弹窗的点击视频的对应页面缺少用户视频交互表的这部分参数
+    - 个人主页的视频页的用户名有的是默认使用用户，应该是用videoId找的authorName
+    - 实现：
+        1. ✅ **UserProfileNavigationHelper 查询交互状态**：
+           - 在 `navigateToUserWorksViewer()` 方法中，使用协程查询 `VideoInteractionDao` 获取每个视频的 `isLiked` 和 `isFavorited` 状态
+           - 通过 `interactionDao.getInteraction(work.id, currentUserId)` 查询用户视频交互状态
+           - 将查询到的状态传递给 `toVideoItem()` 方法，确保 `VideoItem` 包含完整的交互状态
+        2. ✅ **通过 authorId 查询用户信息**：
+           - 在 `navigateToUserWorksViewer()` 中，通过 `work.authorId` 查询 `UserDao` 获取正确的 `authorName` 和 `authorAvatar`
+           - 如果 `work.authorAvatar` 为空，使用用户表中的 `avatarUrl`
+           - 确保每个 `VideoItem` 都包含正确的作者信息
+        3. ✅ **VideoItem 包含完整数据**：
+           - `toVideoItem()` 方法接收 `authorName`、`authorId`、`authorAvatar`、`isLiked`、`isFavorited` 参数
+           - 确保传递给 `UserWorksViewerFragment` 的 `VideoItem` 列表包含完整的交互状态和作者信息
+    - 修改文件：
+        - `BeatUClient/business/user/presentation/src/main/java/com/ucw/beatu/business/user/presentation/ui/helper/UserProfileNavigationHelper.kt`
+        - `BeatUClient/business/user/domain/src/main/java/com/ucw/beatu/business/user/domain/model/UserWork.kt`（添加 authorId 和 authorAvatar 字段）
+        - `BeatUClient/business/user/data/src/main/java/com/ucw/beatu/business/user/data/mapper/UserWorkMapper.kt`（映射 authorId 和 authorAvatar）
+
+- [x] 个人主页的点击视频页的用户图标是没有对应数据，导致使用默认使用用户的，不对，应该使用视频id来得到对应的用户数据
+    - 2025-12-09 - done by KJH
+    - 实现：
+        1. ✅ **VideoItemFragment 查询用户信息**：
+           - 在 `onViewCreated()` 中，如果 `item.authorId`、`item.authorAvatar` 或 `item.authorName` 为空或默认值，通过 `videoId` 查询 `VideoDao` 获取 `VideoEntity`
+           - 从 `VideoEntity` 中提取 `authorId`，然后通过 `authorId` 查询 `UserDao` 获取 `UserEntity`
+           - 从 `UserEntity` 中提取 `userName` 和 `avatarUrl`，更新 UI 显示
+        2. ✅ **数据库查询逻辑**：
+           - 优先使用 `VideoEntity.authorId` 查询用户信息
+           - 如果用户表中没有数据，尝试使用 `VideoEntity.authorAvatar` 作为头像
+           - 确保用户名和头像都能正确显示，不再使用默认值
+        3. ✅ **UI 实时更新**：
+           - 查询到用户信息后，立即更新 `channelNameView` 和 `channelAvatarView`
+           - 使用 Coil 加载头像，支持占位图和错误处理
+           - 确保用户点击头像时使用正确的 `authorId` 和 `authorName`
+    - 修改文件：
+        - `BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/ui/VideoItemFragment.kt`
+        - `BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/ui/VideoItemFragment.kt`（注入 BeatUDatabase）
+
+
 - [ ] 顶部导航栏的关注按钮会显示使用者对应的关注的作者的视频，复用主页
 
 
