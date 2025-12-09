@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#00000000">
+
+    <!-- 顶部倍速提示气泡 -->
+    <TextView
+        android:id="@+id/tv_speed_indicator"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:background="@drawable/speed_indicator_background"
+        android:text="2 倍速播放中"
+        android:textColor="#FF000000"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="48dp"
+        android:visibility="gone" />
+
+    <!-- 三个倍速选项列 -->
+    <LinearLayout
+        android:id="@+id/ll_speed_options"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintTop_toBottomOf="@id/tv_speed_indicator"
+        app:layout_constraintBottom_toTopOf="@id/ll_lock_area"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:visibility="gone">
+
+        <!-- 0.5x 倍速列 -->
+        <FrameLayout
+            android:id="@+id/fl_speed_05x"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#FFFFE4E1"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0.5x"
+                android:textColor="#FF333333"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="32dp" />
+
+        </FrameLayout>
+
+        <!-- 2.0x 倍速列 -->
+        <FrameLayout
+            android:id="@+id/fl_speed_20x"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#FFE0FFE0"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/tv_video_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="视频1"
+                android:textColor="#FF333333"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_gravity="center" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="2.0x"
+                android:textColor="#FF333333"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="32dp" />
+
+        </FrameLayout>
+
+        <!-- 3.0x 倍速列 -->
+        <FrameLayout
+            android:id="@+id/fl_speed_30x"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#FFE6E6FA"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="3.0x"
+                android:textColor="#FF333333"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="32dp" />
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+    <!-- 底部锁定区域 -->
+    <LinearLayout
+        android:id="@+id/ll_lock_area"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingTop="16dp"
+        android:paddingBottom="32dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/iv_lock"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@android:drawable/ic_lock_lock"
+            android:tint="#FF666666"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:id="@+id/tv_lock_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="拖到此处锁定 2 倍速"
+            android:textColor="#FF666666"
+            android:textSize="14sp" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+

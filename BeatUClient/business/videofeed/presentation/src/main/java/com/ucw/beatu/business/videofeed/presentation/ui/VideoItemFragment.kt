@@ -3,9 +3,13 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.util.Log
+import android.view.GestureDetector
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.view.ViewParent
 import androidx.core.os.BundleCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.viewModels
@@ -76,6 +80,23 @@ class VideoItemFragment : BaseFeedItemFragment() {
     private var isRestoringFromLandscape = false
     private var isRestoringFromUserWorksViewer = false
 
+    // 倍速调节相关
+    private var speedControlOverlay: View? = null
+    private var isSpeedAdjusting = false
+    private var speedBeforeAdjust: Float = 1.0f
+    private var gestureDetector: GestureDetector? = null
+    private var longPressDetected = false
+    private var touchStartX = 0f
+    private var touchStartY = 0f
+    private var lastTouchY = 0f
+    private val rootLocation = IntArray(2) // 用于存储 rootLayout 在屏幕上的位置
+    private var wasControlsVisible = true // 记录底部交互平台之前的可见状态
+    private var wasTopNavigationVisible = true // 记录顶部导航栏之前的可见状态
+    private var wasViewPagerEnabled = true // 记录ViewPager2之前的滑动状态
+    private var isSpeedLocked = false // 是否已锁定倍速
+    private var isUnlocking = false // 是否正在解锁倍速（从锁定状态恢复到正常倍速）
+    private var speedBeforeLock: Float = 1.0f // 锁定前的原始倍速（用于解锁时恢复）
+
     // 用户信息展示相关
     private var userInfoOverlay: View? = null
     private var rootLayout: ConstraintLayout? = null
@@ -112,6 +133,10 @@ class VideoItemFragment : BaseFeedItemFragment() {
         playerView = view.findViewById(R.id.player_view)
         imagePager = view.findViewById(R.id.image_pager)
          controlsView = view.findViewById(R.id.video_controls)
+        speedControlOverlay = view.findViewById(R.id.speed_control_overlay)
+
+        // 初始化倍速调节手势检测
+        setupSpeedControlGesture()
          // 注意：标题/频道名称等现在定义在 shared:designsystem 的 VideoControlsView 布局中
          val sharedControlsRoot = controlsView
          
@@ -240,25 +265,34 @@ class VideoItemFragment : BaseFeedItemFragment() {
 
         controlsView?.listener = object : VideoControlsView.VideoControlsListener {
             override fun onPlayPauseClicked() {
+                if (!isSpeedAdjusting) {
                 viewModel.togglePlayPause()
+                }
             }
 
             override fun onLikeClicked() {
+                if (!isSpeedAdjusting) {
                 viewModel.toggleLike()
+                }
             }
 
             override fun onFavoriteClicked() {
+                if (!isSpeedAdjusting) {
                 viewModel.toggleFavorite()
+                }
             }
 
             override fun onCommentClicked() {
+                if (!isSpeedAdjusting) {
                 val item = videoItem ?: return
                 VideoCommentsDialogFragment
                     .newInstance(item.id, item.commentCount)
                     .show(parentFragmentManager, "video_comments_dialog")
+                }
             }
 
              override fun onShareClicked() {
+                 if (isSpeedAdjusting) return
                  val item = videoItem ?: return
                  // 当前展示的分享计数，本地乐观累加
                  val shareCountTextView = sharedControlsRoot?.findViewById<android.widget.TextView>(
@@ -325,11 +359,15 @@ class VideoItemFragment : BaseFeedItemFragment() {
             }
 
             override fun onLandscapeClicked() {
+                if (!isSpeedAdjusting) {
                 openLandscapeMode()
+                }
             }
 
             override fun onSeekRequested(positionMs: Long) {
+                if (!isSpeedAdjusting) {
                 viewModel.seekTo(positionMs)
+                }
             }
         }
 
@@ -338,11 +376,457 @@ class VideoItemFragment : BaseFeedItemFragment() {
         playerView?.setOnClickListener {
             if (isUserInfoVisible) {
                 hideUserInfoOverlay()
-            } else {
+            } else if (!isSpeedAdjusting) {
                 viewModel.togglePlayPause()
             }
         }
 
+    }
+
+    /**
+     * 初始化倍速调节手势检测
+     */
+    private fun setupSpeedControlGesture() {
+        val context = requireContext()
+        gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onLongPress(e: MotionEvent) {
+                if (isUserInfoVisible || videoItem?.type == FeedContentType.IMAGE_POST) {
+                    return
+                }
+                // 竖屏状态长按触发 2.0×倍速播放
+                startSpeedAdjusting()
+            }
+        })
+
+        // 在 PlayerView 上设置触摸监听器
+        playerView?.setOnTouchListener { v, event ->
+            if (isUserInfoVisible) {
+                return@setOnTouchListener false
+            }
+
+            // 如果正在调节倍速，处理倍速调节手势
+            if (isSpeedAdjusting) {
+                handleSpeedAdjustingTouch(event)
+                return@setOnTouchListener true
+            }
+
+            // 普通状态下，检测长按手势
+            gestureDetector?.onTouchEvent(event)
+            
+            // 如果是普通点击，不拦截，让点击事件正常传递
+            when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                touchStartX = event.x
+                touchStartY = event.y
+                lastTouchY = event.y
+            }
+            }
+            false
+        }
+    }
+
+    /**
+     * 开始倍速调节
+     */
+    private fun startSpeedAdjusting() {
+        if (isSpeedAdjusting) return
+        
+        isSpeedAdjusting = true
+        longPressDetected = true
+        
+        // 保存当前倍速
+        val currentSpeed = viewModel.uiState.value.currentSpeed
+        speedBeforeAdjust = currentSpeed
+        
+        // 检查当前是否已经锁定2倍速
+        val wasLocked = isSpeedLocked && currentSpeed == 2.0f
+        isUnlocking = wasLocked // 如果已锁定，进入解锁模式
+        
+        if (wasLocked) {
+            // 解锁模式：使用锁定前保存的原始倍速
+            Log.d(TAG, "开始倍速调节（解锁模式），当前倍速=${currentSpeed}，将恢复为 ${speedBeforeLock}x")
+        } else {
+            isSpeedLocked = false // 重置锁定状态
+            Log.d(TAG, "开始倍速调节，当前倍速=${currentSpeed}，设置为 2.0x")
+        }
+        
+        // 禁止ViewPager2上下滑动切换
+        disableViewPagerScrolling()
+        
+        // 立即请求所有父视图不要拦截触摸事件，防止 ViewPager2 的 RecyclerView 拦截
+        requestDisallowInterceptTouchEventForAllParents(true)
+        
+        // 隐藏底部交互平台和顶部导航栏
+        hideBottomControlsAndTopNavigation()
+        
+        // 如果不是解锁模式，设置为 2.0x 倍速
+        if (!isUnlocking) {
+            viewModel.setSpeed(2.0f)
+        }
+        
+        // 显示倍速调节 UI（立即显示，不等待 post）
+        showSpeedControlOverlay()
+        
+        // 更新锁定区域提示文字
+        highlightLockArea(false)
+    }
+
+    /**
+     * 处理倍速调节期间的触摸事件
+     */
+    private fun handleSpeedAdjustingTouch(event: MotionEvent): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                // 长按期间再次按下时，更新触摸起点
+                touchStartX = event.rawX
+                touchStartY = event.rawY
+                lastTouchY = event.rawY
+                
+                // 请求所有父视图（包括 ViewPager2 的 RecyclerView）不要拦截触摸事件
+                requestDisallowInterceptTouchEventForAllParents(true)
+                
+                Log.d(TAG, "handleSpeedAdjustingTouch: ACTION_DOWN, rawY=${event.rawY}, 请求父视图不拦截")
+            }
+            
+            MotionEvent.ACTION_MOVE -> {
+                val deltaX = event.rawX - touchStartX
+                val deltaY = event.rawY - lastTouchY
+                lastTouchY = event.rawY
+                
+                // 持续请求所有父视图不要拦截触摸事件，防止被 ViewPager2 拦截
+                requestDisallowInterceptTouchEventForAllParents(true)
+                
+                // 使用屏幕绝对坐标计算是否到达底部
+                rootLayout?.getLocationOnScreen(rootLocation)
+                val rootLayoutHeight = rootLayout?.height ?: 1
+                
+                // 计算触摸点在 rootLayout 中的相对位置
+                val touchYInRoot = event.rawY - rootLocation[1]
+                val bottomThreshold = rootLayoutHeight - dpToPx(150) // 距离底部150dp视为到达底部
+                
+                Log.d(TAG, "handleSpeedAdjustingTouch: ACTION_MOVE, touchYInRoot=$touchYInRoot, bottomThreshold=$bottomThreshold, deltaY=$deltaY, rawY=${event.rawY}, rootLocation[1]=${rootLocation[1]}")
+                
+                // 如果向下滑动且到达底部区域
+                if (deltaY > 0 && touchYInRoot >= bottomThreshold) {
+                    // 显示锁定/解锁提示高亮
+                    highlightLockArea(true)
+                } else {
+                    highlightLockArea(false)
+                }
+            }
+            
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                // 只有在真正松手时才处理锁定逻辑
+                Log.d(TAG, "handleSpeedAdjustingTouch: ACTION_UP/CANCEL, isSpeedAdjusting=$isSpeedAdjusting, action=${event.action}")
+                
+                // 使用屏幕绝对坐标计算是否到达底部
+                rootLayout?.getLocationOnScreen(rootLocation)
+                val rootLayoutHeight = rootLayout?.height ?: 1
+                
+                // 计算触摸点在 rootLayout 中的相对位置
+                val touchYInRoot = event.rawY - rootLocation[1]
+                val bottomThreshold = rootLayoutHeight - dpToPx(150)
+                
+                Log.d(TAG, "handleSpeedAdjustingTouch: 松手位置，touchYInRoot=$touchYInRoot, bottomThreshold=$bottomThreshold, rootLayoutHeight=$rootLayoutHeight, rawY=${event.rawY}")
+                
+                if (touchYInRoot >= bottomThreshold && isSpeedAdjusting) {
+                    if (isUnlocking) {
+                        // 解锁模式：恢复锁定前的原始倍速并解除锁定
+                        viewModel.setSpeed(speedBeforeLock)
+                        isSpeedLocked = false
+                        Log.d(TAG, "解锁倍速，恢复到 ${speedBeforeLock}x")
+                    } else {
+                        // 锁定模式：锁定当前倍速（固定为 2.0x）
+                        // 在锁定前，保存当前的原始倍速
+                        speedBeforeLock = speedBeforeAdjust
+                        lockSpeed(2.0f)
+                        isSpeedLocked = true // 标记已锁定
+                        Log.d(TAG, "锁定倍速为 2.0x，原始倍速=${speedBeforeLock}x")
+                    }
+                } else {
+                    // 未滑动到底部
+                    if (isUnlocking) {
+                        // 解锁模式：保持当前2倍速（不恢复）
+                        Log.d(TAG, "解锁模式取消，保持 2.0x")
+                    } else if (!isSpeedLocked) {
+                        // 锁定模式：恢复原倍速
+                        viewModel.setSpeed(speedBeforeAdjust)
+                        Log.d(TAG, "恢复倍速到 ${speedBeforeAdjust}x")
+                    }
+                }
+                
+                // 结束倍速调节（但不恢复倍速，如果已锁定）
+                endSpeedAdjusting()
+            }
+        }
+        return true
+    }
+
+    /**
+     * 请求所有父视图不要拦截触摸事件
+     */
+    private fun requestDisallowInterceptTouchEventForAllParents(disallow: Boolean) {
+        // 从当前视图向上遍历所有父视图，请求它们不要拦截触摸事件
+        var parent: ViewParent? = playerView?.parent
+        while (parent != null) {
+            parent.requestDisallowInterceptTouchEvent(disallow)
+            parent = parent.parent
+        }
+        
+        parent = speedControlOverlay?.parent
+        while (parent != null) {
+            parent.requestDisallowInterceptTouchEvent(disallow)
+            parent = parent.parent
+        }
+        
+        parent = rootLayout?.parent
+        while (parent != null) {
+            parent.requestDisallowInterceptTouchEvent(disallow)
+            parent = parent.parent
+        }
+    }
+
+    /**
+     * dp 转 px
+     */
+    private fun dpToPx(dp: Int): Int {
+        val density = resources.displayMetrics.density
+        return (dp * density).toInt()
+    }
+
+    /**
+     * 显示倍速调节 UI
+     */
+    private fun showSpeedControlOverlay() {
+        val overlay = speedControlOverlay ?: run {
+            Log.e(TAG, "showSpeedControlOverlay: speedControlOverlay 为 null!")
+            return
+        }
+        
+        Log.d(TAG, "showSpeedControlOverlay: 开始显示，overlay=$overlay, parent=${overlay.parent}")
+        
+        // 临时降低 VideoControlsView 的层级，避免遮挡
+        controlsView?.elevation = 0f
+        
+        // 立即设置可见性
+        overlay.visibility = View.VISIBLE
+        Log.d(TAG, "showSpeedControlOverlay: 设置 overlay.visibility=VISIBLE")
+        
+        // 在覆盖层上设置触摸监听，确保整个覆盖层都能接收触摸事件
+        overlay.setOnTouchListener { v, event ->
+            if (isSpeedAdjusting) {
+                // 请求所有父视图不要拦截触摸事件，防止被 ViewPager2 拦截
+                requestDisallowInterceptTouchEventForAllParents(true)
+                handleSpeedAdjustingTouch(event)
+                true
+            } else {
+                false
+            }
+        }
+        
+        // 确保覆盖层在最上层
+        view?.post {
+            val parent = overlay.parent as? ViewGroup
+            Log.d(TAG, "showSpeedControlOverlay: post 执行，parent=$parent, childCount=${parent?.childCount}")
+            
+            // 将覆盖层移到最前面
+            parent?.bringChildToFront(overlay)
+            overlay.bringToFront()
+            overlay.elevation = 20f // 设置更高的 elevation
+            
+            // 强制布局测量
+            overlay.measure(
+                View.MeasureSpec.makeMeasureSpec(overlay.width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(overlay.height, View.MeasureSpec.EXACTLY)
+            )
+            overlay.layout(overlay.left, overlay.top, overlay.right, overlay.bottom)
+            
+            // 确保顶部气泡可见并置顶
+            val indicator = overlay.findViewById<android.widget.TextView>(R.id.tv_speed_indicator)
+            Log.d(TAG, "showSpeedControlOverlay: indicator=$indicator")
+            indicator?.apply {
+                visibility = View.VISIBLE
+                elevation = 22f // 设置更高的 elevation
+                
+                // 强制测量和布局
+                measure(
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                )
+                layout(left, top, left + measuredWidth, top + measuredHeight)
+                
+                bringToFront()
+                (overlay as? ViewGroup)?.bringChildToFront(this)
+                Log.d(TAG, "showSpeedControlOverlay: indicator visibility=$visibility, text=$text, elevation=$elevation, width=$width, height=$height, measuredWidth=$measuredWidth, measuredHeight=$measuredHeight")
+            } ?: Log.e(TAG, "showSpeedControlOverlay: indicator 为 null!")
+            
+            // 确保其他UI元素可见
+            overlay.findViewById<View>(R.id.ll_lock_area)?.visibility = View.VISIBLE
+            
+            updateSpeedIndicator(2.0f)
+            highlightLockArea(false)
+            
+            // 再次延迟确保布局完成
+            view?.postDelayed({
+                val indicator2 = overlay.findViewById<android.widget.TextView>(R.id.tv_speed_indicator)
+                indicator2?.apply {
+                    Log.d(TAG, "showSpeedControlOverlay: 延迟后 indicator width=$width, height=$height, visibility=$visibility")
+                    if (width == 0 || height == 0) {
+                        // 如果尺寸还是0，强制设置最小尺寸
+                        layoutParams.width = dpToPx(140)
+                        layoutParams.height = dpToPx(44)
+                        requestLayout()
+                        invalidate()
+                    }
+                }
+            }, 100)
+            
+            Log.d(TAG, "showSpeedControlOverlay: 完成，overlay.visibility=${overlay.visibility}, width=${overlay.width}, height=${overlay.height}, elevation=${overlay.elevation}")
+        }
+    }
+
+    /**
+     * 更新顶部倍速提示
+     */
+    private fun updateSpeedIndicator(speed: Float) {
+        speedControlOverlay?.findViewById<android.widget.TextView>(R.id.tv_speed_indicator)?.apply {
+            text = "${speed}x 倍速播放中"
+            visibility = View.VISIBLE
+            bringToFront()
+            // 确保父容器也可见
+            (parent as? ViewGroup)?.bringChildToFront(this)
+        }
+    }
+
+    /**
+     * 高亮锁定区域
+     */
+    private fun highlightLockArea(highlight: Boolean) {
+        speedControlOverlay?.findViewById<android.widget.LinearLayout>(R.id.ll_lock_area)?.apply {
+            alpha = if (highlight) 1.0f else 0.7f
+        }
+        speedControlOverlay?.findViewById<android.widget.TextView>(R.id.tv_lock_hint)?.apply {
+            text = if (isUnlocking) {
+                "拖到此处恢复正常倍速"
+            } else {
+                "拖到此处锁定 2 倍速"
+            }
+        }
+    }
+
+    /**
+     * 锁定倍速（设置为默认倍速）
+     * TODO: 需要接入 Settings 模块来保存默认倍速
+     */
+    private fun lockSpeed(speed: Float) {
+        // 这里需要调用设置默认倍速的 UseCase
+        // 暂时只更新当前视频的倍速
+        viewModel.setSpeed(speed)
+        Log.d(TAG, "锁定倍速为 ${speed}x（需要接入 Settings 模块保存为默认倍速）")
+    }
+
+    /**
+     * 结束倍速调节
+     */
+    private fun endSpeedAdjusting() {
+        if (!isSpeedAdjusting) return
+        
+        isSpeedAdjusting = false
+        longPressDetected = false
+        isUnlocking = false // 重置解锁状态
+        
+        // 恢复 VideoControlsView 的层级
+        controlsView?.elevation = 0f
+        
+        // 隐藏倍速调节 UI
+        speedControlOverlay?.visibility = View.GONE
+        
+        // 恢复ViewPager2上下滑动
+        enableViewPagerScrolling()
+        
+        // 恢复底部交互平台和顶部导航栏
+        showBottomControlsAndTopNavigation()
+        
+        Log.d(TAG, "结束倍速调节，倍速是否锁定：$isSpeedLocked")
+    }
+
+    /**
+     * 禁止ViewPager2上下滑动切换
+     */
+    private fun disableViewPagerScrolling() {
+        // 通过父Fragment（RecommendFragment）获取ViewPager2并禁用滑动
+        val parent = parentFragment
+        if (parent is RecommendFragment) {
+            parent.disableViewPagerScrolling()
+            wasViewPagerEnabled = true
+            Log.d(TAG, "禁止ViewPager2滑动")
+        }
+    }
+
+    /**
+     * 恢复ViewPager2上下滑动
+     */
+    private fun enableViewPagerScrolling() {
+        // 通过父Fragment（RecommendFragment）获取ViewPager2并启用滑动
+        val parent = parentFragment
+        if (parent is RecommendFragment && wasViewPagerEnabled) {
+            parent.enableViewPagerScrolling()
+            Log.d(TAG, "恢复ViewPager2滑动")
+        }
+    }
+
+    /**
+     * 隐藏底部交互平台和顶部导航栏
+     */
+    private fun hideBottomControlsAndTopNavigation() {
+        // 保存底部交互平台的可见状态
+        wasControlsVisible = controlsView?.visibility == View.VISIBLE
+        
+        // 隐藏底部交互平台
+        controlsView?.visibility = View.GONE
+        
+        // 隐藏顶部导航栏（通过资源名称查找，避免跨模块依赖）
+        activity?.let { act ->
+            val topNavId = act.resources.getIdentifier("top_navigation", "id", act.packageName)
+            if (topNavId != 0) {
+                act.findViewById<View>(topNavId)?.let { topNav ->
+                    wasTopNavigationVisible = topNav.visibility == View.VISIBLE
+                    topNav.visibility = View.GONE
+                    Log.d(TAG, "隐藏顶部导航栏")
+                }
+            } else {
+                Log.w(TAG, "未找到 top_navigation 资源ID")
+            }
+        }
+        
+        Log.d(TAG, "隐藏底部交互平台，之前状态：$wasControlsVisible")
+    }
+
+    /**
+     * 恢复显示底部交互平台和顶部导航栏
+     */
+    private fun showBottomControlsAndTopNavigation() {
+        // 恢复底部交互平台（根据之前的状态）
+        if (wasControlsVisible) {
+            controlsView?.visibility = View.VISIBLE
+        }
+        
+        // 恢复顶部导航栏（根据之前的状态）
+        if (wasTopNavigationVisible) {
+            activity?.let { act ->
+                val topNavId = act.resources.getIdentifier("top_navigation", "id", act.packageName)
+                if (topNavId != 0) {
+                    act.findViewById<View>(topNavId)?.let { topNav ->
+                        topNav.visibility = View.VISIBLE
+                        Log.d(TAG, "恢复显示顶部导航栏")
+                    }
+                } else {
+                    Log.w(TAG, "未找到 top_navigation 资源ID")
+                }
+            }
+        }
+        
+        Log.d(TAG, "恢复底部交互平台，之前状态：$wasControlsVisible")
     }
 
     private fun observeViewModel() {

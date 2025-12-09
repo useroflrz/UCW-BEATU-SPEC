@@ -881,6 +881,15 @@ class VideoItemViewModel @Inject constructor(
     }
 
     /**
+     * 设置播放倍速
+     */
+    fun setSpeed(speed: Float) {
+        currentPlayer?.setSpeed(speed)
+        _uiState.value = _uiState.value.copy(currentSpeed = speed)
+        android.util.Log.d("VideoItemViewModel", "setSpeed: 设置倍速=$speed")
+    }
+
+    /**
      * 切换收藏状态
      */
     fun toggleFavorite() {
