@@ -30,6 +30,20 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
+        <!-- AI回答标签 -->
+        <TextView
+            android:id="@+id/tv_ai_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="AI回答"
+            android:textColor="#FF4CAF50"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:paddingEnd="8dp"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
         <!-- AI回答文本 -->
         <TextView
             android:id="@+id/tv_ai_answer"
@@ -40,7 +54,7 @@
             android:lineSpacingExtra="4dp"
             android:visibility="gone"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintStart_toEndOf="@id/tv_ai_label"
             app:layout_constraintEnd_toEndOf="parent" />
 
         <!-- 加载指示器 -->

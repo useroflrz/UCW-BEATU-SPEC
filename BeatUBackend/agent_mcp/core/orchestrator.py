@@ -376,6 +376,18 @@ class AgentOrchestrator:
                 content = self._load_mcp_content_cached(mcp_path, discovery_result)
                 self.logger.debug(f"加载后的内容: {content}")
             self._merge_mcp_config_from_content(mcp_config, content, discovery_result)
+        
+        # ✅ 修复：为所有 MCP Server 配置添加 X-API-Key 认证（如果配置了 MCP_API_KEY）
+        mcp_api_key = os.getenv("MCP_API_KEY", "").strip()
+        if mcp_api_key:
+            for server_name, server_config in mcp_config.items():
+                # 为 streamable_http 类型的 MCP Server 添加 X-API-Key 请求头
+                if server_config.get("transport") == "streamable_http" or server_config.get("type") == "streamable_http":
+                    if "headers" not in server_config:
+                        server_config["headers"] = {}
+                    server_config["headers"]["X-API-Key"] = mcp_api_key
+                    self.logger.debug(f"为 MCP Server '{server_name}' 添加 X-API-Key 认证")
+        
         self.logger.debug(f"最终构建的 MCP 配置: {mcp_config}")
         return mcp_config
 

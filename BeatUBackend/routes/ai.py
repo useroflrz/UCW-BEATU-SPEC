@@ -63,12 +63,18 @@ _ai_search_service: AISearchService = None
 
 
 def get_ai_search_service() -> AISearchService:
-    """获取 AI 搜索服务实例"""
+    """获取 AI 搜索服务实例（延迟初始化，简化版）"""
     global _ai_search_service
     if _ai_search_service is None:
         try:
+            # ✅ 延迟初始化：只在第一次调用时创建，避免启动时阻塞
+            # 简化版：直接使用 LLM，不需要 MCP Orchestrator
             _ai_search_service = AISearchService()
         except Exception as e:
+            # ✅ 改进错误处理：记录详细错误信息
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"AI 搜索服务初始化失败: {e}", exc_info=True)
             raise HTTPException(
                 status_code=503,
                 detail=f"AI 搜索服务不可用: {str(e)}"
@@ -80,33 +86,36 @@ def get_ai_search_service() -> AISearchService:
 async def ai_search_stream(
     payload: AISearchRequest,
     service: AISearchService = Depends(get_ai_search_service),
-    db: Session = Depends(get_db),
 ):
     """
-    AI 搜索流式接口
+    AI 搜索流式接口（简化版：名词解释和问题应答）
     
-    使用 MCP Agent 异步联网搜索用户的关键字，并以流式协议返回结果。
-    同时根据关键词搜索相关视频并返回。
+    直接使用 LLM 进行名词解释或问题应答，以流式协议返回结果。
     
     返回 Server-Sent Events (SSE) 格式的流式响应，包含：
-    - answer: Agent 联网搜索的文本结果（流式输出）
-    - keywords: 提取的关键词列表
-    - videos: 根据关键词搜索到的视频 ID 列表
+    - answer: LLM 生成的回答（流式输出）
     
     Args:
         payload: 搜索请求，包含 user_query 字段
         service: AI 搜索服务实例
-        db: 数据库会话（用于搜索视频）
     
     Returns:
         StreamingResponse: SSE 格式的流式响应
     """
     async def generate():
         """生成流式响应"""
+        import logging
+        logger = logging.getLogger(__name__)
         try:
-            async for chunk in service.search_stream(payload.user_query, db=db):
+            logger.info(f"开始处理 AI 搜索请求: user_query={payload.user_query}")
+            chunk_count = 0
+            async for chunk in service.search_stream(payload.user_query):
+                chunk_count += 1
+                logger.debug(f"生成 chunk #{chunk_count}: {chunk[:100] if len(chunk) > 100 else chunk}")
                 yield chunk
+            logger.info(f"AI 搜索请求处理完成: 共生成 {chunk_count} 个 chunk")
         except Exception as e:
+            logger.error(f"生成流式响应失败: {e}", exc_info=True)
             error_data = {
                 "chunkType": "error",
                 "content": f"处理失败: {str(e)}",

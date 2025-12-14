@@ -8,7 +8,6 @@ BeatU Backend 使用 `.env` 文件来管理配置，包括数据库连接、Redi
 
 ```bash
 conda activate beatu-backend
-
 uvicorn main:app --reload --host 0.0.0.0 --port 9306
 
 ```

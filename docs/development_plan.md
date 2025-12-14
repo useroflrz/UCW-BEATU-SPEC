@@ -1561,6 +1561,11 @@
         - `BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/ui/VideoItemFragment.kt`（注入 BeatUDatabase）
 
 
+- [x] 完善ai回答接口的后端，修复搜索的返回按钮问题
+    - 2025-12-14 - done by KJH
+    -
+
+
 - [ ] 顶部导航栏的关注按钮会显示使用者对应的关注的作者的视频，复用主页
 
 

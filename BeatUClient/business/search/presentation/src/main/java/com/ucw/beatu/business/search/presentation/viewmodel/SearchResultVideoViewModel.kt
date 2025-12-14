@@ -38,6 +38,7 @@ class SearchResultVideoViewModel @Inject constructor(
     private val pageSize = 20
     private var isLoadingMore = false
     private var loadMoreJob: Job? = null
+    private var searchJob: Job? = null
     private var searchQuery: String = ""
     private var titleKeyword: String = ""
 
@@ -45,91 +46,112 @@ class SearchResultVideoViewModel @Inject constructor(
      * 初始化搜索，调用后端接口搜索视频
      */
     fun initSearch(query: String, titleKeyword: String) {
+        // ✅ 如果查询相同，不重复搜索
+        if (searchQuery == query && this.titleKeyword == titleKeyword && _uiState.value.videoList.isNotEmpty()) {
+            return
+        }
+        
+        // ✅ 取消之前的搜索任务
+        searchJob?.cancel()
+        loadMoreJob?.cancel()
+        
+        // ✅ 重置状态
         searchQuery = query
         this.titleKeyword = titleKeyword
         currentPage = 1
-        loadVideoList()
+        isLoadingMore = false
+        
+        // ✅ 清空之前的列表，显示加载状态
+        _uiState.value = _uiState.value.copy(
+            videoList = emptyList(),
+            isLoading = true,
+            error = null,
+            hasLoadedAllFromBackend = false
+        )
+        
+        // ✅ 启动新的搜索任务
+        searchJob = viewModelScope.launch {
+            loadVideoList()
+        }
     }
 
     /**
      * 加载视频列表：调用后端接口，保存到数据库，然后从数据库读取
      */
-    private fun loadVideoList() {
+    private suspend fun loadVideoList() {
         if (isLoadingMore) return
         isLoadingMore = true
+        
+        _uiState.value = _uiState.value.copy(error = null)
 
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(error = null)
+        // 确定搜索关键词：优先使用titleKeyword，如果没有则使用searchQuery
+        val query = if (titleKeyword.isNotBlank()) titleKeyword else searchQuery
+        
+        if (query.isBlank()) {
+            _uiState.value = _uiState.value.copy(
+                videoList = emptyList(),
+                isLoading = false,
+                error = "搜索关键词不能为空"
+            )
+            isLoadingMore = false
+            return
+        }
 
-            // 确定搜索关键词：优先使用titleKeyword，如果没有则使用searchQuery
-            val query = if (titleKeyword.isNotBlank()) titleKeyword else searchQuery
-            
-            if (query.isBlank()) {
+        // 调用后端搜索接口（会自动保存到数据库）
+        searchRepository.searchVideos(query, currentPage, pageSize)
+            .catch { e ->
                 _uiState.value = _uiState.value.copy(
-                    videoList = emptyList(),
                     isLoading = false,
-                    error = "搜索关键词不能为空"
+                    error = e.message ?: "搜索失败"
                 )
                 isLoadingMore = false
-                return@launch
             }
-
-            // 调用后端搜索接口（会自动保存到数据库）
-            searchRepository.searchVideos(query, currentPage, pageSize)
-                .catch { e ->
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = e.message ?: "搜索失败"
-                    )
-                    isLoadingMore = false
-                }
-                .collect { result ->
-                    when (result) {
-                        is AppResult.Loading -> {
-                            if (_uiState.value.videoList.isEmpty()) {
-                                _uiState.value = _uiState.value.copy(isLoading = true)
-                            }
-                        }
-                        is AppResult.Success -> {
-                            // 后端接口已经将结果保存到数据库
-                            // 直接使用后端返回的结果更新UI
-                            val videoItems = result.data.map { it.toVideoItem() }
-                            
-                            // 如果同时提供了searchQuery和titleKeyword，需要进一步过滤
-                            val filteredVideos = if (searchQuery.isNotBlank() && titleKeyword.isNotBlank() && query == titleKeyword) {
-                                // 如果query是titleKeyword，还需要检查是否包含searchQuery
-                                videoItems.filter { it.title.contains(searchQuery, ignoreCase = true) }
-                            } else {
-                                videoItems
-                            }
-                            
-                            val currentList = if (currentPage == 1) {
-                                filteredVideos
-                            } else {
-                                _uiState.value.videoList + filteredVideos
-                            }
-                            
-                            val hasLoadedAll = result.data.size < pageSize
-                            _uiState.value = _uiState.value.copy(
-                                videoList = currentList,
-                                isLoading = false,
-                                hasLoadedAllFromBackend = hasLoadedAll
-                            )
-                            isLoadingMore = false
-                        }
-                        is AppResult.Error -> {
-                            // 后端失败，尝试从本地数据库读取
-                            loadFromLocalDatabase(query)
-                            
-                            _uiState.value = _uiState.value.copy(
-                                isLoading = false,
-                                error = result.message ?: "搜索失败"
-                            )
-                            isLoadingMore = false
+            .collect { result ->
+                when (result) {
+                    is AppResult.Loading -> {
+                        if (_uiState.value.videoList.isEmpty()) {
+                            _uiState.value = _uiState.value.copy(isLoading = true)
                         }
                     }
+                    is AppResult.Success -> {
+                        // 后端接口已经将结果保存到数据库
+                        // 直接使用后端返回的结果更新UI
+                        val videoItems = result.data.map { it.toVideoItem() }
+                        
+                        // 如果同时提供了searchQuery和titleKeyword，需要进一步过滤
+                        val filteredVideos = if (searchQuery.isNotBlank() && titleKeyword.isNotBlank() && query == titleKeyword) {
+                            // 如果query是titleKeyword，还需要检查是否包含searchQuery
+                            videoItems.filter { it.title.contains(searchQuery, ignoreCase = true) }
+                        } else {
+                            videoItems
+                        }
+                        
+                        val currentList = if (currentPage == 1) {
+                            filteredVideos
+                        } else {
+                            _uiState.value.videoList + filteredVideos
+                        }
+                        
+                        val hasLoadedAll = result.data.size < pageSize
+                        _uiState.value = _uiState.value.copy(
+                            videoList = currentList,
+                            isLoading = false,
+                            hasLoadedAllFromBackend = hasLoadedAll
+                        )
+                        isLoadingMore = false
+                    }
+                    is AppResult.Error -> {
+                        // 后端失败，尝试从本地数据库读取
+                        loadFromLocalDatabase(query)
+                        
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            error = result.message ?: "搜索失败"
+                        )
+                        isLoadingMore = false
+                    }
                 }
-        }
+            }
     }
 
     /**
@@ -178,12 +200,21 @@ class SearchResultVideoViewModel @Inject constructor(
      * 刷新视频列表
      */
     fun refreshVideoList() {
+        // ✅ 取消之前的任务
+        searchJob?.cancel()
+        loadMoreJob?.cancel()
+        
         currentPage = 1
+        isLoadingMore = false
         _uiState.value = _uiState.value.copy(
             isRefreshing = true,
             hasLoadedAllFromBackend = false
         )
-        loadVideoList()
+        
+        // ✅ 在协程中调用 suspend 函数
+        searchJob = viewModelScope.launch {
+            loadVideoList()
+        }
     }
 
     /**
