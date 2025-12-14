@@ -145,6 +145,54 @@ class AgentOrchestrator:
         self.logger.info("请求处理完成")
         return final_response
     
+    def _extract_json_from_markdown(self, content: str) -> str:
+        """从 Markdown 代码块中提取 JSON 内容
+        
+        Args:
+            content: 可能包含 Markdown 代码块的文本内容
+            
+        Returns:
+            str: 提取的 JSON 字符串，如果未找到则返回原始内容
+        """
+        import re
+        
+        # 方法1: 查找 ```json ... ``` 或 ``` ... ``` 代码块
+        json_block_pattern = r'```(?:json)?\s*(\{.*?\})\s*```'
+        match = re.search(json_block_pattern, content, re.DOTALL)
+        if match:
+            extracted = match.group(1).strip()
+            # 验证是否是有效的 JSON
+            try:
+                json.loads(extracted)
+                return extracted
+            except json.JSONDecodeError:
+                pass
+        
+        # 方法2: 查找第一个完整的 JSON 对象（从 { 开始到匹配的 } 结束）
+        # 使用更精确的匹配，找到最外层的 JSON 对象
+        brace_count = 0
+        start_idx = -1
+        for i, char in enumerate(content):
+            if char == '{':
+                if start_idx == -1:
+                    start_idx = i
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+                if brace_count == 0 and start_idx != -1:
+                    # 找到了完整的 JSON 对象
+                    json_str = content[start_idx:i+1]
+                    try:
+                        json.loads(json_str)
+                        return json_str.strip()
+                    except json.JSONDecodeError:
+                        # 继续查找下一个
+                        start_idx = -1
+                        brace_count = 0
+        
+        # 方法3: 如果都没有找到，返回原始内容（让解析器尝试）
+        return content
+    
     async def _formulate_execution_plan(
         self,
         user_input: str,
@@ -201,12 +249,29 @@ class AgentOrchestrator:
         # 调用 LLM
         response = self.llm.invoke(prompt)
         
-        # 解析输出
+        # 解析输出（改进：支持从 Markdown 代码块中提取 JSON）
         try:
-            plan = self.plan_parser.parse(response.content)
+            content = response.content.strip()
+            # 尝试直接解析
+            plan = self.plan_parser.parse(content)
             return plan
         except (ValidationError, json.JSONDecodeError, ValueError) as e:
+            self.logger.warning(f"直接解析失败，尝试从 Markdown 中提取 JSON: {e}")
+            self.logger.debug(f"LLM 原始输出（前500字符）: {response.content[:500]}")
+            
+            # 尝试从 Markdown 代码块中提取 JSON
+            try:
+                json_content = self._extract_json_from_markdown(response.content)
+                if json_content and json_content != response.content:
+                    self.logger.info("成功从 Markdown 中提取 JSON，重新解析...")
+                    plan = self.plan_parser.parse(json_content)
+                    return plan
+            except Exception as e2:
+                self.logger.error(f"从 Markdown 提取 JSON 也失败: {e2}", exc_info=True)
+            
+            # 如果都失败了，记录详细错误并抛出异常
             self.logger.error(f"解析执行计划失败: {e}", exc_info=True)
+            self.logger.error(f"LLM 完整输出: {response.content}")
             raise ValueError(f"解析执行计划失败: {e}") from e
     
     async def _execute_plan_with_mcp_client(
