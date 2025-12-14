@@ -146,13 +146,13 @@ class AgentOrchestrator:
         return final_response
     
     def _extract_json_from_markdown(self, content: str) -> str:
-        """从 Markdown 代码块中提取 JSON 内容
+        """从 Markdown 代码块中提取 JSON 内容，并清理注释
         
         Args:
             content: 可能包含 Markdown 代码块的文本内容
             
         Returns:
-            str: 提取的 JSON 字符串，如果未找到则返回原始内容
+            str: 提取并清理后的 JSON 字符串，如果未找到则返回原始内容
         """
         import re
         
@@ -161,10 +161,10 @@ class AgentOrchestrator:
         match = re.search(json_block_pattern, content, re.DOTALL)
         if match:
             extracted = match.group(1).strip()
-            # 验证是否是有效的 JSON
+            cleaned = self._clean_json(extracted)
             try:
-                json.loads(extracted)
-                return extracted
+                json.loads(cleaned)
+                return cleaned
             except json.JSONDecodeError:
                 pass
         
@@ -182,16 +182,81 @@ class AgentOrchestrator:
                 if brace_count == 0 and start_idx != -1:
                     # 找到了完整的 JSON 对象
                     json_str = content[start_idx:i+1]
+                    cleaned = self._clean_json(json_str)
                     try:
-                        json.loads(json_str)
-                        return json_str.strip()
+                        json.loads(cleaned)
+                        return cleaned.strip()
                     except json.JSONDecodeError:
                         # 继续查找下一个
                         start_idx = -1
                         brace_count = 0
         
-        # 方法3: 如果都没有找到，返回原始内容（让解析器尝试）
-        return content
+        # 方法3: 如果都没有找到，尝试清理原始内容
+        cleaned = self._clean_json(content)
+        return cleaned
+    
+    def _clean_json(self, json_str: str) -> str:
+        """清理 JSON 字符串，去除注释和无效字符
+        
+        Args:
+            json_str: 可能包含注释的 JSON 字符串
+            
+        Returns:
+            str: 清理后的 JSON 字符串
+        """
+        import re
+        
+        # 去除多行注释 /* ... */
+        json_str = re.sub(r'/\*.*?\*/', '', json_str, flags=re.DOTALL)
+        
+        # 去除单行注释 // ...（但要小心字符串中的 //）
+        # 使用更智能的方法：只在引号外去除注释
+        lines = json_str.split('\n')
+        cleaned_lines = []
+        in_string = False
+        escape_next = False
+        
+        for line in lines:
+            cleaned_line = []
+            i = 0
+            while i < len(line):
+                char = line[i]
+                
+                if escape_next:
+                    cleaned_line.append(char)
+                    escape_next = False
+                    i += 1
+                    continue
+                
+                if char == '\\':
+                    escape_next = True
+                    cleaned_line.append(char)
+                    i += 1
+                    continue
+                
+                if char == '"':
+                    in_string = not in_string
+                    cleaned_line.append(char)
+                    i += 1
+                    continue
+                
+                if not in_string and i < len(line) - 1 and line[i:i+2] == '//':
+                    # 找到注释，跳过该行剩余部分
+                    break
+                
+                cleaned_line.append(char)
+                i += 1
+            
+            cleaned_line_str = ''.join(cleaned_line).rstrip()
+            if cleaned_line_str:  # 只添加非空行
+                cleaned_lines.append(cleaned_line_str)
+        
+        result = '\n'.join(cleaned_lines)
+        
+        # 去除尾随逗号（在 } 或 ] 之前）
+        result = re.sub(r',(\s*[}\]])', r'\1', result)
+        
+        return result.strip()
     
     async def _formulate_execution_plan(
         self,
