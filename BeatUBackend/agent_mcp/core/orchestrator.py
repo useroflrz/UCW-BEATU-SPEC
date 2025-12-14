@@ -157,15 +157,21 @@ class AgentOrchestrator:
         import re
         
         # 方法1: 查找 ```json ... ``` 或 ``` ... ``` 代码块
-        json_block_pattern = r'```(?:json)?\s*(\{.*?\})\s*```'
-        match = re.search(json_block_pattern, content, re.DOTALL)
+        # 改进：先找到代码块的开始和结束位置，然后提取中间内容
+        code_block_pattern = r'```(?:json)?\s*\n?(.*?)\n?```'
+        match = re.search(code_block_pattern, content, re.DOTALL)
         if match:
             extracted = match.group(1).strip()
+            self.logger.debug(f"从代码块中提取到内容（前200字符）: {extracted[:200]}")
             cleaned = self._clean_json(extracted)
             try:
+                # 验证 JSON 是否有效
                 json.loads(cleaned)
+                self.logger.debug("从代码块提取的 JSON 验证通过")
                 return cleaned
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
+                self.logger.debug(f"从代码块提取的 JSON 验证失败: {e}")
+                # 继续尝试其他方法
                 pass
         
         # 方法2: 查找第一个完整的 JSON 对象（从 { 开始到匹配的 } 结束）
@@ -182,16 +188,20 @@ class AgentOrchestrator:
                 if brace_count == 0 and start_idx != -1:
                     # 找到了完整的 JSON 对象
                     json_str = content[start_idx:i+1]
+                    self.logger.debug(f"从内容中提取到 JSON 对象（前200字符）: {json_str[:200]}")
                     cleaned = self._clean_json(json_str)
                     try:
                         json.loads(cleaned)
+                        self.logger.debug("提取的 JSON 对象验证通过")
                         return cleaned.strip()
-                    except json.JSONDecodeError:
+                    except json.JSONDecodeError as e:
+                        self.logger.debug(f"提取的 JSON 对象验证失败: {e}")
                         # 继续查找下一个
                         start_idx = -1
                         brace_count = 0
         
         # 方法3: 如果都没有找到，尝试清理原始内容
+        self.logger.debug("未找到代码块或完整 JSON 对象，尝试清理原始内容")
         cleaned = self._clean_json(content)
         return cleaned
     
@@ -319,6 +329,7 @@ class AgentOrchestrator:
             content = response.content.strip()
             # 尝试直接解析
             plan = self.plan_parser.parse(content)
+            self.logger.info("直接解析 LLM 输出成功")
             return plan
         except (ValidationError, json.JSONDecodeError, ValueError) as e:
             self.logger.warning(f"直接解析失败，尝试从 Markdown 中提取 JSON: {e}")
@@ -327,12 +338,32 @@ class AgentOrchestrator:
             # 尝试从 Markdown 代码块中提取 JSON
             try:
                 json_content = self._extract_json_from_markdown(response.content)
+                self.logger.debug(f"提取的 JSON 内容（前500字符）: {json_content[:500] if json_content else 'None'}")
+                
                 if json_content and json_content != response.content:
-                    self.logger.info("成功从 Markdown 中提取 JSON，重新解析...")
+                    self.logger.info("成功从 Markdown 中提取 JSON，尝试解析...")
+                    # 先验证 JSON 是否有效
+                    try:
+                        json.loads(json_content)  # 验证 JSON 格式
+                        self.logger.info("提取的 JSON 格式验证通过")
+                    except json.JSONDecodeError as json_err:
+                        self.logger.error(f"提取的 JSON 格式无效: {json_err}")
+                        self.logger.error(f"无效 JSON 内容: {json_content[:1000]}")
+                        raise
+                    
+                    # 尝试解析为 ExecutionPlan
                     plan = self.plan_parser.parse(json_content)
+                    self.logger.info("成功解析执行计划")
                     return plan
+                else:
+                    self.logger.warning("提取的 JSON 与原始内容相同，可能提取失败")
+            except json.JSONDecodeError as json_err:
+                self.logger.error(f"提取的 JSON 格式错误: {json_err}", exc_info=True)
+                self.logger.error(f"无效 JSON 内容: {json_content[:1000] if 'json_content' in locals() else 'N/A'}")
             except Exception as e2:
                 self.logger.error(f"从 Markdown 提取 JSON 也失败: {e2}", exc_info=True)
+                if 'json_content' in locals():
+                    self.logger.error(f"提取的内容: {json_content[:1000]}")
             
             # 如果都失败了，记录详细错误并抛出异常
             self.logger.error(f"解析执行计划失败: {e}", exc_info=True)
