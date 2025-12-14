@@ -66,8 +66,30 @@ class AISearchService:
             # Step 2: 流式返回 Agent 搜索结果
             agent_result = ""
             async for chunk in self._stream_agent_result(agent_task):
+                # 检查 chunk 是否是错误
+                if chunk.get("chunkType") == "error":
+                    # 如果流式输出中已经包含错误，直接返回错误
+                    yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
+                    return
+                
                 agent_result += chunk.get("content", "")
                 yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
+            
+            # 检查 agent_result 是否包含错误信息
+            if agent_result and ("搜索过程中出现错误" in agent_result or "解析执行计划失败" in agent_result):
+                # 提取错误信息
+                if "解析执行计划失败" in agent_result:
+                    error_msg = "AI 搜索服务暂时不可用，请稍后重试。"
+                else:
+                    error_msg = "AI 搜索服务暂时不可用，请稍后重试。"
+                
+                error_data = {
+                    "chunkType": "error",
+                    "content": error_msg,
+                    "isFinal": True
+                }
+                yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
+                return
             
             # Step 3: 从 Agent 结果中提取关键词
             keywords = self._extract_keywords(agent_result, user_query)
@@ -92,9 +114,11 @@ class AISearchService:
         
         except Exception as e:
             self.logger.error(f"AI 搜索处理失败: {e}", exc_info=True)
+            # 提供更友好的错误消息
+            error_msg = "AI 搜索服务暂时不可用，请稍后重试。"
             error_data = {
                 "chunkType": "error",
-                "content": f"处理失败: {str(e)}",
+                "content": error_msg,
                 "isFinal": True
             }
             yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
@@ -107,14 +131,37 @@ class AISearchService:
         
         Returns:
             str: Agent 搜索结果
+        
+        Raises:
+            Exception: 如果搜索失败，抛出异常而不是返回错误消息
         """
         try:
             # 构建搜索请求，让 Agent 联网搜索
             search_prompt = f"请帮我搜索关于 '{user_query}' 的最新信息，并提供详细的搜索结果。"
             result = await self.mcp_service.process_request(search_prompt)
+            
+            # ✅ 检查结果是否包含错误信息（检查多种可能的错误格式）
+            if result:
+                error_indicators = [
+                    "搜索过程中出现错误",
+                    "解析执行计划失败",
+                    "Invalid json output",
+                    "OUTPUT_PARSING_FAILURE",
+                    "处理失败"
+                ]
+                
+                for indicator in error_indicators:
+                    if indicator in result:
+                        self.logger.warning(f"检测到错误指示符 '{indicator}'，结果将被标记为错误")
+                        # 不抛出异常，而是返回结果让 _stream_agent_result 处理
+                        # 这样可以在流式输出之前检查并返回友好的错误消息
+                        return result
+            
             return result
         except Exception as e:
-            self.logger.error(f"Agent 搜索失败: {e}", exc_info=True)
+            # 如果 MCP 服务抛出异常，记录并返回错误消息
+            self.logger.error(f"Agent 搜索异常: {e}", exc_info=True)
+            # 返回包含错误信息的结果，让 _stream_agent_result 处理
             return f"搜索过程中出现错误: {str(e)}"
     
     async def _stream_agent_result(self, agent_task: asyncio.Task) -> AsyncGenerator[dict, None]:
@@ -131,6 +178,18 @@ class AISearchService:
         try:
             # 等待 Agent 搜索完成
             result = await agent_task
+            
+            # ✅ 关键修复：在开始流式输出之前检查结果是否包含错误信息
+            if result and ("搜索过程中出现错误" in result or "解析执行计划失败" in result):
+                # 如果结果是错误消息，直接返回错误 chunk，不流式输出错误内容
+                self.logger.warning(f"检测到错误信息，不流式输出错误内容: {result[:200]}")
+                error_chunk = {
+                    "chunkType": "error",
+                    "content": "AI 搜索服务暂时不可用，请稍后重试。",
+                    "isFinal": True
+                }
+                yield error_chunk
+                return
             
             # 模拟流式输出：将结果分块发送
             chunk_size = 50  # 每块 50 个字符
@@ -152,7 +211,7 @@ class AISearchService:
             self.logger.error(f"流式输出失败: {e}", exc_info=True)
             error_chunk = {
                 "chunkType": "error",
-                "content": f"流式输出失败: {str(e)}",
+                "content": "AI 搜索服务暂时不可用，请稍后重试。",
                 "isFinal": True
             }
             yield error_chunk
