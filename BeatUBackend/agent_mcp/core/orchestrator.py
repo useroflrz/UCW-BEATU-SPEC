@@ -145,6 +145,171 @@ class AgentOrchestrator:
         self.logger.info("请求处理完成")
         return final_response
     
+    def _extract_json_from_markdown(self, content: str) -> str:
+        """从 Markdown 代码块中提取 JSON 内容，并清理注释
+        
+        Args:
+            content: 可能包含 Markdown 代码块的文本内容
+            
+        Returns:
+            str: 提取并清理后的 JSON 字符串，如果未找到则返回原始内容
+        """
+        import re
+        
+        self.logger.debug(f"[JSON提取] 开始提取，输入内容长度: {len(content)} 字符")
+        
+        # 方法1: 查找 ```json ... ``` 或 ``` ... ``` 代码块
+        # 改进：先找到代码块的开始和结束位置，然后提取中间内容
+        self.logger.debug("[JSON提取] 方法1: 尝试从 Markdown 代码块中提取...")
+        code_block_pattern = r'```(?:json)?\s*\n?(.*?)\n?```'
+        match = re.search(code_block_pattern, content, re.DOTALL)
+        if match:
+            extracted = match.group(1).strip()
+            self.logger.info(f"[JSON提取] ✅ 从代码块中提取到内容，长度: {len(extracted)} 字符")
+            self.logger.debug(f"[JSON提取] 提取内容（前200字符）: {extracted[:200]}")
+            self.logger.debug(f"[JSON提取] 提取内容（后200字符）: {extracted[-200:] if len(extracted) > 200 else 'N/A'}")
+            
+            self.logger.debug("[JSON提取] 开始清理 JSON（去除注释等）...")
+            cleaned = self._clean_json(extracted)
+            self.logger.debug(f"[JSON提取] 清理完成，清理后长度: {len(cleaned)} 字符")
+            
+            try:
+                # 验证 JSON 是否有效
+                json.loads(cleaned)
+                self.logger.info("[JSON提取] ✅ 从代码块提取的 JSON 验证通过")
+                return cleaned
+            except json.JSONDecodeError as e:
+                self.logger.warning(f"[JSON提取] ❌ 从代码块提取的 JSON 验证失败: {e}")
+                self.logger.debug(f"[JSON提取] 清理后的内容（前500字符）: {cleaned[:500]}")
+                # 继续尝试其他方法
+                pass
+        else:
+            self.logger.debug("[JSON提取] 方法1: 未找到代码块")
+        
+        # 方法2: 查找第一个完整的 JSON 对象（从 { 开始到匹配的 } 结束）
+        # 使用更精确的匹配，找到最外层的 JSON 对象
+        self.logger.debug("[JSON提取] 方法2: 尝试查找完整的 JSON 对象（匹配大括号）...")
+        brace_count = 0
+        start_idx = -1
+        json_objects_found = 0
+        for i, char in enumerate(content):
+            if char == '{':
+                if start_idx == -1:
+                    start_idx = i
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+                if brace_count == 0 and start_idx != -1:
+                    # 找到了完整的 JSON 对象
+                    json_objects_found += 1
+                    json_str = content[start_idx:i+1]
+                    self.logger.info(f"[JSON提取] ✅ 找到 JSON 对象 #{json_objects_found}，位置: {start_idx}-{i+1}，长度: {len(json_str)} 字符")
+                    self.logger.debug(f"[JSON提取] JSON 对象（前200字符）: {json_str[:200]}")
+                    
+                    cleaned = self._clean_json(json_str)
+                    self.logger.debug(f"[JSON提取] 清理后长度: {len(cleaned)} 字符")
+                    try:
+                        json.loads(cleaned)
+                        self.logger.info("[JSON提取] ✅ 提取的 JSON 对象验证通过")
+                        return cleaned.strip()
+                    except json.JSONDecodeError as e:
+                        self.logger.warning(f"[JSON提取] ❌ JSON 对象 #{json_objects_found} 验证失败: {e}")
+                        self.logger.debug(f"[JSON提取] 清理后的内容（前500字符）: {cleaned[:500]}")
+                        # 继续查找下一个
+                        start_idx = -1
+                        brace_count = 0
+        
+        if json_objects_found == 0:
+            self.logger.debug("[JSON提取] 方法2: 未找到完整的 JSON 对象")
+        
+        # 方法3: 如果都没有找到，尝试清理原始内容
+        self.logger.info("[JSON提取] 方法3: 未找到代码块或完整 JSON 对象，尝试清理原始内容...")
+        cleaned = self._clean_json(content)
+        self.logger.debug(f"[JSON提取] 清理原始内容完成，清理后长度: {len(cleaned)} 字符")
+        return cleaned
+    
+    def _clean_json(self, json_str: str) -> str:
+        """清理 JSON 字符串，去除注释和无效字符
+        
+        Args:
+            json_str: 可能包含注释的 JSON 字符串
+            
+        Returns:
+            str: 清理后的 JSON 字符串
+        """
+        import re
+        
+        original_length = len(json_str)
+        self.logger.debug(f"[JSON清理] 开始清理，原始长度: {original_length} 字符")
+        
+        # 去除多行注释 /* ... */
+        before_multiline = len(json_str)
+        json_str = re.sub(r'/\*.*?\*/', '', json_str, flags=re.DOTALL)
+        after_multiline = len(json_str)
+        if before_multiline != after_multiline:
+            self.logger.debug(f"[JSON清理] 去除多行注释，减少 {before_multiline - after_multiline} 字符")
+        
+        # 去除单行注释 // ...（但要小心字符串中的 //）
+        # 使用更智能的方法：只在引号外去除注释
+        lines = json_str.split('\n')
+        cleaned_lines = []
+        in_string = False
+        escape_next = False
+        comments_removed = 0
+        
+        for line in lines:
+            cleaned_line = []
+            i = 0
+            while i < len(line):
+                char = line[i]
+                
+                if escape_next:
+                    cleaned_line.append(char)
+                    escape_next = False
+                    i += 1
+                    continue
+                
+                if char == '\\':
+                    escape_next = True
+                    cleaned_line.append(char)
+                    i += 1
+                    continue
+                
+                if char == '"':
+                    in_string = not in_string
+                    cleaned_line.append(char)
+                    i += 1
+                    continue
+                
+                if not in_string and i < len(line) - 1 and line[i:i+2] == '//':
+                    # 找到注释，跳过该行剩余部分
+                    comments_removed += 1
+                    break
+                
+                cleaned_line.append(char)
+                i += 1
+            
+            cleaned_line_str = ''.join(cleaned_line).rstrip()
+            if cleaned_line_str:  # 只添加非空行
+                cleaned_lines.append(cleaned_line_str)
+        
+        if comments_removed > 0:
+            self.logger.debug(f"[JSON清理] 去除 {comments_removed} 个单行注释")
+        
+        result = '\n'.join(cleaned_lines)
+        
+        # 去除尾随逗号（在 } 或 ] 之前）
+        before_trailing = len(result)
+        result = re.sub(r',(\s*[}\]])', r'\1', result)
+        after_trailing = len(result)
+        if before_trailing != after_trailing:
+            self.logger.debug(f"[JSON清理] 去除尾随逗号，减少 {before_trailing - after_trailing} 字符")
+        
+        final_length = len(result.strip())
+        self.logger.debug(f"[JSON清理] 清理完成，最终长度: {final_length} 字符（原始: {original_length} 字符）")
+        
+        return result.strip()
+    
     async def _formulate_execution_plan(
         self,
         user_input: str,
@@ -199,14 +364,76 @@ class AgentOrchestrator:
         )
         
         # 调用 LLM
+        self.logger.info("开始调用 LLM 生成执行计划...")
         response = self.llm.invoke(prompt)
+        self.logger.info(f"LLM 调用完成，响应长度: {len(response.content)} 字符")
         
-        # 解析输出
+        # 记录完整的 LLM 输出（用于调试）
+        self.logger.debug(f"LLM 完整输出:\n{response.content}")
+        
+        # 解析输出（改进：支持从 Markdown 代码块中提取 JSON）
         try:
-            plan = self.plan_parser.parse(response.content)
+            content = response.content.strip()
+            self.logger.debug(f"尝试直接解析，内容长度: {len(content)} 字符")
+            self.logger.debug(f"内容前200字符: {content[:200]}")
+            
+            # 尝试直接解析
+            plan = self.plan_parser.parse(content)
+            self.logger.info("✅ 直接解析 LLM 输出成功")
             return plan
         except (ValidationError, json.JSONDecodeError, ValueError) as e:
+            self.logger.warning(f"❌ 直接解析失败: {type(e).__name__}: {e}")
+            self.logger.info("开始尝试从 Markdown 中提取 JSON...")
+            self.logger.debug(f"LLM 原始输出（前500字符）: {response.content[:500]}")
+            self.logger.debug(f"LLM 原始输出（后500字符）: {response.content[-500:]}")
+            
+            # 尝试从 Markdown 代码块中提取 JSON
+            try:
+                self.logger.info("步骤 1: 调用 _extract_json_from_markdown 提取 JSON...")
+                json_content = self._extract_json_from_markdown(response.content)
+                
+                self.logger.info(f"提取完成，结果长度: {len(json_content) if json_content else 0} 字符")
+                self.logger.debug(f"提取的 JSON 内容（前500字符）: {json_content[:500] if json_content else 'None'}")
+                self.logger.debug(f"提取的 JSON 内容（后500字符）: {json_content[-500:] if json_content and len(json_content) > 500 else 'N/A'}")
+                
+                if json_content and json_content != response.content:
+                    self.logger.info("✅ 成功从 Markdown 中提取 JSON（内容已变化）")
+                    self.logger.debug(f"原始内容长度: {len(response.content)}, 提取后长度: {len(json_content)}")
+                    
+                    # 先验证 JSON 是否有效
+                    self.logger.info("步骤 2: 验证提取的 JSON 格式...")
+                    try:
+                        parsed_json = json.loads(json_content)  # 验证 JSON 格式
+                        self.logger.info("✅ 提取的 JSON 格式验证通过")
+                        self.logger.debug(f"解析后的 JSON 结构: {list(parsed_json.keys()) if isinstance(parsed_json, dict) else type(parsed_json)}")
+                    except json.JSONDecodeError as json_err:
+                        self.logger.error(f"❌ 提取的 JSON 格式无效: {json_err}")
+                        self.logger.error(f"JSON 错误位置: 行 {json_err.lineno if hasattr(json_err, 'lineno') else 'N/A'}, 列 {json_err.colno if hasattr(json_err, 'colno') else 'N/A'}")
+                        self.logger.error(f"无效 JSON 内容（前1000字符）: {json_content[:1000]}")
+                        self.logger.error(f"无效 JSON 内容（后1000字符）: {json_content[-1000:] if len(json_content) > 1000 else 'N/A'}")
+                        raise
+                    
+                    # 尝试解析为 ExecutionPlan
+                    self.logger.info("步骤 3: 尝试解析为 ExecutionPlan...")
+                    plan = self.plan_parser.parse(json_content)
+                    self.logger.info("✅ 成功解析执行计划")
+                    self.logger.debug(f"执行计划包含 {len(plan.plan)} 个任务")
+                    return plan
+                else:
+                    self.logger.warning("⚠️ 提取的 JSON 与原始内容相同，可能提取失败")
+                    self.logger.debug(f"原始内容: {response.content[:300]}")
+                    self.logger.debug(f"提取内容: {json_content[:300] if json_content else 'None'}")
+            except json.JSONDecodeError as json_err:
+                self.logger.error(f"提取的 JSON 格式错误: {json_err}", exc_info=True)
+                self.logger.error(f"无效 JSON 内容: {json_content[:1000] if 'json_content' in locals() else 'N/A'}")
+            except Exception as e2:
+                self.logger.error(f"从 Markdown 提取 JSON 也失败: {e2}", exc_info=True)
+                if 'json_content' in locals():
+                    self.logger.error(f"提取的内容: {json_content[:1000]}")
+            
+            # 如果都失败了，记录详细错误并抛出异常
             self.logger.error(f"解析执行计划失败: {e}", exc_info=True)
+            self.logger.error(f"LLM 完整输出: {response.content}")
             raise ValueError(f"解析执行计划失败: {e}") from e
     
     async def _execute_plan_with_mcp_client(
