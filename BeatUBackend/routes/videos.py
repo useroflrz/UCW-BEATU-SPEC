@@ -48,27 +48,31 @@ def list_videos(
     service: VideoService = Depends(get_video_service),
     user_id: str = Depends(resolve_user),
 ):
-    data = service.list_videos(
-        page=page,
-        limit=limit,
-        orientation=orientation.lower() if orientation else None,
-        channel=channel,
-        user_id=user_id,
-    )
-    # 后端统一负责对推荐流做"图文+视频"混编
-    mixed_items = service.build_mixed_feed(page=data.page, items=data.items)
-    # 使用新的create方法生成包含pageSize等字段的响应
-    response_data = VideoList.create(
-        items=mixed_items,
-        total=data.total,
-        page=data.page,
-        limit=data.limit,
-    )
-    # 添加调试日志
     import logging
     logger = logging.getLogger(__name__)
-    logger.info(f"返回视频列表: total={data.total}, items数量={len(mixed_items)}, page={data.page}, limit={data.limit}")
-    return success_response(response_data.dict(by_alias=True))
+    try:
+        data = service.list_videos(
+            page=page,
+            limit=limit,
+            orientation=orientation.lower() if orientation else None,
+            channel=channel,
+            user_id=user_id,
+        )
+        # 后端统一负责对推荐流做"图文+视频"混编
+        mixed_items = service.build_mixed_feed(page=data.page, items=data.items)
+        # 使用新的create方法生成包含pageSize等字段的响应
+        response_data = VideoList.create(
+            items=mixed_items,
+            total=data.total,
+            page=data.page,
+            limit=data.limit,
+        )
+        logger.info(f"返回视频列表: total={data.total}, items数量={len(mixed_items)}, page={data.page}, limit={data.limit}")
+        return success_response(response_data.dict(by_alias=True))
+    except Exception as e:
+        logger.error(f"获取视频列表失败: page={page}, limit={limit}, orientation={orientation}, user_id={user_id}, error={e}", exc_info=True)
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=f"获取视频列表失败: {str(e)}")
 
 
 # ✅ 重要：具体的路由必须放在参数化路由之前，否则会被 /videos/{video_id} 匹配
@@ -78,8 +82,15 @@ def get_all_video_interactions(
     user_id: str = Depends(resolve_user),
 ):
     """获取指定用户的所有视频交互（首次启动时全量加载）"""
-    interactions = service.get_all_video_interactions(user_id)
-    return success_response(interactions)
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        interactions = service.get_all_video_interactions(user_id)
+        return success_response(interactions)
+    except Exception as e:
+        logger.error(f"获取视频交互失败: user_id={user_id}, error={e}", exc_info=True)
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=f"获取视频交互失败: {str(e)}")
 
 
 @router.get("/videos/watch-history")
@@ -88,8 +99,15 @@ def get_all_watch_histories(
     user_id: str = Depends(resolve_user),
 ):
     """获取指定用户的所有观看历史（启动时全量加载）"""
-    histories = service.get_all_watch_histories(user_id)
-    return success_response(histories)
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        histories = service.get_all_watch_histories(user_id)
+        return success_response(histories)
+    except Exception as e:
+        logger.error(f"获取观看历史失败: user_id={user_id}, error={e}", exc_info=True)
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=f"获取观看历史失败: {str(e)}")
 
 
 @router.get("/videos/{video_id}")

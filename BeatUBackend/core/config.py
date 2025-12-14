@@ -13,45 +13,43 @@ except ImportError:
     from pydantic import BaseSettings
 
 # 加载 .env 文件（如果存在）
-# 优先查找项目根目录下的 .env 文件
+# ✅ 修复：在 BeatUBackend 目录下查找 .env 文件
 env_file = Path(__file__).parent.parent / ".env"
-if env_file.exists():
-    load_dotenv(dotenv_path=env_file)
+env_file_path = str(env_file) if env_file.exists() else None
+if env_file_path:
+    load_dotenv(dotenv_path=env_file_path, override=True)
 
 
 def build_database_url() -> str:
     """
     构建数据库连接URL
     优先级：
-    1. DATABASE_URL 环境变量（如果已设置）
-    2. 从 DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME 构建
-    3. 默认值
+    1. DATABASE_URL 环境变量（优先从 .env 文件读取）
+    2. 默认值（作为后备）
+    
+    注意：优先使用 .env 文件中的 DATABASE_URL 配置
     """
-    # 如果已设置 DATABASE_URL，直接使用
-    if os.getenv("DATABASE_URL"):
-        return os.getenv("DATABASE_URL")
+    # ✅ 修改：直接使用 DATABASE_URL 环境变量（优先从 .env 文件读取）
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        return database_url
     
-    # 从分离的变量构建
-    db_host = os.getenv("DB_HOST", "localhost")
-    db_port = os.getenv("DB_PORT", "3306")
-    db_user = os.getenv("DB_USER", "beatu")
-    db_password = os.getenv("DB_PASSWORD", "RXSSbTkGZWFkyThj")
-    db_name = os.getenv("DB_NAME", "beatu")
-    
-    return f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    # 如果没有设置 DATABASE_URL，使用默认值作为后备
+    return "mysql+pymysql://jeecg:haomo123@192.168.1.206:3306/jeecg-boot3"
 
 
 class Settings(BaseSettings):
     """
     应用配置类
     配置优先级（从高到低）：
-    1. 环境变量
+    1. 系统环境变量
     2. .env 文件中的值（通过python-dotenv加载）
     3. 默认值
     
     使用说明：
-    - 可以直接设置 DATABASE_URL 环境变量
-    - 或者设置 DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME 变量
+    - 数据库连接：在 .env 文件中设置 DATABASE_URL 环境变量
+    - 格式：DATABASE_URL=mysql+pymysql://用户名:密码@主机:端口/数据库名
+    - 示例：DATABASE_URL=mysql+pymysql://jeecg:haomo123@192.168.1.206:3306/jeecg-boot3
     - 修改配置后重启服务生效
     """
     project_name: str = Field(default="BeatU Backend", description="项目名称")
@@ -59,7 +57,7 @@ class Settings(BaseSettings):
     debug: bool = Field(default=False, description="是否开启调试模式")
     database_url: str = Field(
         default_factory=build_database_url,
-        description="数据库连接URL，格式：mysql+pymysql://用户名:密码@主机:端口/数据库名"
+        description="数据库连接URL，格式：mysql+pymysql://用户名:密码@主机:端口/数据库名。优先从 .env 文件中的 DATABASE_URL 读取"
     )
     redis_url: str = Field(
         default="redis://localhost:6379/0",
@@ -98,6 +96,7 @@ class Settings(BaseSettings):
 
     # 兼容 Pydantic v1 和 v2
     class Config:
+        env_file = env_file_path  # ✅ 修复：显式指定 .env 文件路径
         env_file_encoding = "utf-8"
         case_sensitive = False
         # Pydantic v2 兼容
