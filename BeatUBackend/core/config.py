@@ -13,11 +13,19 @@ except ImportError:
     from pydantic import BaseSettings
 
 # 加载 .env 文件（如果存在）
-# 优先查找项目根目录下的 .env 文件
-env_file = Path(__file__).parent.parent / ".env"
-env_file_path = str(env_file) if env_file.exists() else None
-if env_file_path:
-    load_dotenv(dotenv_path=env_file_path)
+# ✅ 修改：优先加载 .env.mysql 文件，如果不存在则加载 .env 文件
+backend_dir = Path(__file__).parent.parent
+env_mysql_file = backend_dir / ".env.mysql"
+env_file = backend_dir / ".env"
+
+# 优先使用 .env.mysql，如果不存在则使用 .env
+env_file_path = None
+if env_mysql_file.exists():
+    env_file_path = str(env_mysql_file)
+    load_dotenv(dotenv_path=env_file_path, override=True)
+elif env_file.exists():
+    env_file_path = str(env_file)
+    load_dotenv(dotenv_path=env_file_path, override=True)
 
 
 def build_database_url() -> str:
@@ -48,13 +56,15 @@ class Settings(BaseSettings):
     """
     应用配置类
     配置优先级（从高到低）：
-    1. 环境变量
-    2. .env 文件中的值（通过python-dotenv加载）
-    3. 默认值
+    1. 系统环境变量
+    2. .env.mysql 文件中的值（优先，如果存在）
+    3. .env 文件中的值（如果 .env.mysql 不存在）
+    4. 默认值
     
     使用说明：
-    - 可以直接设置 DATABASE_URL 环境变量
-    - 或者设置 DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME 变量
+    - 数据库连接：优先使用 .env.mysql 文件中的 DATABASE_URL
+    - 格式：DATABASE_URL=mysql+pymysql://用户名:密码@主机:端口/数据库名
+    - 示例：DATABASE_URL=mysql+pymysql://jeecg:haomo123@192.168.1.206:3306/jeecg-boot3
     - 修改配置后重启服务生效
     """
     project_name: str = Field(default="BeatU Backend", description="项目名称")

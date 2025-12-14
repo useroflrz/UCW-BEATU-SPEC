@@ -18,7 +18,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import declarative_base, relationship, foreign
 
 
 Base = declarative_base()
@@ -34,8 +34,8 @@ class User(Base):
     followerCount = Column(BigInteger, nullable=False, default=0)  # ✅ 修改：字段名从 followers 改为 followerCount
     followingCount = Column(BigInteger, nullable=False, default=0)  # ✅ 修改：字段名从 followings 改为 followingCount
 
-    videos = relationship("Video", back_populates="author", cascade="all, delete-orphan", foreign_keys="Video.authorId")
-    watch_histories = relationship("WatchHistory", back_populates="user", cascade="all, delete-orphan")
+    videos = relationship("Video", back_populates="author", cascade="all, delete-orphan", primaryjoin="User.userId == foreign(Video.authorId)")
+    watch_histories = relationship("WatchHistory", back_populates="user", cascade="all, delete-orphan", primaryjoin="User.userId == foreign(WatchHistory.userId)")
 
 
 class Video(Base):
@@ -55,9 +55,9 @@ class Video(Base):
     authorAvatar = Column(String(500))  # ✅ 修改：字段名从 author_avatar 改为 authorAvatar
     shareUrl = Column(String(500))  # ✅ 新增：分享链接
 
-    comments = relationship("Comment", back_populates="video", cascade="all, delete-orphan")
-    author = relationship("User", back_populates="videos", foreign_keys=[authorId])
-    watch_histories = relationship("WatchHistory", back_populates="video", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="video", cascade="all, delete-orphan", primaryjoin="Video.videoId == foreign(Comment.videoId)")
+    author = relationship("User", back_populates="videos", primaryjoin="foreign(Video.authorId) == User.userId")
+    watch_histories = relationship("WatchHistory", back_populates="video", cascade="all, delete-orphan", primaryjoin="Video.videoId == foreign(WatchHistory.videoId)")
 
 
 class Comment(Base):
@@ -73,7 +73,7 @@ class Comment(Base):
     isPending = Column(Boolean, default=False, nullable=False)  # ✅ 新增：本地待同步状态
     authorAvatar = Column(String(500))  # ✅ 修改：字段名从 author_avatar 改为 authorAvatar
 
-    video = relationship("Video", back_populates="comments")
+    video = relationship("Video", back_populates="comments", primaryjoin="foreign(Comment.videoId) == Video.videoId")
 
 
 class VideoInteraction(Base):
@@ -86,8 +86,8 @@ class VideoInteraction(Base):
     isFavorited = Column(Boolean, default=False, nullable=False)  # ✅ 新增：是否收藏
     isPending = Column(Boolean, default=False, nullable=False)  # ✅ 新增：本地待同步状态
 
-    video = relationship("Video")
-    user = relationship("User", foreign_keys=[userId])
+    video = relationship("Video", primaryjoin="foreign(VideoInteraction.videoId) == Video.videoId")
+    user = relationship("User", primaryjoin="foreign(VideoInteraction.userId) == User.userId")
 
     __table_args__ = (
         Index("idx_userId", "userId"),
@@ -128,8 +128,8 @@ class UserFollow(Base):
     isFollowed = Column(Boolean, default=False, nullable=False)  # ✅ 新增：是否关注
     isPending = Column(Boolean, default=False, nullable=False)  # ✅ 新增：本地待同步状态
 
-    user = relationship("User", foreign_keys=[userId])
-    author = relationship("User", foreign_keys=[authorId])
+    user = relationship("User", primaryjoin="foreign(UserFollow.userId) == User.userId")
+    author = relationship("User", primaryjoin="foreign(UserFollow.authorId) == User.userId")
 
     __table_args__ = (
         Index("idx_userId", "userId"),
@@ -147,8 +147,8 @@ class WatchHistory(Base):
     watchedAt = Column(BigInteger, nullable=False)  # ✅ 修改：字段名从 last_watch_at 改为 watchedAt，类型从 DateTime 改为 BigInteger（Unix时间戳毫秒）
     isPending = Column(Boolean, default=False, nullable=False)  # ✅ 新增：本地待同步状态（弱一致性数据）
 
-    user = relationship("User", back_populates="watch_histories")
-    video = relationship("Video", back_populates="watch_histories")
+    user = relationship("User", back_populates="watch_histories", primaryjoin="foreign(WatchHistory.userId) == User.userId")
+    video = relationship("Video", back_populates="watch_histories", primaryjoin="foreign(WatchHistory.videoId) == Video.videoId")
 
     __table_args__ = (
         Index("idx_userId", "userId"),
