@@ -39,7 +39,9 @@ def build_database_url() -> str:
     db_password = os.getenv("DB_PASSWORD", "RXSSbTkGZWFkyThj")
     db_name = os.getenv("DB_NAME", "beatu")
     
-    return f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    # ✅ 修复：添加连接参数，支持 MySQL 8.0+ 的认证插件
+    # 使用 default_auth_plugin 参数让 pymysql 自动选择合适的认证方式
+    return f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?charset=utf8mb4"
 
 
 class Settings(BaseSettings):
