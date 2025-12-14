@@ -218,13 +218,23 @@ def search_videos(
     user_id: str = Depends(resolve_user),
 ):
     """搜索视频（根据标题关键词）"""
-    data = service.search_videos(
-        query=query,
-        page=page,
-        limit=limit,
-        user_id=user_id,
-    )
-    return success_response(data.dict(by_alias=True))
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        logger.info(f"搜索视频: query={query}, page={page}, limit={limit}, user_id={user_id}")
+        data = service.search_videos(
+            query=query,
+            page=page,
+            limit=limit,
+            user_id=user_id,
+        )
+        logger.info(f"搜索成功: query={query}, total={data.total}, items数量={len(data.items)}")
+        return success_response(data.dict(by_alias=True))
+    except Exception as e:
+        logger.error(f"搜索视频失败: query={query}, error={str(e)}", exc_info=True)
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=f"搜索失败: {str(e)}")
 
 
 @router.post("/videos/watch-history/sync")

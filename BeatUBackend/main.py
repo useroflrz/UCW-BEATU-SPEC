@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from datetime import datetime
 
 from fastapi import FastAPI
@@ -21,9 +22,32 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理：启动和关闭时的资源管理"""
+    # 启动时
+    logger.info("服务启动中...")
+    yield
+    # 关闭时
+    logger.info("服务关闭中，清理资源...")
+    try:
+        # 清理 MCP 服务资源
+        from services.mcp_orchestrator_service import _mcp_service
+        if _mcp_service is not None:
+            await _mcp_service.close()
+            logger.info("MCP 服务资源已清理")
+    except Exception as e:
+        logger.warning(f"清理资源时出现错误（可忽略）: {e}")
+    logger.info("服务已关闭")
+
+
 def create_app() -> FastAPI:
     """Application factory to keep tests lightweight."""
-    app = FastAPI(title=settings.project_name, version=settings.version)
+    app = FastAPI(
+        title=settings.project_name, 
+        version=settings.version,
+        lifespan=lifespan  # ✅ 添加生命周期管理
+    )
 
     # 添加请求日志中间件（记录所有请求）
     app.add_middleware(RequestLoggingMiddleware)

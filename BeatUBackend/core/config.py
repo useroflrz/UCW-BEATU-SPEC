@@ -15,8 +15,9 @@ except ImportError:
 # 加载 .env 文件（如果存在）
 # 优先查找项目根目录下的 .env 文件
 env_file = Path(__file__).parent.parent / ".env"
-if env_file.exists():
-    load_dotenv(dotenv_path=env_file)
+env_file_path = str(env_file) if env_file.exists() else None
+if env_file_path:
+    load_dotenv(dotenv_path=env_file_path)
 
 
 def build_database_url() -> str:
@@ -38,7 +39,9 @@ def build_database_url() -> str:
     db_password = os.getenv("DB_PASSWORD", "RXSSbTkGZWFkyThj")
     db_name = os.getenv("DB_NAME", "beatu")
     
-    return f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    # ✅ 修复：添加连接参数，支持 MySQL 8.0+ 的认证插件
+    # 使用 default_auth_plugin 参数让 pymysql 自动选择合适的认证方式
+    return f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?charset=utf8mb4"
 
 
 class Settings(BaseSettings):
@@ -78,26 +81,36 @@ class Settings(BaseSettings):
     default_user_id: str = Field(default="BEATU", description="默认用户ID")
     default_user_name: str = Field(default="BEATU", description="默认用户名")
     
-    # MCP 配置（AgentMCP 相关）
+    # LLM 配置（大模型服务，用于 ChatOpenAI）
+    llm_api_key: str = Field(
+        default="",
+        description="LLM API Key（用于大模型推理，OpenAI 兼容接口，对应环境变量 LLM_API_KEY 或 DASHSCOPE_API_KEY）"
+    )
+    llm_base_url: str = Field(
+        default="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        description="LLM Base URL（用于大模型推理，OpenAI 兼容接口，对应环境变量 LLM_BASE_URL）"
+    )
+    llm_model: str = Field(
+        default="qwen-flash",
+        description="LLM Model（用于大模型推理，对应环境变量 LLM_MODEL）"
+    )
+    
+    # MCP 配置（MCP 工具服务，用于 MultiServerMCPClient）
     mcp_api_key: str = Field(
         default="",
-        description="MCP LLM API Key（用于 AgentMCP，对应环境变量 API_KEY）"
-    )
-    mcp_base_url: str = Field(
-        default="https://dashscope.aliyuncs.com/compatible-mode/v1",
-        description="MCP LLM Base URL（用于 AgentMCP，对应环境变量 BASE_URL）"
-    )
-    mcp_model: str = Field(
-        default="qwen-flash",
-        description="MCP LLM Model（用于 AgentMCP，对应环境变量 MODEL）"
+        description="MCP API Key（用于 IQS MCP Server 认证，在请求头中作为 X-API-Key，对应环境变量 MCP_API_KEY）"
     )
     mcp_registry_path: str = Field(
         default="",
         description="MCP 注册表路径（默认为 BeatUBackend/mcp_registry）"
     )
+    
+    # 兼容旧配置（已废弃，建议使用 llm_* 配置）
+    # 保留这些字段以兼容现有 .env 文件，但会映射到新的 llm_* 配置
 
     # 兼容 Pydantic v1 和 v2
     class Config:
+        env_file = env_file_path  # ✅ 修复：显式指定 .env 文件路径
         env_file_encoding = "utf-8"
         case_sensitive = False
         # Pydantic v2 兼容

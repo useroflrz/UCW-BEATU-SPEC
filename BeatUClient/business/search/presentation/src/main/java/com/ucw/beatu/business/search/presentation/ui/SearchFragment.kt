@@ -157,7 +157,7 @@ class SearchFragment : Fragment() {
         
         // 返回按钮点击
         backButton.setOnClickListener {
-            searchEditText.text?.clear()
+            // ✅ 移除清空搜索框的逻辑，保留搜索词以便用户继续搜索
             if (!findNavController().popBackStack()) {
                 requireActivity().onBackPressedDispatcher.onBackPressed()
             }
@@ -364,7 +364,7 @@ class SearchFragment : Fragment() {
     }
 
     private fun getMockHotSearch(): List<String> {
-        return listOf("高清", "横屏", "奇幻冒险", "视频")
+        return listOf("疯狂动物城", "不心动挑战", "恋与深空", "猫")
     }
 
     private fun getMockSearchSuggestions(query: String): List<String> {

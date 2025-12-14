@@ -52,6 +52,7 @@ class SearchResultFragment : Fragment() {
     
     // AI搜索相关UI
     private lateinit var aiSearchContainer: View
+    private lateinit var aiAnswerLabel: TextView
     private lateinit var aiAnswerText: TextView
     private lateinit var aiLoadingProgress: ProgressBar
     private lateinit var aiErrorText: TextView
@@ -125,6 +126,7 @@ class SearchResultFragment : Fragment() {
 
     private fun setupAISearchResult(view: View) {
         aiSearchContainer = view.findViewById(R.id.ai_search_result_container)
+        aiAnswerLabel = view.findViewById(R.id.tv_ai_label)
         aiAnswerText = view.findViewById(R.id.tv_ai_answer)
         aiLoadingProgress = view.findViewById(R.id.pb_ai_loading)
         aiErrorText = view.findViewById(R.id.tv_ai_error)
@@ -141,9 +143,17 @@ class SearchResultFragment : Fragment() {
 
     private fun triggerSearch(query: String) {
         if (query.isBlank()) return
+        
         currentQuery = query
+        
+        // ✅ 隐藏键盘
+        val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+        imm?.hideSoftInputFromWindow(searchEditText.windowToken, 0)
+        
+        // ✅ 触发视频搜索（ViewModel 会处理去重）
         viewModel.initSearch(query, titleKeyword = "")
-        // 触发AI搜索
+        
+        // ✅ 触发AI搜索
         aiSearchViewModel.search(query)
     }
 
@@ -151,10 +161,9 @@ class SearchResultFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
-                    if (state.videoList.isNotEmpty()) {
-                        val uiModels = state.videoList.map { it.toUiModel() }
-                        resultAdapter.submitList(uiModels)
-                    }
+                    // ✅ 更新视频列表（包括空列表的情况）
+                    val uiModels = state.videoList.map { it.toUiModel() }
+                    resultAdapter.submitList(uiModels)
                     // 省略 loading/error 展示，后续可扩展
                 }
             }
@@ -179,6 +188,7 @@ class SearchResultFragment : Fragment() {
                 // 显示加载状态
                 aiSearchContainer.isVisible = true
                 aiLoadingProgress.isVisible = true
+                aiAnswerLabel.isVisible = false
                 aiAnswerText.isVisible = false
                 aiErrorText.isVisible = false
                 lastErrorShown = null // 重置错误记录
@@ -187,6 +197,7 @@ class SearchResultFragment : Fragment() {
                 // 显示错误
                 aiSearchContainer.isVisible = true
                 aiLoadingProgress.isVisible = false
+                aiAnswerLabel.isVisible = false
                 aiAnswerText.isVisible = false
                 aiErrorText.isVisible = true
                 aiErrorText.text = state.error
@@ -205,6 +216,7 @@ class SearchResultFragment : Fragment() {
                 // 显示AI回答（流式文本）
                 aiSearchContainer.isVisible = true
                 aiLoadingProgress.isVisible = false
+                aiAnswerLabel.isVisible = true
                 aiAnswerText.isVisible = true
                 aiErrorText.isVisible = false
                 aiAnswerText.text = state.aiAnswer
