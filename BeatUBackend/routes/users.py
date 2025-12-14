@@ -69,8 +69,15 @@ def get_all_users(
     service: UserService = Depends(get_user_service),
 ):
     """获取所有用户信息（首次启动时全量加载）"""
-    users = service.get_all_users()
-    return success_response([user.dict(by_alias=True) for user in users])
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        users = service.get_all_users()
+        return success_response([user.dict(by_alias=True) for user in users])
+    except Exception as e:
+        logger.error(f"获取所有用户失败: error={e}", exc_info=True)
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=f"获取所有用户失败: {str(e)}")
 
 
 @router.get("/users/{user_id}/follows")
@@ -79,6 +86,13 @@ def get_user_follows(
     service: UserService = Depends(get_user_service),
 ):
     """获取指定用户的所有关注关系（首次启动时全量加载）"""
-    follows = service.get_all_user_follows(user_id)
-    return success_response(follows)
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        follows = service.get_all_user_follows(user_id)
+        return success_response(follows)
+    except Exception as e:
+        logger.error(f"获取用户关注关系失败: user_id={user_id}, error={e}", exc_info=True)
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=f"获取用户关注关系失败: {str(e)}")
 
