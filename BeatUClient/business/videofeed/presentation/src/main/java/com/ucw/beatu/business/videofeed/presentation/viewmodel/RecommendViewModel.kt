@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
+import kotlin.math.min
 import kotlin.random.Random
 import javax.inject.Inject
 
@@ -111,7 +112,7 @@ class RecommendViewModel @Inject constructor(
                             // 2. 或者当前列表是本地缓存数据，现在收到远程数据（需要替换并打乱）
                             val shouldShuffle = isFirstLoad || isReplacingLocalCache
                             
-                            val finalVideos = if (shouldShuffle) {
+                            val shuffledOrOriginal = if (shouldShuffle) {
                                 // 使用当前时间戳作为随机种子，确保每次打开app顺序不同
                                 val shuffled = videos.shuffled(Random(System.currentTimeMillis()))
                                 android.util.Log.d("RecommendViewModel", "loadVideoList: Shuffled ${videos.size} videos using timestamp seed, source=$source, isFirstLoad=$isFirstLoad, isReplacingLocalCache=$isReplacingLocalCache")
@@ -120,22 +121,28 @@ class RecommendViewModel @Inject constructor(
                                 videos
                             }
                             
-                            // 记录数据来源（在打乱后，这样日志顺序和实际播放顺序一致）
-                            finalVideos.forEach { video ->
+                            // 过滤掉后端返回的 IMAGE_POST（图文）内容，只保留纯视频
+                            val videosWithoutBackendImagePosts = filterOutBackendImagePosts(shuffledOrOriginal)
+                            
+                            // 记录数据来源（在过滤后，这样日志顺序和实际播放顺序一致）
+                            videosWithoutBackendImagePosts.forEach { video ->
                                 videoSourceMap[video.id] = source
                             }
+                            
+                            // 在第一页结果中注入客户端本地的图文+BGM mock 数据
+                            val finalVideos = injectInitialMockImagePosts(videosWithoutBackendImagePosts)
                             
                             // 打印打乱后的顺序（用于调试）
                             if (shouldShuffle) {
                                 android.util.Log.d("RecommendViewModel", "loadVideoList: Final shuffled order:")
                                 finalVideos.forEachIndexed { index, video ->
-                                    android.util.Log.d("RecommendViewModel", "  [$index] ${video.id} (source=$source)")
-                            }
+                                    android.util.Log.d("RecommendViewModel", "  [$index] ${video.id} (source=${videoSourceMap[video.id] ?: "unknown"})")
+                                }
                             }
                             
                             // 如果第一页数量不足 pageSize，可以直接认为后端数据已经加载完
-                            val hasLoadedAll = finalVideos.size < pageSize
-                            android.util.Log.d("RecommendViewModel", "loadVideoList: Success, loaded ${finalVideos.size} videos, source=$source, shuffled=$shouldShuffle")
+                            val hasLoadedAll = videos.size < pageSize
+                            android.util.Log.d("RecommendViewModel", "loadVideoList: Success, loaded ${videos.size} raw videos, source=$source, shuffled=$shouldShuffle, finalSize=${finalVideos.size}")
                             _uiState.value = _uiState.value.copy(
                                 videoList = finalVideos,
                                 isLoading = false,
@@ -188,9 +195,12 @@ class RecommendViewModel @Inject constructor(
                         }
                         is AppResult.Success -> {
                             val newVideos = result.data.map { it.toVideoItem() }
+                            // 刷新时同样过滤后端返回的 IMAGE_POST，图文交给前端 mock 处理
+                            val filteredNewVideos = filterOutBackendImagePosts(newVideos)
+                            
                             // 记录数据来源
                             val source = result.metadata["source"] as? String ?: "unknown"
-                            newVideos.forEach { video ->
+                            filteredNewVideos.forEach { video ->
                                 videoSourceMap[video.id] = source
                                 android.util.Log.d("RecommendViewModel", 
                                     "refreshVideoList: 视频 ${video.id} 数据来源=$source, authorAvatar=${video.authorAvatar ?: "null"}"
@@ -200,7 +210,7 @@ class RecommendViewModel @Inject constructor(
                             // 刷新时，只在收到远程数据时才完成刷新
                             // 本地缓存数据不应该结束刷新状态
                             val isRemoteData = source == "remote"
-                            android.util.Log.d("RecommendViewModel", "refreshVideoList: Success, loaded ${newVideos.size} videos, source=$source, isRemoteData=$isRemoteData")
+                            android.util.Log.d("RecommendViewModel", "refreshVideoList: Success, loaded ${filteredNewVideos.size} videos (after filter), source=$source, isRemoteData=$isRemoteData")
                             
                             if (isRemoteData) {
                                 // 远程数据到达，将新视频插入到列表顶部
@@ -208,7 +218,7 @@ class RecommendViewModel @Inject constructor(
                                 
                                 // 去重：移除已存在的视频（根据 ID）
                                 val existingIds = currentList.map { it.id }.toSet()
-                                val uniqueNewVideos = newVideos.filter { it.id !in existingIds }
+                                val uniqueNewVideos = filteredNewVideos.filter { it.id !in existingIds }
                                 
                                 if (uniqueNewVideos.isNotEmpty()) {
                                     // 将新视频插入到列表顶部
@@ -306,11 +316,13 @@ class RecommendViewModel @Inject constructor(
                         is AppResult.Success -> {
                             isLoadingMore = false
                             val moreVideos = result.data.map { it.toVideoItem() }
+                            // 加载更多时也过滤掉后端返回的 IMAGE_POST
+                            val filteredMoreVideos = filterOutBackendImagePosts(moreVideos)
                             val currentList = _uiState.value.videoList.toMutableList()
 
                             // 记录数据来源
                             val source = result.metadata["source"] as? String ?: "unknown"
-                            moreVideos.forEach { video ->
+                            filteredMoreVideos.forEach { video ->
                                 videoSourceMap[video.id] = source
                                 android.util.Log.d("RecommendViewModel", 
                                     "loadMoreVideos: 视频 ${video.id} 数据来源=$source, authorAvatar=${video.authorAvatar ?: "null"}"
@@ -330,7 +342,7 @@ class RecommendViewModel @Inject constructor(
                                 
                                 // 基于 videoId 去重，避免重复加载
                                 val existingIds = currentList.map { it.id }.toSet()
-                                val uniqueNewVideos = moreVideos.filter { it.id !in existingIds }
+                                val uniqueNewVideos = filteredMoreVideos.filter { it.id !in existingIds }
                                 
                                 if (uniqueNewVideos.isEmpty()) {
                                     // 没有新视频，标记为已加载完
@@ -422,13 +434,55 @@ class RecommendViewModel @Inject constructor(
             shareCount = 66,
             orientation = VideoOrientation.PORTRAIT,
             type = FeedContentType.IMAGE_POST,
+            // 使用与后端一致的 HTTPS 资源，避免明文 HTTP 或被墙导致的加载问题
             imageUrls = listOf(
-                "https://images.pexels.com/photos/572897/pexels-photo-572897.jpeg",
-                "https://images.pexels.com/photos/210186/pexels-photo-210186.jpeg",
-                "https://images.pexels.com/photos/1103970/pexels-photo-1103970.jpeg"
+                "https://picsum.photos/seed/beatu-imagepost-${index}-1/720/1280",
+                "https://picsum.photos/seed/beatu-imagepost-${index}-2/720/1280",
+                "https://picsum.photos/seed/beatu-imagepost-${index}-3/720/1280"
             ),
             bgmUrl = "https://samplelib.com/lib/preview/mp3/sample-6s.mp3"
         )
+    }
+
+    /**
+     * 过滤掉后端返回的 IMAGE_POST（图文）内容：
+     * - 图文内容由客户端本地 mock 负责，不依赖后端
+     * - 保证后端任何 IMAGE_POST 都不会影响竖屏视频正常播放
+     */
+    private fun filterOutBackendImagePosts(videos: List<VideoItem>): List<VideoItem> {
+        return videos.filter { it.type != FeedContentType.IMAGE_POST }
+    }
+
+    /**
+     * 在第一页结果中注入本地 mock 的图文+BGM 内容
+     * - 只在 currentPage == 1 时注入，避免后续分页越刷越多
+     * - 不改变原有视频顺序，只是在靠前的位置插入 1~2 条图文卡片
+     */
+    private fun injectInitialMockImagePosts(videos: List<VideoItem>): List<VideoItem> {
+        // 只在第一页注入 mock 图文
+        if (currentPage != 1) return videos
+
+        if (videos.isEmpty()) {
+            // 没有任何视频时，至少展示一条图文示例
+            val mock = createMockImagePost(1)
+            videoSourceMap[mock.id] = "mock"
+            return listOf(mock)
+        }
+
+        val result = videos.toMutableList()
+        val mockPosts = listOf(
+            createMockImagePost(1),
+            createMockImagePost(2)
+        )
+
+        // 插入位置：尽量在前 3 条之后，避免一上来全是图文
+        val insertIndex = min(3, result.size)
+        result.addAll(insertIndex, mockPosts)
+
+        mockPosts.forEach { post ->
+            videoSourceMap[post.id] = "mock"
+        }
+        return result
     }
 
     companion object {
