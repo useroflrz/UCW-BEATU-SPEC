@@ -760,6 +760,16 @@
     3. Android 端打通 DTO → Domain → Presentation 链路：`VideoDto` / `Video` / `videofeed.presentation.VideoItem` 全量接收并映射上述字段，通过 `contentType` 与 `imageUrls` 自动切换 `VIDEO` / `IMAGE_POST` 渲染分支。
     4. 统一推荐页视觉与交互：调整竖屏视频页进度条布局使其宽度与底部作者+互动区及图文页进度条一致；更新图文页底部交互区图标为与 `VideoControlsView` 相同的 selector 资源，保证点赞/收藏/评论/分享的样式和点亮逻辑完全一致。
 
+- [x] 图文+BGM 内容实现修复与前端降级策略  
+  - 2025-12-16 - done by ZX  
+  - 背景：后端 IMAGE_POST 图文内容在部分环境下不可用/不稳定，且与现有播放器/滑动体验存在冲突，需要由前端提供稳定的图文+BGM 体验，同时保证纯视频流逻辑不受影响。  
+  - 修复与实现：  
+    1. `shared/common/VideoItem` 保持 `FeedContentType.IMAGE_POST` 能力不变，`ImagePostFragment` 专门负责“多图轮播 + 背景音乐（audio-only）”，底部复用统一的点赞/收藏/评论/分享交互区，状态由 `VideoItemViewModel` 管理。  
+    2. `RecommendViewModel` 新增 `filterOutBackendImagePosts()`，在首页加载、刷新、加载更多三个路径统一过滤后端返回的 `IMAGE_POST`，只保留纯视频，避免后端图文干扰竖屏视频流。  
+    3. `RecommendViewModel` 新增 `injectInitialMockImagePosts()` + `createMockImagePost()`：仅在 `currentPage == 1` 时，在前 3 条之后注入 1~2 条本地 mock 图文+BGM 卡片（使用稳定的 HTTPS 图片源和短 BGM 音频），或在列表为空时至少注入 1 条图文，保证推荐页首屏必有图文体验。  
+    4. 图文项在 `VideoItemFragment` 中走专门分支：隐藏 `PlayerView`、显示 `ViewPager2` 轮播图片，仅通过 `prepareAudioOnly(videoId, bgmUrl)` 播放音频；不参与横/竖屏切换、不触发全屏按钮逻辑，且在 `onParentVisibilityChanged/checkVisibilityAndPlay` 中只恢复/暂停 BGM，避免与视频播放状态机混淆。  
+    5. 所有列表随机与“无限刷”逻辑仍基于纯视频列表运作，图文卡片只作为前端插入的增强内容存在，不影响分页、去重和后端真实数据顺序。
+
 - [x] 推荐页刷新功能实现与优化
   - 2025-12-07 - done by ZX
   - 需求：实现推荐页刷新功能，支持双击"推荐"tab和下拉第一个视频两种方式触发刷新，刷新时获取最新视频并插入到列表顶部，同时实现视频列表随机打乱。
