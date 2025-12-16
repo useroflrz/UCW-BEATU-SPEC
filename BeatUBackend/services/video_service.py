@@ -521,50 +521,153 @@ class VideoService:
     def build_mixed_feed(self, *, page: int, items: List[VideoItem]) -> List[VideoItem]:
         """
         根据页码对视频流做"图文+视频"混编：
-        - 当前实现：在每一页的开头插入一条静态图文+BGM 卡片，便于前端体验图文页面
+        - 当前实现：在每一页中插入多条静态图文+BGM 卡片，便于前端体验图文页面
         - 后续如接入真实图文数据，可改为从数据库/推荐系统读取
         """
         if not items:
             return items
 
-        # 当前实现：将数据库中的视频列表视为一个"块"，并为每一页构造一条图文+BGM
-        # 然后在当前页范围内随机插入这条图文，以达到"随机混编"的效果
-        #
-        # 后续如果有真实图文数据，可以扩展为针对多条图文做随机插入/洗牌
         from random import Random
 
         rng = Random()
         rng.seed(page)
 
         mixed: List[VideoItem] = list(items)
-        image_post = self._create_mock_image_post(page)
-
-        # 在 [0, len(mixed)] 区间内随机选择插入位置（包括尾部）
-        insert_index = rng.randint(0, len(mixed))
-        mixed.insert(insert_index, image_post)
+        
+        # 获取所有可用的图文内容模板
+        image_posts = self._get_all_mock_image_posts()
+        
+        # 根据页码选择要插入的图文内容（确保每页都有不同的图文）
+        # 每页插入 1-2 条图文内容
+        num_posts = min(2, len(image_posts))
+        posts_to_insert = image_posts[:num_posts]
+        
+        # 随机插入位置，确保图文内容分散在视频流中
+        for post in posts_to_insert:
+            # 为每条图文生成唯一的ID（基于页码和索引）
+            # 统计当前列表中已有的图文内容数量
+            existing_image_posts = [x for x in mixed if x.content_type == "IMAGE_POST"]
+            post_id = 900000 + page * 100 + len(existing_image_posts)
+            post.id = post_id
+            post.title = f"{post.title}（第 {page} 页）"
+            
+            # 在 [0, len(mixed)] 区间内随机选择插入位置（包括尾部）
+            insert_index = rng.randint(0, len(mixed))
+            mixed.insert(insert_index, post)
+        
         return mixed
 
-    def _create_mock_image_post(self, index: int) -> VideoItem:
+    def _get_all_mock_image_posts(self) -> List[VideoItem]:
+        """
+        获取所有写死的图文内容模板。
+        返回多条不同主题的图文内容，用于混编到视频流中。
+        """
+        return [
+            self._create_mock_image_post(
+                title="🌅 日出东方，新的一天开始了",
+                image_urls=[
+                    "https://images.pexels.com/photos/572897/pexels-photo-572897.jpeg",
+                    "https://images.pexels.com/photos/210186/pexels-photo-210186.jpeg",
+                    "https://images.pexels.com/photos/1103970/pexels-photo-1103970.jpeg",
+                ],
+                bgm_url="https://samplelib.com/lib/preview/mp3/sample-6s.mp3",
+                like_count=1314,
+                comment_count=99,
+                favorite_count=520,
+            ),
+            self._create_mock_image_post(
+                title="🌸 春天的花海，美不胜收",
+                image_urls=[
+                    "https://images.pexels.com/photos/1324803/pexels-photo-1324803.jpeg",
+                    "https://images.pexels.com/photos/1408221/pexels-photo-1408221.jpeg",
+                    "https://images.pexels.com/photos/147411/italy-mountains-dawn-daybreak-147411.jpeg",
+                ],
+                bgm_url="https://samplelib.com/lib/preview/mp3/sample-6s.mp3",
+                like_count=888,
+                comment_count=66,
+                favorite_count=333,
+            ),
+            self._create_mock_image_post(
+                title="🏔️ 雪山之巅，一览众山小",
+                image_urls=[
+                    "https://images.pexels.com/photos/417074/pexels-photo-417074.jpeg",
+                    "https://images.pexels.com/photos/1365425/pexels-photo-1365425.jpeg",
+                    "https://images.pexels.com/photos/2387418/pexels-photo-2387418.jpeg",
+                ],
+                bgm_url="https://samplelib.com/lib/preview/mp3/sample-6s.mp3",
+                like_count=2024,
+                comment_count=168,
+                favorite_count=666,
+            ),
+            self._create_mock_image_post(
+                title="🌊 海浪拍岸，心旷神怡",
+                image_urls=[
+                    "https://images.pexels.com/photos/1007657/pexels-photo-1007657.jpeg",
+                    "https://images.pexels.com/photos/1533720/pexels-photo-1533720.jpeg",
+                    "https://images.pexels.com/photos/1631677/pexels-photo-1631677.jpeg",
+                ],
+                bgm_url="https://samplelib.com/lib/preview/mp3/sample-6s.mp3",
+                like_count=999,
+                comment_count=88,
+                favorite_count=444,
+            ),
+            self._create_mock_image_post(
+                title="🌙 夜晚的城市，灯火通明",
+                image_urls=[
+                    "https://images.pexels.com/photos/169647/pexels-photo-169647.jpeg",
+                    "https://images.pexels.com/photos/417074/pexels-photo-417074.jpeg",
+                    "https://images.pexels.com/photos/1365425/pexels-photo-1365425.jpeg",
+                ],
+                bgm_url="https://samplelib.com/lib/preview/mp3/sample-6s.mp3",
+                like_count=777,
+                comment_count=55,
+                favorite_count=222,
+            ),
+        ]
+
+    def _create_mock_image_post(
+        self,
+        title: str,
+        image_urls: List[str],
+        bgm_url: str,
+        like_count: int = 0,
+        comment_count: int = 0,
+        favorite_count: int = 0,
+        index: int = 0,
+    ) -> VideoItem:
         """
         构造一条示例"图文+音乐"内容，由后端统一注入到推荐流中。
+        
+        参数：
+        - title: 图文标题
+        - image_urls: 图片URL列表（至少1张）
+        - bgm_url: 背景音乐URL
+        - like_count: 点赞数
+        - comment_count: 评论数
+        - favorite_count: 收藏数
+        - index: 索引（用于生成唯一ID）
+        
         说明：
         - id 使用 900000 + index 作为整数 ID，区分不同页的示例卡片
         - play_url 虽然必填，但在 IMAGE_POST 下前端不会使用，只要是合法 URL 即可
         """
+        # 使用第一张图片作为封面
+        cover_url = image_urls[0] if image_urls else "https://images.pexels.com/photos/572897/pexels-photo-572897.jpeg"
+        
         return VideoItem(
             id=900000 + index,  # ✅ 修改：从字符串改为整数 ID（使用 900000+ 范围避免与真实视频 ID 冲突）
             play_url="https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-            cover_url="https://images.pexels.com/photos/572897/pexels-photo-572897.jpeg",
-            title=f"这是一个图文+BGM 示例（第 {index} 段，由后端注入）",
+            cover_url=cover_url,
+            title=title,
             tags=[],
             duration_ms=0,
             orientation="portrait",
             author_id="beatu-official",
             author_name="BeatU 官方",
             author_avatar=None,
-            like_count=1314,
-            comment_count=99,
-            favorite_count=520,
+            like_count=like_count,
+            comment_count=comment_count,
+            favorite_count=favorite_count,
             share_count=66,
             view_count=0,
             is_liked=False,
@@ -572,10 +675,6 @@ class VideoService:
             is_followed_author=False,
             qualities=[],
             contentType="IMAGE_POST",
-            imageUrls=[
-                "https://images.pexels.com/photos/572897/pexels-photo-572897.jpeg",
-                "https://images.pexels.com/photos/210186/pexels-photo-210186.jpeg",
-                "https://images.pexels.com/photos/1103970/pexels-photo-1103970.jpeg",
-            ],
-            bgmUrl="https://samplelib.com/lib/preview/mp3/sample-6s.mp3",
+            imageUrls=image_urls,
+            bgmUrl=bgm_url,
         )
