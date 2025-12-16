@@ -562,13 +562,15 @@ class VideoService:
         获取所有写死的图文内容模板。
         返回多条不同主题的图文内容，用于混编到视频流中。
         """
+        # 统一使用 HTTPS 可直连的公共资源，避免明文 HTTP 或被墙导致的加载超时
+        # 图片使用 picsum.photos，BGM 使用 samplelib（HTTPS）
         return [
             self._create_mock_image_post(
                 title="🌅 日出东方，新的一天开始了",
                 image_urls=[
-                    "https://images.pexels.com/photos/572897/pexels-photo-572897.jpeg",
-                    "https://images.pexels.com/photos/210186/pexels-photo-210186.jpeg",
-                    "https://images.pexels.com/photos/1103970/pexels-photo-1103970.jpeg",
+                    "https://picsum.photos/seed/beatu-sunrise-1/720/1280",
+                    "https://picsum.photos/seed/beatu-sunrise-2/720/1280",
+                    "https://picsum.photos/seed/beatu-sunrise-3/720/1280",
                 ],
                 bgm_url="https://samplelib.com/lib/preview/mp3/sample-6s.mp3",
                 like_count=1314,
@@ -578,9 +580,9 @@ class VideoService:
             self._create_mock_image_post(
                 title="🌸 春天的花海，美不胜收",
                 image_urls=[
-                    "https://images.pexels.com/photos/1324803/pexels-photo-1324803.jpeg",
-                    "https://images.pexels.com/photos/1408221/pexels-photo-1408221.jpeg",
-                    "https://images.pexels.com/photos/147411/italy-mountains-dawn-daybreak-147411.jpeg",
+                    "https://picsum.photos/seed/beatu-flower-1/720/1280",
+                    "https://picsum.photos/seed/beatu-flower-2/720/1280",
+                    "https://picsum.photos/seed/beatu-flower-3/720/1280",
                 ],
                 bgm_url="https://samplelib.com/lib/preview/mp3/sample-6s.mp3",
                 like_count=888,
@@ -590,9 +592,9 @@ class VideoService:
             self._create_mock_image_post(
                 title="🏔️ 雪山之巅，一览众山小",
                 image_urls=[
-                    "https://images.pexels.com/photos/417074/pexels-photo-417074.jpeg",
-                    "https://images.pexels.com/photos/1365425/pexels-photo-1365425.jpeg",
-                    "https://images.pexels.com/photos/2387418/pexels-photo-2387418.jpeg",
+                    "https://picsum.photos/seed/beatu-mountain-1/720/1280",
+                    "https://picsum.photos/seed/beatu-mountain-2/720/1280",
+                    "https://picsum.photos/seed/beatu-mountain-3/720/1280",
                 ],
                 bgm_url="https://samplelib.com/lib/preview/mp3/sample-6s.mp3",
                 like_count=2024,
@@ -602,9 +604,9 @@ class VideoService:
             self._create_mock_image_post(
                 title="🌊 海浪拍岸，心旷神怡",
                 image_urls=[
-                    "https://images.pexels.com/photos/1007657/pexels-photo-1007657.jpeg",
-                    "https://images.pexels.com/photos/1533720/pexels-photo-1533720.jpeg",
-                    "https://images.pexels.com/photos/1631677/pexels-photo-1631677.jpeg",
+                    "https://picsum.photos/seed/beatu-sea-1/720/1280",
+                    "https://picsum.photos/seed/beatu-sea-2/720/1280",
+                    "https://picsum.photos/seed/beatu-sea-3/720/1280",
                 ],
                 bgm_url="https://samplelib.com/lib/preview/mp3/sample-6s.mp3",
                 like_count=999,
@@ -614,9 +616,9 @@ class VideoService:
             self._create_mock_image_post(
                 title="🌙 夜晚的城市，灯火通明",
                 image_urls=[
-                    "https://images.pexels.com/photos/169647/pexels-photo-169647.jpeg",
-                    "https://images.pexels.com/photos/417074/pexels-photo-417074.jpeg",
-                    "https://images.pexels.com/photos/1365425/pexels-photo-1365425.jpeg",
+                    "https://picsum.photos/seed/beatu-night-1/720/1280",
+                    "https://picsum.photos/seed/beatu-night-2/720/1280",
+                    "https://picsum.photos/seed/beatu-night-3/720/1280",
                 ],
                 bgm_url="https://samplelib.com/lib/preview/mp3/sample-6s.mp3",
                 like_count=777,
