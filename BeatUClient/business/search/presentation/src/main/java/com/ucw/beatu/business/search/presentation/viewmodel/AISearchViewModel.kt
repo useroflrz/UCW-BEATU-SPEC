@@ -3,6 +3,7 @@ package com.ucw.beatu.business.search.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ucw.beatu.business.search.domain.repository.AISearchRepository
+import com.ucw.beatu.shared.common.threading.launchInNamed
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -79,7 +80,7 @@ class AISearchViewModel @Inject constructor(
                     error = errorMessage
                 )
             }
-            .launchIn(viewModelScope)
+            .launchInNamed(viewModelScope, "search", "AISearchViewModel_launchIn")
     }
     
     /**

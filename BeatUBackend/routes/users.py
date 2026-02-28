@@ -24,10 +24,9 @@ def resolve_user(x_user_id: str | None = Header(default=None, alias="X-User-Id")
 def get_user(
     user_id: str = Path(...),
     service: UserService = Depends(get_user_service),
-    current_user_id: str = Depends(resolve_user),
 ):
     """获取用户信息"""
-    user = service.get_user(user_id, current_user_id=current_user_id)
+    user = service.fetch_user(user_id)
     return success_response(user.dict(by_alias=True))
 
 
@@ -35,10 +34,9 @@ def get_user(
 def get_user_by_name(
     name: str = Path(...),
     service: UserService = Depends(get_user_service),
-    current_user_id: str = Depends(resolve_user),
 ):
     """根据用户名获取用户信息"""
-    user = service.get_user_by_name(name, current_user_id=current_user_id)
+    user = service.fetch_user_by_name(name)
     return success_response(user.dict(by_alias=True))
 
 
@@ -72,7 +70,7 @@ def get_all_users(
     import logging
     logger = logging.getLogger(__name__)
     try:
-        users = service.get_all_users()
+        users = service.list_users()
         return success_response([user.dict(by_alias=True) for user in users])
     except Exception as e:
         logger.error(f"获取所有用户失败: error={e}", exc_info=True)
@@ -89,7 +87,7 @@ def get_user_follows(
     import logging
     logger = logging.getLogger(__name__)
     try:
-        follows = service.get_all_user_follows(user_id)
+        follows = service.list_user_follows(user_id)
         return success_response(follows)
     except Exception as e:
         logger.error(f"获取用户关注关系失败: user_id={user_id}, error={e}", exc_info=True)

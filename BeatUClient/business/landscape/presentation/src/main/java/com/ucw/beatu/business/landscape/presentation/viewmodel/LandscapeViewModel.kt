@@ -7,6 +7,7 @@ import com.ucw.beatu.business.landscape.presentation.model.VideoItem
 import com.ucw.beatu.business.landscape.presentation.model.toPresentationModel
 import com.ucw.beatu.shared.common.logger.AppLogger
 import com.ucw.beatu.shared.common.result.AppResult
+import com.ucw.beatu.shared.common.threading.launchNamed
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -82,7 +83,7 @@ class LandscapeViewModel @Inject constructor(
     }
 
     private fun fetchPage(page: Int, append: Boolean) {
-        viewModelScope.launch {
+        viewModelScope.launchNamed("landscape", "LandscapeViewModel_launch") {
             val flow = if (append) {
                 useCases.loadMoreLandscapeVideos(page, pageSize)
             } else {
@@ -148,7 +149,7 @@ class LandscapeViewModel @Inject constructor(
     }
 
     fun showExternalVideo(videoItem: VideoItem) {
-        viewModelScope.launch {
+        viewModelScope.launchNamed("landscape", "LandscapeViewModel_launch") {
             pendingExternalVideo = videoItem
             shouldReapplyExternalVideo =
                 isDefaultListLoading || _uiState.value.videoList.isEmpty()

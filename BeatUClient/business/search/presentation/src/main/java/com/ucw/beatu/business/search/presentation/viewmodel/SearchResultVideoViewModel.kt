@@ -7,6 +7,7 @@ import com.ucw.beatu.business.search.domain.repository.SearchRepository
 import com.ucw.beatu.business.videofeed.presentation.mapper.toVideoItem
 import com.ucw.beatu.shared.common.model.VideoItem
 import com.ucw.beatu.shared.common.result.AppResult
+import com.ucw.beatu.shared.common.threading.launchNamed
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -58,7 +59,7 @@ class SearchResultVideoViewModel @Inject constructor(
         if (isLoadingMore) return
         isLoadingMore = true
 
-        viewModelScope.launch {
+        viewModelScope.launchNamed("search", "SearchResultVideoViewModel_launch") {
             _uiState.value = _uiState.value.copy(error = null)
 
             // 确定搜索关键词：优先使用titleKeyword，如果没有则使用searchQuery
@@ -71,7 +72,7 @@ class SearchResultVideoViewModel @Inject constructor(
                     error = "搜索关键词不能为空"
                 )
                 isLoadingMore = false
-                return@launch
+                return@launchNamed
             }
 
             // 调用后端搜索接口（会自动保存到数据库）
@@ -168,7 +169,7 @@ class SearchResultVideoViewModel @Inject constructor(
         }
 
         loadMoreJob?.cancel()
-        loadMoreJob = viewModelScope.launch {
+        loadMoreJob = viewModelScope.launchNamed("search", "SearchResultVideoViewModel_launch") {
             currentPage++
             loadVideoList()
         }

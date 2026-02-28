@@ -6,6 +6,7 @@ import com.ucw.beatu.business.user.domain.model.User
 import com.ucw.beatu.business.user.domain.model.UserWork
 import com.ucw.beatu.business.user.domain.repository.UserRepository
 import com.ucw.beatu.business.user.domain.repository.UserWorksRepository
+import com.ucw.beatu.shared.common.threading.launchNamed
 import com.ucw.beatu.shared.database.dao.VideoDao
 import com.ucw.beatu.shared.database.dao.WatchHistoryDao
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -78,7 +79,7 @@ class UserProfileViewModel @Inject constructor(
         startObservingLikesCount(id)
         
         // 使用用户的ID加载作品
-        viewModelScope.launch {
+        viewModelScope.launchNamed("user", "UserProfileViewModel_launch") {
             switchTab(TabType.WORKS, authorId = id, currentUserId = "BEATU")
         }
     }
@@ -88,7 +89,7 @@ class UserProfileViewModel @Inject constructor(
      * 如果 userName 是 "BEATU"，则通过用户ID查询；否则通过用户名查询
      */
     fun loadUser(userName: String) {
-        viewModelScope.launch {
+        viewModelScope.launchNamed("user", "UserProfileViewModel_launch") {
             _isLoading.value = true
             try {
                 // 如果 userName 是 "BEATU"，则通过用户ID查询
@@ -211,7 +212,7 @@ class UserProfileViewModel @Inject constructor(
      */
     fun observeUserWorks(authorId: String, limit: Int = UserWorksRepository.DEFAULT_LIMIT) {
         observeWorksJob?.cancel()
-        observeWorksJob = viewModelScope.launch {
+        observeWorksJob = viewModelScope.launchNamed("user", "UserProfileViewModel_launch") {
             userWorksRepository.observeUserWorks(authorId, limit).collect { works ->
                 _userWorks.value = works
             }
@@ -232,7 +233,7 @@ class UserProfileViewModel @Inject constructor(
         limit: Int = UserWorksRepository.DEFAULT_LIMIT
     ) {
         observeWorksJob?.cancel()
-        observeWorksJob = viewModelScope.launch {
+        observeWorksJob = viewModelScope.launchNamed("user", "UserProfileViewModel_launch") {
             android.util.Log.d("UserProfileViewModel", "切换标签：tabType=$tabType, authorId=$authorId, currentUserId=$currentUserId")
             val flow = when (tabType) {
                 TabType.WORKS -> {
@@ -254,7 +255,7 @@ class UserProfileViewModel @Inject constructor(
                     // 从数据库查询用户观看历史（JOIN beatu_watch_history表）
                     android.util.Log.d("UserProfileViewModel", "从数据库查询观看历史：userId=$currentUserId, limit=$limit")
                     // 先验证数据库中的历史记录数量
-                    viewModelScope.launch {
+                    viewModelScope.launchNamed("user", "UserProfileViewModel_launch") {
                         try {
                             val historyCount = watchHistoryDao.getHistoryCountByUser(currentUserId)
                             android.util.Log.i("UserProfileViewModel", "数据库中的历史记录数量：$historyCount 条（userId=$currentUserId）")
@@ -294,7 +295,7 @@ class UserProfileViewModel @Inject constructor(
      * 更新用户头像
      */
     fun updateAvatar(userId: String, avatarPath: String) {
-        viewModelScope.launch {
+        viewModelScope.launchNamed("user", "UserProfileViewModel_launch") {
             val currentUser = userRepository.getUserById(userId)
             if (currentUser != null) {
                 val updatedUser = currentUser.copy(avatarUrl = avatarPath)
@@ -307,7 +308,7 @@ class UserProfileViewModel @Inject constructor(
      * 更新用户简介
      */
     fun updateBio(userId: String, bio: String?) {
-        viewModelScope.launch {
+        viewModelScope.launchNamed("user", "UserProfileViewModel_launch") {
             val currentUser = userRepository.getUserById(userId)
             if (currentUser != null) {
                 val updatedUser = currentUser.copy(bio = bio)
@@ -328,7 +329,7 @@ class UserProfileViewModel @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
+        viewModelScope.launchNamed("user", "UserProfileViewModel_launch") {
             try {
             android.util.Log.d("UserProfileViewModel", "Following user: targetUserId=$targetUserId, currentUserId=$currentUserId")
                 // 设置交互状态
@@ -368,7 +369,7 @@ class UserProfileViewModel @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
+        viewModelScope.launchNamed("user", "UserProfileViewModel_launch") {
             try {
             android.util.Log.d("UserProfileViewModel", "Unfollowing user: targetUserId=$targetUserId, currentUserId=$currentUserId")
                 // 设置交互状态
@@ -401,7 +402,7 @@ class UserProfileViewModel @Inject constructor(
      * 开始观察关注同步结果（处理远程同步成功/失败，失败时回滚乐观更新）
      */
     fun startObservingFollowSyncResult() {
-        viewModelScope.launch {
+        viewModelScope.launchNamed("user", "UserProfileViewModel_launch") {
             userRepository.observeFollowSyncResult().collect { result ->
                 when (result) {
                     is UserRepository.FollowSyncResult.Success -> {
@@ -444,7 +445,7 @@ class UserProfileViewModel @Inject constructor(
      */
     fun startObservingFollowStatus(currentUserId: String, targetUserId: String) {
         observeFollowStatusJob?.cancel()
-        observeFollowStatusJob = viewModelScope.launch {
+        observeFollowStatusJob = viewModelScope.launchNamed("user", "UserProfileViewModel_launch") {
             android.util.Log.d("UserProfileViewModel", "Starting to observe follow status: targetUserId=$targetUserId, currentUserId=$currentUserId")
             userRepository.observeIsFollowing(currentUserId, targetUserId).collect { isFollowing ->
                 _isFollowing.value = isFollowing
@@ -467,7 +468,7 @@ class UserProfileViewModel @Inject constructor(
      */
     private fun startObservingLikesCount(authorId: String) {
         observeLikesCountJob?.cancel()
-        observeLikesCountJob = viewModelScope.launch {
+        observeLikesCountJob = viewModelScope.launchNamed("user", "UserProfileViewModel_launch") {
             android.util.Log.d("UserProfileViewModel", "开始观察获赞数：authorId=$authorId")
             videoDao.observeTotalLikesCountByAuthorId(authorId).collect { totalLikesCount: Long ->
                 android.util.Log.d("UserProfileViewModel", "获赞数更新：authorId=$authorId, totalLikesCount=$totalLikesCount")

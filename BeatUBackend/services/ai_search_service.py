@@ -9,10 +9,8 @@ from typing import AsyncGenerator, List, Optional
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from database.connection import get_db
 from database.models import Video
 from services.mcp_orchestrator_service import get_mcp_service
-from services.video_service import VideoService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -231,7 +229,3 @@ class AISearchService:
             self.logger.error(f"视频搜索失败: {e}", exc_info=True)
             return []
     
-    def close(self):
-        """关闭服务资源"""
-        # MCP 服务使用单例模式，不需要关闭
-        pass

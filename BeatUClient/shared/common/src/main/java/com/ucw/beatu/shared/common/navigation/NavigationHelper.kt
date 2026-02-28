@@ -29,22 +29,16 @@ object NavigationHelper {
         )
     }
     
-    /**
-     * 通过字符串 ID 进行导航
-     * @param navController NavController 对象
-     * @param actionId 动作 ID 字符串（如 "action_feed_to_userProfile"）
-     * @param context Context 对象
-     */
-    fun navigateByStringId(
+    fun navigate(
         navController: NavController,
-        actionId: String,
+        targetName: String,
         context: Context
     ) {
-        val resourceId = getResourceId(context, actionId)
+        val resourceId = getResourceId(context, targetName)
         if (resourceId != 0) {
             navController.navigate(resourceId)
         } else {
-            throw IllegalArgumentException("Navigation action not found: $actionId")
+            throw IllegalArgumentException("Navigation action not found: $targetName")
         }
     }
 }

@@ -19,6 +19,7 @@ import com.ucw.beatu.business.videofeed.presentation.ui.ImagePostFragment
 import com.ucw.beatu.business.videofeed.presentation.ui.VideoItemFragment
 import com.ucw.beatu.business.videofeed.presentation.ui.adapter.VideoFeedAdapter
 import com.ucw.beatu.shared.common.model.VideoItem
+import com.ucw.beatu.shared.common.threading.launchNamed
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -131,7 +132,7 @@ class SearchResultVideoViewerFragment : Fragment() {
     }
 
     private fun observeViewModel() {
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchNamed("search", "SearchResultVideoViewerFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     if (state.videoList.isNotEmpty()) {

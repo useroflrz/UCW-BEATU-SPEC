@@ -48,7 +48,7 @@ def comment_qa(
     service: AIService = Depends(get_ai_service),
     comment_service: CommentService = Depends(get_comment_service),
 ):
-    content = service.comment_qa(payload)
+    content = service.answer_comment(payload)
     ai_comment = comment_service.create_ai_comment(
         video_id=payload.video_id,
         payload=CommentAIRequest(question=payload.question),

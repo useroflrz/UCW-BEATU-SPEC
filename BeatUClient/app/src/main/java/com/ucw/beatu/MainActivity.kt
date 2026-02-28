@@ -303,7 +303,7 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
     private fun navigateToSearch() {
         navController?.let { controller ->
             try {
-                NavigationHelper.navigateByStringId(
+                NavigationHelper.navigate(
                     controller,
                     NavigationIds.ACTION_FEED_TO_SEARCH,
                     this
@@ -423,7 +423,7 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
     private fun navigateToUserProfile() {
         navController?.let { controller ->
             try {
-                NavigationHelper.navigateByStringId(
+                NavigationHelper.navigate(
                     controller,
                     NavigationIds.ACTION_FEED_TO_USER_PROFILE,
                     this
@@ -440,7 +440,7 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
     fun navigateToSettings() {
         navController?.let { controller ->
             try {
-                NavigationHelper.navigateByStringId(
+                NavigationHelper.navigate(
                     controller,
                     NavigationIds.ACTION_FEED_TO_SETTINGS,
                     this
@@ -457,7 +457,7 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
     fun navigateToLandscape() {
         navController?.let { controller ->
             try {
-                NavigationHelper.navigateByStringId(
+                NavigationHelper.navigate(
                     controller,
                     NavigationIds.ACTION_FEED_TO_LANDSCAPE,
                     this

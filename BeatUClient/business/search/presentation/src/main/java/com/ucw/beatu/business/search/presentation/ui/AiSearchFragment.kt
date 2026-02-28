@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.ucw.beatu.business.search.presentation.R
+import com.ucw.beatu.shared.common.threading.launchNamed
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -70,7 +71,7 @@ class AiSearchFragment : Fragment(R.layout.fragment_ai_search) {
         val target = getString(R.string.ai_search_placeholder_reply)
         val aiPosition = chatAdapter.addMessage(AiChatMessage.Ai(""))
         scrollToBottom()
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchNamed("search", "AiSearchFragment_launch") {
             var current = ""
             target.forEach { char ->
                 current += char

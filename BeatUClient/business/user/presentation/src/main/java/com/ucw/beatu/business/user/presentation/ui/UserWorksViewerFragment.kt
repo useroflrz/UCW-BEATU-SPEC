@@ -22,6 +22,7 @@ import com.ucw.beatu.business.user.presentation.ui.adapter.UserWorksViewerAdapte
 import com.ucw.beatu.business.user.presentation.viewmodel.UserWorksViewerViewModel
 
 import com.ucw.beatu.shared.common.model.VideoItem
+import com.ucw.beatu.shared.common.threading.launchNamed
 import com.ucw.beatu.shared.router.UserWorksViewerRouter
 import com.ucw.beatu.shared.router.RouterRegistry
 import com.ucw.beatu.shared.designsystem.widget.NoMoreVideosToast
@@ -390,7 +391,7 @@ class UserWorksViewerFragment : Fragment(R.layout.fragment_user_works_viewer), U
     }
 
     private fun collectUiState() {
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchNamed("user", "UserWorksViewerFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     Log.d(TAG, "collectUiState: videoListSize=${state.videoList.size}, currentIndex=${state.currentIndex}")

@@ -20,6 +20,7 @@ import com.ucw.beatu.business.settings.presentation.databinding.ItemSettingsSwit
 import com.ucw.beatu.business.settings.presentation.viewmodel.SettingField
 import com.ucw.beatu.business.settings.presentation.viewmodel.SettingsEvent
 import com.ucw.beatu.business.settings.presentation.viewmodel.SettingsViewModel
+import com.ucw.beatu.shared.common.threading.launchNamed
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -123,7 +124,7 @@ class SettingsFragment : Fragment() {
     }
 
     private fun observeUi() {
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchNamed("settings", "SettingsFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     aiSearchBinding.switchToggle.isChecked = state.aiSearchEnabled
@@ -148,7 +149,7 @@ class SettingsFragment : Fragment() {
     }
 
     private fun observeEvents() {
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchNamed("settings", "SettingsFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.events.collect { event ->
                     when (event) {

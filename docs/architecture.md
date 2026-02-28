@@ -84,6 +84,16 @@ Data Layer (RemoteDataSource + LocalCache + PlayerDataSource)
 - UseCase 层纯 Kotlin 协程，易于单测。
 - Repository 协调网络（Retrofit）与本地缓存（Room/Media cache），并向 PlayerDataSource 提供 URL + 清晰度。
 
+### 3.1 协程命名约定（客户端）
+
+- 客户端协程命名遵循“协程优先 + 业务优先”原则，统一使用可读性强的语义化命名。
+- `Flow`/`StateFlow`/`SharedFlow`/`Job`/`Dispatcher` 采用统一后缀规范，降低跨模块理解成本。
+- 关键并发入口（`launch`、`launchIn`、`async`、`withContext`）推荐补充 `CoroutineName`，格式统一为 `feature_action`（如 `videofeed_load_page`、`search_sync_history`）。
+- `launchNamed` 统一通过 import 方式短写调用（避免 `com.ucw...` 全限定名），并要求 `action` 使用业务动作语义，禁止 `Class_launch` 这类弱语义命名。
+- 线程任务命名统一为短语义 API：`TaskRunner.run(name=...)` + `TaskNames.of(feature, action, dims...)`；不再新增 `Thread*` 前缀入口，历史任务名通过 `TaskNames.fromLegacy(...)` 兼容归一。
+- 通用 Helper API 优先短命名：导航入口统一使用 `NavigationHelper.navigate(...)`，状态判定类入口使用 `xxxIfYyy`（如 `notifyIfLow`），避免 `ByStringId`/`maybe` 等弱语义后缀扩散。
+- 详细规则、反例与迁移路径见 `docs/coroutine_naming_guidelines.md`。
+
 ### 4. 播放器与性能策略
 
 - `VideoPlayer` 抽象层屏蔽 ExoPlayer/ijkplayer 差异，接口包含 `prepare`, `play`, `pause`, `seek`, `setSpeed`, `setQuality`, `attachSurface`.
@@ -116,6 +126,7 @@ Data Layer (RemoteDataSource + LocalCache + PlayerDataSource)
 - `BeatUContentService`：提供 `GET /feed`, `GET /video/{id}/comments`, `POST /interaction/like` 等。
 - `BeatUAIService`：提供 `POST /ai/recommend`, `POST /ai/comment/qa`, `POST /ai/quality`.
 - `BeatUGateway`：统一鉴权、聚合、版本管理，对客户端暴露 `GraphQL/REST` 接口。
+- 服务层命名收敛规则：`list_*` 表示列表查询、`fetch_*` 表示单体读取、`sync_*` 表示状态同步、`answer_*` 表示 AI 文本生成；避免 `get_all_*`、`comment_qa` 等弱语义或过长命名。
 
 ### 8. 下一步行动
 

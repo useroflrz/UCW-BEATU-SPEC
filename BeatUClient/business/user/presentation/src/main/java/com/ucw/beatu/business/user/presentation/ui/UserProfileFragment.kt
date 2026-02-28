@@ -32,6 +32,7 @@ import com.ucw.beatu.business.user.presentation.ui.helper.UserProfileFollowButto
 import com.ucw.beatu.business.user.presentation.ui.helper.UserProfileNavigationHelper
 import com.ucw.beatu.business.user.presentation.ui.helper.UserProfileTabManager
 import com.ucw.beatu.business.user.presentation.viewmodel.UserProfileViewModel
+import com.ucw.beatu.shared.common.threading.launchNamed
 import com.ucw.beatu.shared.common.util.NumberFormatter
 import com.ucw.beatu.shared.designsystem.util.IOSButtonEffect
 import dagger.hilt.android.AndroidEntryPoint
@@ -291,7 +292,7 @@ class UserProfileFragment : Fragment() {
      * 观察 ViewModel 数据
      */
     private fun observeViewModel() {
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchNamed("user", "UserProfileFragment_launch") {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     viewModel.user.collect { user ->

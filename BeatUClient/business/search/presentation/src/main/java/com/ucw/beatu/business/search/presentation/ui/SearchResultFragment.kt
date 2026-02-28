@@ -29,6 +29,7 @@ import com.ucw.beatu.business.search.presentation.viewmodel.SearchResultVideoVie
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
 import com.ucw.beatu.shared.common.model.VideoItem
+import com.ucw.beatu.shared.common.threading.launchNamed
 import coil.load
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -148,7 +149,7 @@ class SearchResultFragment : Fragment() {
     }
 
     private fun observeViewModel() {
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchNamed("search", "SearchResultFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     if (state.videoList.isNotEmpty()) {
@@ -162,7 +163,7 @@ class SearchResultFragment : Fragment() {
     }
 
     private fun observeAISearchViewModel() {
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchNamed("search", "SearchResultFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 aiSearchViewModel.uiState.collect { state ->
                     updateAISearchUI(state)

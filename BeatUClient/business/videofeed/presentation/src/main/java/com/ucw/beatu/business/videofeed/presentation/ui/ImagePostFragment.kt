@@ -16,6 +16,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.ucw.beatu.business.videofeed.presentation.R
 import com.ucw.beatu.shared.common.model.FeedContentType
 import com.ucw.beatu.shared.common.model.VideoItem
+import com.ucw.beatu.shared.common.threading.launchNamed
 import com.ucw.beatu.business.videofeed.presentation.viewmodel.VideoItemViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Job
@@ -236,7 +237,7 @@ class ImagePostFragment : BaseFeedItemFragment() {
     }
 
     private fun observePlaybackState() {
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchNamed("videofeed", "ImagePostFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     // 播放错误日志

@@ -10,6 +10,7 @@ import com.ucw.beatu.shared.common.model.FeedContentType
 import com.ucw.beatu.shared.common.model.VideoItem
 import com.ucw.beatu.shared.common.model.VideoOrientation
 import com.ucw.beatu.shared.common.result.AppResult
+import com.ucw.beatu.shared.common.threading.launchNamed
 import com.ucw.beatu.shared.player.VideoPlayer
 import com.ucw.beatu.shared.player.model.VideoSource
 import com.ucw.beatu.shared.player.pool.VideoPlayerPool
@@ -72,7 +73,7 @@ class RecommendViewModel @Inject constructor(
      * 优化：立即显示本地缓存，不等待网络请求，确保UI流畅
      */
     private fun loadVideoList() {
-        viewModelScope.launch {
+        viewModelScope.launchNamed("videofeed", "RecommendViewModel_launch") {
             currentPage = 1
             // 不立即设置isLoading，让本地缓存先显示
             _uiState.value = _uiState.value.copy(error = null)
@@ -165,7 +166,7 @@ class RecommendViewModel @Inject constructor(
      */
     fun refreshVideoList() {
         android.util.Log.d("RecommendViewModel", "refreshVideoList: called")
-        viewModelScope.launch {
+        viewModelScope.launchNamed("videofeed", "RecommendViewModel_launch") {
             // 刷新时获取 5-10 条视频（随机数量，增加变化性）
             val refreshCount = (5..10).random()
             android.util.Log.d("RecommendViewModel", "refreshVideoList: setting isRefreshing=true, refreshCount=$refreshCount")
@@ -289,7 +290,7 @@ class RecommendViewModel @Inject constructor(
         loadMoreJob?.cancel()
         
         isLoadingMore = true
-        loadMoreJob = viewModelScope.launch {
+        loadMoreJob = viewModelScope.launchNamed("videofeed", "RecommendViewModel_launch") {
             val nextPage = currentPage + 1
             
             getFeedUseCase(nextPage, pageSize)

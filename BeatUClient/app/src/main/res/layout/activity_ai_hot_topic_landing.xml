@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="#101010">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="AI 热门话题"
+        android:textColor="#FFFFFF"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tv_topic_source"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="来源：--"
+        android:textColor="#80FFFFFF"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/tv_topic_a"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:padding="14dp"
+        android:background="#1F1F1F"
+        android:text="话题 1：AI创作灵感"
+        android:textColor="#FFD54F"
+        android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/tv_topic_b"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:padding="14dp"
+        android:background="#1F1F1F"
+        android:text="话题 2：提升视频完播率"
+        android:textColor="#4DD0E1"
+        android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/tv_topic_c"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:padding="14dp"
+        android:background="#1F1F1F"
+        android:text="话题 3：新手短视频脚本"
+        android:textColor="#A5D6A7"
+        android:textSize="16sp" />
+
+</LinearLayout>
+

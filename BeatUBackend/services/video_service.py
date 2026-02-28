@@ -14,9 +14,6 @@ from schemas.api import (
     VideoItem,
     VideoList,
 )
-from services.helpers import parse_bool_map, parse_quality_list, parse_tag_list
-
-
 class VideoService:
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -366,7 +363,7 @@ class VideoService:
             )
         return items
 
-    def get_all_video_interactions(self, user_id: str) -> list[dict]:
+    def list_video_interactions(self, user_id: str) -> list[dict]:
         """获取指定用户的所有视频交互"""
         interactions = (
             self.db.query(VideoInteraction)
@@ -384,7 +381,7 @@ class VideoService:
             for interaction in interactions
         ]
 
-    def get_all_watch_histories(self, user_id: str) -> list[dict]:
+    def list_watch_histories(self, user_id: str) -> list[dict]:
         """获取指定用户的所有观看历史"""
         histories = (
             self.db.query(WatchHistory)
@@ -402,7 +399,7 @@ class VideoService:
             for history in histories
         ]
 
-    def sync_watch_histories(self, user_id: str, histories: list[dict]) -> OperationResult:
+    def sync_watch_history(self, user_id: str, histories: list[dict]) -> OperationResult:
         """同步观看历史（批量更新或创建）"""
         try:
             self.logger.info(f"收到观看历史同步请求：user_id={user_id}, 历史记录数量={len(histories)}")

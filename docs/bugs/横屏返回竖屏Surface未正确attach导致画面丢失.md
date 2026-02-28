@@ -220,6 +220,6 @@ override fun attach(playerView: PlayerView) {
 ## 参考资料
 
 - [ExoPlayer Surface 生命周期文档](https://exoplayer.dev/surface.html)
-- [Android SurfaceView 生命周期](https://developer.android.com/reference/android/view/SurfaceView)
+
 - 相关修复记录：`docs/development_plan.md` 中的"修复横屏返回竖屏后视频播放异常问题"
 

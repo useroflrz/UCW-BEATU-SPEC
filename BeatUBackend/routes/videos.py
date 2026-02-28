@@ -85,7 +85,7 @@ def get_all_video_interactions(
     import logging
     logger = logging.getLogger(__name__)
     try:
-        interactions = service.get_all_video_interactions(user_id)
+        interactions = service.list_video_interactions(user_id)
         return success_response(interactions)
     except Exception as e:
         logger.error(f"获取视频交互失败: user_id={user_id}, error={e}", exc_info=True)
@@ -102,7 +102,7 @@ def get_all_watch_histories(
     import logging
     logger = logging.getLogger(__name__)
     try:
-        histories = service.get_all_watch_histories(user_id)
+        histories = service.list_watch_histories(user_id)
         return success_response(histories)
     except Exception as e:
         logger.error(f"获取观看历史失败: user_id={user_id}, error={e}", exc_info=True)
@@ -210,9 +210,8 @@ def create_comment(
     payload: CommentCreate,
     service: CommentService = Depends(get_comment_service),
     user_id: str = Depends(resolve_user),
-    user_name: str = Depends(resolve_user_name),
 ):
-    item = service.create_comment(video_id, payload, user_id=user_id, user_name=user_name)
+    item = service.create_comment(video_id, payload, user_id=user_id)
     return success_response(item.dict(by_alias=True))
 
 
@@ -259,6 +258,6 @@ def sync_watch_histories(
         logger.info(f"第一条历史记录示例：{histories[0]}")
         logger.info(f"第一条历史记录的所有键：{list(histories[0].keys()) if histories[0] else []}")
     
-    result = service.sync_watch_histories(user_id, histories)
+    result = service.sync_watch_history(user_id, histories)
     logger.info(f"观看历史同步结果：success={result.success}, message={result.message}")
     return success_response(result.dict(by_alias=True))

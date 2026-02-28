@@ -19,6 +19,7 @@ import com.ucw.beatu.business.videofeed.domain.usecase.GetCommentsUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.PostCommentUseCase
 import com.ucw.beatu.business.videofeed.presentation.R
 import com.ucw.beatu.shared.common.result.AppResult
+import com.ucw.beatu.shared.common.threading.launchNamed
 import com.ucw.beatu.shared.common.util.TimeFormatter
 import com.ucw.beatu.shared.designsystem.R as DesignSystemR
 import dagger.hilt.android.AndroidEntryPoint
@@ -143,7 +144,7 @@ class VideoCommentsDialogFragment : DialogFragment() {
 
     private fun loadComments() {
         val id = videoId ?: return
-        lifecycleScope.launch {
+        lifecycleScope.launchNamed("videofeed", "VideoCommentsDialogFragment_launch") {
             getCommentsUseCase(id, page = 1, limit = 30).collect { result ->
                 when (result) {
                     is AppResult.Loading -> {
@@ -172,7 +173,7 @@ class VideoCommentsDialogFragment : DialogFragment() {
         isPosting = true
         sendButton?.isEnabled = false
 
-        lifecycleScope.launch {
+        lifecycleScope.launchNamed("videofeed", "VideoCommentsDialogFragment_launch") {
             when (val result = postCommentUseCase(id, content)) {
                 is AppResult.Success -> {
                     // 将新评论插入到列表顶部

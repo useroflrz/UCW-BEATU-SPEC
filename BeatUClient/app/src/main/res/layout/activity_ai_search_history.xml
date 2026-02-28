@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#121212"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tv_ai_search_history"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#F5F5F5"
+        android:textSize="14sp"
+        android:lineSpacingExtra="3dp"
+        android:text="加载中..." />
+
+</ScrollView>
+

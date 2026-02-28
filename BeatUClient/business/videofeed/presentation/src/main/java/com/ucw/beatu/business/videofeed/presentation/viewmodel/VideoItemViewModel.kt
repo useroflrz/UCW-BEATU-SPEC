@@ -12,6 +12,7 @@ import com.ucw.beatu.business.videofeed.domain.usecase.UnfavoriteVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.ShareVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.UnlikeVideoUseCase
 import com.ucw.beatu.shared.common.result.AppResult
+import com.ucw.beatu.shared.common.threading.launchNamed
 import com.ucw.beatu.shared.player.VideoPlayer
 import com.ucw.beatu.shared.player.model.VideoSource
 import com.ucw.beatu.shared.player.pool.VideoPlayerPool
@@ -76,10 +77,10 @@ class VideoItemViewModel @Inject constructor(
      * 播放视频
      */
     fun playVideo(videoId: Long, videoUrl: String) {  // ✅ 修改：从 String 改为 Long
-        viewModelScope.launch {
+        viewModelScope.launchNamed("videofeed", "VideoItemViewModel_launch") {
             // 如果已经在播放同一个视频，不重复播放
             if (currentVideoId == videoId && currentPlayer != null) {
-                return@launch
+                return@launchNamed
             }
 
             // ✅ 修复：如果是从横屏返回（handoffInProgress），且播放器已经存在且是同一个视频，不释放播放器
@@ -109,7 +110,7 @@ class VideoItemViewModel @Inject constructor(
      * 准备播放器（由 Fragment 调用，传入 PlayerView）
      */
     fun preparePlayer(videoId: Long, videoUrl: String, playerView: PlayerView) {  // ✅ 修改：从 String 改为 Long
-        viewModelScope.launch {
+        viewModelScope.launchNamed("videofeed", "VideoItemViewModel_launch") {
             try {
                 android.util.Log.d("VideoItemViewModel", "preparePlayer: 视频ID=$videoId，视频URL=$videoUrl")
                 // 检查参数有效性
@@ -120,7 +121,7 @@ class VideoItemViewModel @Inject constructor(
                         error = "视频ID或URL为空",
                         isPlaying = false
                     )
-                    return@launch
+                    return@launchNamed
                 }
 
                 // 先设置 currentVideoId，避免其他逻辑检查失败
@@ -171,7 +172,7 @@ class VideoItemViewModel @Inject constructor(
                                 _uiState.value = _uiState.value.copy(currentPositionMs = targetPosition)
                                 
                                 // ✅ 修复：等待一小段时间后再次检查位置，确保跳转成功
-                                viewModelScope.launch {
+                                viewModelScope.launchNamed("videofeed", "VideoItemViewModel_launch") {
                                     kotlinx.coroutines.delay(50)
                                     val newPosition = player.player.currentPosition
                                     val newDiff = kotlin.math.abs(newPosition - targetPosition)
@@ -192,7 +193,7 @@ class VideoItemViewModel @Inject constructor(
                             if (session.playWhenReady) {
                                 android.util.Log.d("VideoItemViewModel", "onReady: 从横屏返回，会话中 playWhenReady=true，自动恢复播放")
                                 // 等待 Surface 准备好后再播放
-                                viewModelScope.launch {
+                                viewModelScope.launchNamed("videofeed", "VideoItemViewModel_launch") {
                                     // 检查视频尺寸，如果有尺寸说明 Surface 已准备好
                                     if (player.player.videoSize.width > 0 && player.player.videoSize.height > 0) {
                                         android.util.Log.d("VideoItemViewModel", "onReady: Surface 已准备好，立即播放")
@@ -245,7 +246,7 @@ class VideoItemViewModel @Inject constructor(
                         // ✅ 观看历史异步写入：用户点击开始观看视频时，按照文档的异步写入数据库，上传远程
                         // 策略B：不回滚（弱一致性数据，自动重试同步）
                         val currentPosition = player.player.currentPosition
-                        viewModelScope.launch {
+                        viewModelScope.launchNamed("videofeed", "VideoItemViewModel_launch") {
                             try {
                                 saveWatchHistoryUseCase(videoId, currentPosition)
                                 android.util.Log.d("VideoItemViewModel", "保存观看历史: videoId=$videoId, position=$currentPosition")
@@ -352,7 +353,7 @@ class VideoItemViewModel @Inject constructor(
      * 不绑定 PlayerView，只使用现有的 VideoPlayerPool 与 ExoPlayer 播放音频。
      */
     fun prepareAudioOnly(videoId: Long, audioUrl: String) {  // ✅ 修改：从 String 改为 Long
-        viewModelScope.launch {
+        viewModelScope.launchNamed("videofeed", "VideoItemViewModel_launch") {
             try {
                 if (videoId <= 0 || audioUrl.isBlank()) {  // ✅ 修改：videoId 现在是 Long，检查 <= 0 而不是 isBlank()
                     _uiState.value = _uiState.value.copy(
@@ -360,7 +361,7 @@ class VideoItemViewModel @Inject constructor(
                         error = "音频ID或URL为空",
                         isPlaying = false
                     )
-                    return@launch
+                    return@launchNamed
                 }
 
                 val source = VideoSource(
@@ -561,7 +562,7 @@ class VideoItemViewModel @Inject constructor(
                     player.player.addListener(surfaceReadyListener)
                     
                     // 延迟检查
-                    viewModelScope.launch {
+                    viewModelScope.launchNamed("videofeed", "VideoItemViewModel_launch") {
                         kotlinx.coroutines.delay(300)
                         if (!surfaceReadyHandled) {
                             if (player.player.videoSize.width > 0 && player.player.videoSize.height > 0) {
@@ -762,7 +763,7 @@ class VideoItemViewModel @Inject constructor(
                 player.player.addListener(surfaceReadyListener)
                 
                 // ✅ 修复：减少延迟检查时间，从300ms改为100ms，加快恢复速度
-                viewModelScope.launch {
+                viewModelScope.launchNamed("videofeed", "VideoItemViewModel_launch") {
                     kotlinx.coroutines.delay(100) // 减少延迟，加快恢复
                     // 检查是否已经有首帧了（通过检查视频尺寸）
                     if (!surfaceReadyHandled) {
@@ -815,7 +816,7 @@ class VideoItemViewModel @Inject constructor(
 
     private fun startProgressUpdates() {
         progressJob?.cancel()
-        progressJob = viewModelScope.launch {
+        progressJob = viewModelScope.launchNamed("videofeed", "VideoItemViewModel_launch") {
             while (currentPlayer != null) {
                 delay(500)
                 currentPlayer?.player?.let { player ->
@@ -859,7 +860,7 @@ class VideoItemViewModel @Inject constructor(
      */
     fun reportShare() {
         val videoId = _uiState.value.currentVideoId ?: return
-        viewModelScope.launch {
+        viewModelScope.launchNamed("videofeed", "VideoItemViewModel_launch") {
             when (val result = shareVideoUseCase(videoId)) {
                 is AppResult.Success -> {
                     // 暂时不处理 UI 计数，由后端返回的列表刷新 shareCount
@@ -893,7 +894,7 @@ class VideoItemViewModel @Inject constructor(
             error = null
         )
 
-        viewModelScope.launch {
+        viewModelScope.launchNamed("videofeed", "VideoItemViewModel_launch") {
             val result = if (targetLiked) {
                 android.util.Log.d("VideoItemViewModel", "toggleLike: 调用 likeVideoUseCase, videoId=$videoId")
                 likeVideoUseCase(videoId)
@@ -951,7 +952,7 @@ class VideoItemViewModel @Inject constructor(
             error = null
         )
 
-        viewModelScope.launch {
+        viewModelScope.launchNamed("videofeed", "VideoItemViewModel_launch") {
             val result = if (targetFavorited) {
                 android.util.Log.d("VideoItemViewModel", "toggleFavorite: 调用 favoriteVideoUseCase, videoId=$videoId")
                 favoriteVideoUseCase(videoId)

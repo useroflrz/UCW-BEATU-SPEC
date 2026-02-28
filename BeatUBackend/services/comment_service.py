@@ -40,7 +40,7 @@ class CommentService:
             limit=limit,
         )
 
-    def create_comment(self, video_id: int, payload: CommentCreate, user_id: str, user_name: str) -> CommentItem:  # ✅ 修改：video_id 从 str 改为 int
+    def create_comment(self, video_id: int, payload: CommentCreate, user_id: str) -> CommentItem:  # ✅ 修改：video_id 从 str 改为 int
         video = self.db.get(Video, video_id)
         if not video:
             raise ValueError("视频不存在")

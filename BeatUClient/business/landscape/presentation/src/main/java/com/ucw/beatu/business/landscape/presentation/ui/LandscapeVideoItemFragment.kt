@@ -41,6 +41,7 @@ import com.ucw.beatu.business.videofeed.presentation.share.ShareImageUtils
 import com.ucw.beatu.business.videofeed.presentation.share.SharePosterGenerator
 import com.ucw.beatu.business.videofeed.presentation.ui.VideoCommentsDialogFragment
 import com.ucw.beatu.business.videofeed.presentation.ui.VideoShareDialogFragment
+import com.ucw.beatu.shared.common.threading.launchNamed
 import dagger.hilt.android.AndroidEntryPoint
 import com.ucw.beatu.shared.designsystem.R as DesignSystemR
 import kotlinx.coroutines.launch
@@ -932,7 +933,7 @@ class LandscapeVideoItemFragment : Fragment() {
     }
 
     private fun observeViewModel() {
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchNamed("landscape", "LandscapeVideoItemFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     playerView?.visibility = View.VISIBLE
@@ -964,7 +965,7 @@ class LandscapeVideoItemFragment : Fragment() {
     }
 
     private fun observeControls() {
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchNamed("landscape", "LandscapeVideoItemFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.controlsState.collect { state ->
                     latestControlsState = state

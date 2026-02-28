@@ -2,12 +2,17 @@ package com.ucw.beatu.business.videofeed.data.api
 
 import com.ucw.beatu.business.videofeed.data.api.dto.CommentDto
 import com.ucw.beatu.business.videofeed.data.api.dto.CommentRequest
+import com.ucw.beatu.business.videofeed.data.api.dto.PublishVideoResponseDto
 import com.ucw.beatu.business.videofeed.data.api.dto.VideoDto
 import com.ucw.beatu.business.videofeed.data.api.dto.WatchHistorySyncRequest
 import com.ucw.beatu.shared.common.api.ApiResponse
 import com.ucw.beatu.shared.common.api.PageResponse
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
+import retrofit2.http.Part
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -17,6 +22,13 @@ import retrofit2.http.Query
  * 连接MySQL后端服务的API端点定义
  */
 interface VideoFeedApiService {
+    @Multipart
+    @POST("api/videos/publish")
+    suspend fun publishVideo(
+        @Part file: MultipartBody.Part,
+        @Part("title") title: RequestBody,
+        @Part("orientation") orientation: RequestBody
+    ): ApiResponse<PublishVideoResponseDto>
 
     /**
      * 获取视频列表（分页）

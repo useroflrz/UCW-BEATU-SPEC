@@ -16,6 +16,7 @@ import com.ucw.beatu.business.settings.presentation.R
 import com.ucw.beatu.business.settings.presentation.databinding.FragmentQualitySettingsBinding
 import com.ucw.beatu.business.settings.presentation.databinding.ItemSettingsArrowBinding
 import com.ucw.beatu.business.settings.presentation.viewmodel.SettingsViewModel
+import com.ucw.beatu.shared.common.threading.launchNamed
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -68,7 +69,7 @@ class QualitySettingsFragment : Fragment() {
     }
 
     private fun observeState() {
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchNamed("settings", "QualitySettingsFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     optionBindings.forEach { (quality, binding) ->

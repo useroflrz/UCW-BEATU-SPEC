@@ -15,6 +15,7 @@ import com.ucw.beatu.business.settings.presentation.R
 import com.ucw.beatu.business.settings.presentation.databinding.FragmentSpeedSettingsBinding
 import com.ucw.beatu.business.settings.presentation.databinding.ItemSettingsArrowBinding
 import com.ucw.beatu.business.settings.presentation.viewmodel.SettingsViewModel
+import com.ucw.beatu.shared.common.threading.launchNamed
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -85,7 +86,7 @@ class SpeedSettingsFragment : Fragment() {
     }
 
     private fun observeState() {
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchNamed("settings", "SpeedSettingsFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     optionBindings.forEachIndexed { index, option ->

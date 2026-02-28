@@ -171,7 +171,7 @@ class SearchFragment : Fragment() {
     private fun navigateBackToFeed() {
         val navController = findNavController()
         runCatching {
-            NavigationHelper.navigateByStringId(
+            NavigationHelper.navigate(
                 navController,
                 NavigationIds.ACTION_SEARCH_TO_FEED,
                 requireContext()

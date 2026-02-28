@@ -13,6 +13,7 @@ import com.ucw.beatu.business.videofeed.domain.usecase.UnfavoriteVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.UnlikeVideoUseCase
 import com.ucw.beatu.shared.common.logger.AppLogger
 import com.ucw.beatu.shared.common.time.Stopwatch
+import com.ucw.beatu.shared.common.threading.launchNamed
 import com.ucw.beatu.shared.player.VideoPlayer
 import com.ucw.beatu.shared.player.model.VideoSource
 import com.ucw.beatu.shared.player.pool.VideoPlayerPool
@@ -77,9 +78,9 @@ class LandscapeVideoItemViewModel @Inject constructor(
     }
 
     fun playVideo(videoId: Long, videoUrl: String) {  // ✅ 修改：从 String 改为 Long
-        viewModelScope.launch {
+        viewModelScope.launchNamed("landscape", "LandscapeVideoItemViewModel_launch") {
             if (currentVideoId == videoId && currentPlayer != null) {
-                return@launch
+                return@launchNamed
             }
             releaseCurrentPlayer()
             _uiState.value = _uiState.value.copy(
@@ -94,7 +95,7 @@ class LandscapeVideoItemViewModel @Inject constructor(
     }
 
     fun preparePlayer(videoId: Long, videoUrl: String, playerView: PlayerView) {  // ✅ 修改：从 String 改为 Long
-        viewModelScope.launch {
+        viewModelScope.launchNamed("landscape", "LandscapeVideoItemViewModel_launch") {
             try {
                 if (videoId <= 0 || videoUrl.isBlank()) {  // ✅ 修改：videoId 现在是 Long，检查 <= 0 而不是 isBlank()
                     _uiState.value = _uiState.value.copy(
@@ -102,7 +103,7 @@ class LandscapeVideoItemViewModel @Inject constructor(
                         error = "视频ID或URL为空",
                         isPlaying = false
                     )
-                    return@launch
+                    return@launchNamed
                 }
 
                 val source = VideoSource(videoId = videoId, url = videoUrl)
@@ -156,7 +157,7 @@ class LandscapeVideoItemViewModel @Inject constructor(
                         // 否则保持暂停状态，等待 Fragment 调用 resume()
                         if (shouldAutoPlay) {
                             // 延迟一小段时间，让 Fragment 的 onParentVisibilityChanged 先执行
-                            viewModelScope.launch {
+                            viewModelScope.launchNamed("landscape", "LandscapeVideoItemViewModel_launch") {
                                 kotlinx.coroutines.delay(100)
                                 // 检查视频尺寸，如果有尺寸说明 Surface 已准备好
                                 if (player.player.videoSize.width > 0 && player.player.videoSize.height > 0) {
@@ -268,7 +269,7 @@ class LandscapeVideoItemViewModel @Inject constructor(
         val optimisticCount = (prev.likeCount + if (targetLiked) 1 else -1).coerceAtLeast(0)
         _controlsState.value = prev.copy(isLiked = targetLiked, likeCount = optimisticCount)
 
-        viewModelScope.launch {
+        viewModelScope.launchNamed("landscape", "LandscapeVideoItemViewModel_launch") {
             val result = if (targetLiked) {
                 likeVideoUseCase(videoId)
             } else {
@@ -288,7 +289,7 @@ class LandscapeVideoItemViewModel @Inject constructor(
         val optimisticCount = (prev.favoriteCount + if (targetFavorited) 1 else -1).coerceAtLeast(0)
         _controlsState.value = prev.copy(isFavorited = targetFavorited, favoriteCount = optimisticCount)
 
-        viewModelScope.launch {
+        viewModelScope.launchNamed("landscape", "LandscapeVideoItemViewModel_launch") {
             val result = if (targetFavorited) {
                 favoriteVideoUseCase(videoId)
             } else {
@@ -305,7 +306,7 @@ class LandscapeVideoItemViewModel @Inject constructor(
      */
     fun reportShare() {
         val videoId = _uiState.value.currentVideoId ?: return
-        viewModelScope.launch {
+        viewModelScope.launchNamed("landscape", "LandscapeVideoItemViewModel_launch") {
             // 忽略结果，仅用于统计；失败时不影响前端 UI
             runCatching { shareVideoUseCase(videoId) }
         }
@@ -360,7 +361,7 @@ class LandscapeVideoItemViewModel @Inject constructor(
 
     private fun startProgressUpdates() {
         stopProgressUpdates()
-        progressUpdateJob = viewModelScope.launch {
+        progressUpdateJob = viewModelScope.launchNamed("landscape", "LandscapeVideoItemViewModel_launch") {
             while (currentPlayer != null) {
                 delay(500)
                 currentPlayer?.let { player ->

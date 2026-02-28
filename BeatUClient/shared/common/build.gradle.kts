@@ -50,5 +50,8 @@ dependencies {
     implementation(libs.moshi)
     implementation(libs.moshi.kotlin)
     kapt(libs.moshi.kotlin.codegen)
+
+    // QR code generation
+    implementation("com.google.zxing:core:3.5.3")
 }
 

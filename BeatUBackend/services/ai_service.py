@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -14,9 +12,6 @@ from schemas.api import (
     AIRecommendResponse,
     VideoItem,
 )
-from services.helpers import parse_quality_list, parse_tag_list
-
-
 class AIService:
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -73,5 +68,5 @@ class AIService:
         reason = f"网络 {bandwidth}kbps，选择 {quality} 以平衡清晰度与流畅度"
         return AIQualityResponse(quality=quality, reason=reason)
 
-    def comment_qa(self, payload: AICommentQARequest) -> str:
+    def answer_comment(self, payload: AICommentQARequest) -> str:
         return f"关于《{payload.video_id}》：{payload.question}。建议继续关注剧情发展，更多彩蛋等你发现！"

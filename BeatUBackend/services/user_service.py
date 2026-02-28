@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import logging
-from sqlalchemy import func, select
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from database.models import User, UserFollow, Video, VideoInteraction
+from database.models import User, UserFollow
 from schemas.api import UserItem
-from services.helpers import parse_bool_map
 
 
 class UserService:
@@ -14,7 +13,7 @@ class UserService:
         self.db = db
         self.logger = logging.getLogger(__name__)
 
-    def get_user(self, user_id: str, current_user_id: str | None = None) -> UserItem:
+    def fetch_user(self, user_id: str) -> UserItem:
         """获取用户信息"""
         # ✅ 修改：直接从 User 表获取用户信息
         user = self.db.get(User, user_id)
@@ -57,7 +56,7 @@ class UserService:
             followers_count=int(followers),  # ✅ 修改：字段名从 followers 改为 followerCount
         )
 
-    def get_user_by_name(self, user_name: str, current_user_id: str | None = None) -> UserItem:
+    def fetch_user_by_name(self, user_name: str) -> UserItem:
         """根据用户名获取用户信息"""
         # ✅ 修改：从 User 表根据 userName 查询
         user = (
@@ -174,7 +173,7 @@ class UserService:
         
         return {"success": True, "message": "未关注"}
 
-    def get_all_users(self) -> list[UserItem]:
+    def list_users(self) -> list[UserItem]:
         """获取所有用户信息"""
         users = self.db.query(User).all()
         self.logger.info("get_all_users: total=%s", len(users))
@@ -192,7 +191,7 @@ class UserService:
             for user in users
         ]
 
-    def get_all_user_follows(self, user_id: str) -> list[dict]:
+    def list_user_follows(self, user_id: str) -> list[dict]:
         """获取指定用户的所有关注关系"""
         follows = (
             self.db.query(UserFollow)

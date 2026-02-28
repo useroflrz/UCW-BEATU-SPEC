@@ -18,6 +18,7 @@ import com.ucw.beatu.business.landscape.presentation.R
 import com.ucw.beatu.business.landscape.presentation.model.VideoItem
 import com.ucw.beatu.business.landscape.presentation.ui.adapter.LandscapeVideoAdapter
 import com.ucw.beatu.business.landscape.presentation.viewmodel.LandscapeViewModel
+import com.ucw.beatu.shared.common.threading.launchNamed
 import com.ucw.beatu.shared.common.model.VideoItem as CommonVideoItem
 import com.ucw.beatu.shared.common.navigation.LandscapeLaunchContract
 import com.ucw.beatu.shared.designsystem.widget.NoMoreVideosToast
@@ -212,7 +213,7 @@ class LandscapeFragment : Fragment(R.layout.fragment_landscape) {
     }
 
     private fun observeUiState() {
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchNamed("landscape", "LandscapeFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     // ✅ 修复：在更新 Adapter 之前，再次过滤确保只有 LANDSCAPE 视频

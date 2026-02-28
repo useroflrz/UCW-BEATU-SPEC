@@ -32,6 +32,7 @@ import com.ucw.beatu.business.videofeed.presentation.share.ShareImageUtils
 import com.ucw.beatu.shared.common.navigation.LandscapeLaunchContract
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
+import com.ucw.beatu.shared.common.threading.launchNamed
 import com.ucw.beatu.shared.common.util.NumberFormatter
 import com.ucw.beatu.shared.designsystem.widget.VideoControlsView
 import coil.load
@@ -831,7 +832,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
 
     private fun observeViewModel() {
         var previousIsPlaying = false
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchNamed("videofeed", "VideoItemFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     playerView?.visibility = View.VISIBLE
@@ -1390,7 +1391,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
 
             // ✅ 修复：等待 playVideo 完成（currentVideoId 设置完成）
             // 使用 viewLifecycleOwner.lifecycleScope 确保在正确的生命周期中执行
-            viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.lifecycleScope.launchNamed("videofeed", "VideoItemFragment_launch") {
                 // 等待 playVideo 完成：轮询检查 currentVideoId 是否已设置
                 var retryCount = 0
                 val maxRetries = 50 // 最多等待 500ms (50 * 10ms)
@@ -1408,7 +1409,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
                 if (!isAdded) {
                     Log.w(TAG, "restorePlayerFromLandscape: Fragment not added after delay")
                     isRestoringFromLandscape = false
-                    return@launch
+                    return@launchNamed
                 }
 
                 // 验证 currentVideoId 是否已设置
@@ -1593,7 +1594,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
     private fun startImageAutoScroll() {
         val pager = imagePager ?: return
         if (imageAutoScrollJob?.isActive == true) return
-        imageAutoScrollJob = viewLifecycleOwner.lifecycleScope.launch {
+        imageAutoScrollJob = viewLifecycleOwner.lifecycleScope.launchNamed("videofeed", "VideoItemFragment_launch") {
             while (isActive && imagePager != null) {
                 delay(3000L)
                 if (!isViewVisibleOnScreen()) continue
@@ -1656,7 +1657,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
 
         // 异步获取用户完整数据
         val userId = if (authorId.isNotEmpty()) authorId else authorName
-        lifecycleScope.launch {
+        lifecycleScope.launchNamed("videofeed", "VideoItemFragment_launch") {
             try {
                 // 优先通过 userId 获取用户数据（因为 userId 更准确）
                 var user: User? = null

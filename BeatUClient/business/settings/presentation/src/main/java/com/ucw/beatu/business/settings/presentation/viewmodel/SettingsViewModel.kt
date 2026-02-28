@@ -7,6 +7,7 @@ import com.ucw.beatu.business.settings.domain.model.SettingsPreference
 import com.ucw.beatu.business.settings.domain.usecase.SettingsUseCases
 import com.ucw.beatu.shared.common.logger.AppLogger
 import com.ucw.beatu.shared.common.time.Stopwatch
+import com.ucw.beatu.shared.common.threading.launchNamed
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -57,7 +58,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     private fun observeSettings() {
-        viewModelScope.launch {
+        viewModelScope.launchNamed("settings", "SettingsViewModel_launch") {
             useCases.observeSettings()
                 .catch { throwable ->
                     AppLogger.e(TAG, "observeSettings failed", throwable)
@@ -82,7 +83,7 @@ class SettingsViewModel @Inject constructor(
 
     private fun updateSetting(field: SettingField, block: suspend () -> Unit) {
         markLatency(field)
-        viewModelScope.launch {
+        viewModelScope.launchNamed("settings", "SettingsViewModel_launch") {
             runCatching { block() }
                 .onFailure { throwable ->
                     AppLogger.e(TAG, "updateSetting $field failed", throwable)

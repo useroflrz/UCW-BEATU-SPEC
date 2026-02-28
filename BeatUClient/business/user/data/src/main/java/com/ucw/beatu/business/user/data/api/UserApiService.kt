@@ -1,7 +1,11 @@
 package com.ucw.beatu.business.user.data.api
 
 import com.ucw.beatu.business.user.data.api.dto.UserDto
+import com.ucw.beatu.business.user.data.api.dto.AuthTokenDto
+import com.ucw.beatu.business.user.data.api.dto.LoginRequestDto
+import com.ucw.beatu.business.user.data.api.dto.RegisterRequestDto
 import com.ucw.beatu.shared.common.api.ApiResponse
+import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -11,6 +15,11 @@ import retrofit2.http.Path
  * 连接后端服务的用户相关API端点定义
  */
 interface UserApiService {
+    @POST("api/auth/login")
+    suspend fun login(@Body payload: LoginRequestDto): ApiResponse<AuthTokenDto>
+
+    @POST("api/auth/register")
+    suspend fun register(@Body payload: RegisterRequestDto): ApiResponse<AuthTokenDto>
 
     /**
      * 获取用户信息

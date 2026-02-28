@@ -22,11 +22,6 @@ class MCPRequest(BaseModel):
     user_input: str = Field(..., description="用户输入的自然语言请求")
 
 
-class MCPResponse(BaseModel):
-    """MCP 响应模型"""
-    response: str = Field(..., description="处理结果")
-
-
 @router.post("/mcp/process", response_model=dict)
 async def process_mcp_request(
     payload: MCPRequest,

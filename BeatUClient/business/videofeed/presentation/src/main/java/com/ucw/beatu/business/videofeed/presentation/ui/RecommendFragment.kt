@@ -23,6 +23,7 @@ import com.ucw.beatu.business.videofeed.presentation.ui.adapter.VideoFeedAdapter
 import com.ucw.beatu.business.videofeed.presentation.viewmodel.RecommendViewModel
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
+import com.ucw.beatu.shared.common.threading.launchNamed
 import com.ucw.beatu.business.videofeed.presentation.ui.FeedFragment.MainActivityBridge
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -373,7 +374,7 @@ class RecommendFragment : Fragment() {
     }
 
     private fun observeViewModel() {
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchNamed("videofeed", "RecommendFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
                     Log.d(TAG, "observeViewModel: isRefreshing=${state.isRefreshing}, local isRefreshing=$isRefreshing, videoList.size=${state.videoList.size}")
@@ -559,7 +560,7 @@ class RecommendFragment : Fragment() {
     private fun navigateToUserProfile() {
         runCatching {
             val navController = findNavController()
-            NavigationHelper.navigateByStringId(
+            NavigationHelper.navigate(
                 navController,
                 NavigationIds.ACTION_FEED_TO_USER_PROFILE,
                 requireContext()
