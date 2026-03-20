@@ -114,6 +114,13 @@ class VideoFeedAdapter(
     fun getVideoById(itemId: Long): VideoItem? {
         return videoList.firstOrNull { it.id == itemId }
     }
+
+    /**
+     * 获取视频在当前真实列表中的索引（非无限循环 position）。
+     */
+    fun indexOfVideoId(videoId: Long): Int {
+        return videoList.indexOfFirst { it.id == videoId }
+    }
 }
 
 

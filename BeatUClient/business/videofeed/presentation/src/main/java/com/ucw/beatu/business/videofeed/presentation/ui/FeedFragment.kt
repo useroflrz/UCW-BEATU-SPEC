@@ -8,10 +8,13 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
+import androidx.navigation.fragment.findNavController
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.ucw.beatu.business.videofeed.presentation.R
 import com.ucw.beatu.business.videofeed.presentation.ui.FeedFragmentCallback
+import com.ucw.beatu.shared.common.navigation.NavigationHelper
+import com.ucw.beatu.shared.common.navigation.NavigationIds
 
 /**
  * FeedFragment - 只负责视频流的 ViewPager2
@@ -27,6 +30,7 @@ class FeedFragment : Fragment(), FeedFragmentCallback {
     private var currentPage = 1 // 默认显示推荐页面（索引1）
     private var recommendFragment: RecommendFragment? = null
     private var fragmentLifecycleCallback: FragmentManager.FragmentLifecycleCallbacks? = null
+    private var pendingOpenVideoId: Long? = null
     
     // MainActivity 引用（用于更新指示器）
     private var mainActivity: MainActivityBridge? = null
@@ -61,6 +65,7 @@ class FeedFragment : Fragment(), FeedFragmentCallback {
         // ✅ 修复：初始化时主动修复找不到 fragment 的问题
         // 防止在 callback 注册之前 Fragment 已经 attach 的情况
         fixRecommendFragmentIfNeeded()
+        observePendingOpenVideoFromNavigation()
     }
     
     override fun onResume() {
@@ -128,6 +133,14 @@ class FeedFragment : Fragment(), FeedFragmentCallback {
             viewPager.setCurrentItem(position, true)
         }
     }
+
+    override fun openVideoById(videoId: Long) {
+        pendingOpenVideoId = videoId
+        if (::viewPager.isInitialized && currentPage != 1) {
+            viewPager.setCurrentItem(1, false)
+        }
+        dispatchPendingOpenVideo()
+    }
     
     override fun getCurrentTabPosition(): Int {
         return currentPage
@@ -189,6 +202,7 @@ class FeedFragment : Fragment(), FeedFragmentCallback {
                 if (f is RecommendFragment && f.parentFragment == this@FeedFragment) {
                     Log.d(TAG, "onFragmentAttached: RecommendFragment attached: $f")
                     recommendFragment = f
+                    dispatchPendingOpenVideo()
                 }
             }
         }
@@ -208,8 +222,31 @@ class FeedFragment : Fragment(), FeedFragmentCallback {
             if (fragment != null) {
                 recommendFragment = fragment
                 Log.d(TAG, "fixRecommendFragmentIfNeeded: restored recommendFragment")
+                dispatchPendingOpenVideo()
             }
         }
+    }
+
+    private fun dispatchPendingOpenVideo() {
+        val targetVideoId = pendingOpenVideoId ?: return
+        val target = recommendFragment ?: return
+        target.openVideoById(targetVideoId)
+        pendingOpenVideoId = null
+    }
+
+    private fun observePendingOpenVideoFromNavigation() {
+        val navController = runCatching { findNavController() }.getOrNull() ?: return
+        val feedDestinationId = NavigationHelper.getResourceId(requireContext(), NavigationIds.FEED)
+        if (feedDestinationId == 0) return
+        val feedBackStackEntry = runCatching { navController.getBackStackEntry(feedDestinationId) }.getOrNull() ?: return
+
+        feedBackStackEntry.savedStateHandle
+            .getLiveData<Long>(NavigationIds.ARG_TARGET_VIDEO_ID)
+            .observe(viewLifecycleOwner) { videoId ->
+                if (videoId == null || videoId <= 0L) return@observe
+                openVideoById(videoId)
+                feedBackStackEntry.savedStateHandle.remove<Long>(NavigationIds.ARG_TARGET_VIDEO_ID)
+            }
     }
     
     /**

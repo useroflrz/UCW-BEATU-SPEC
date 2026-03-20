@@ -99,10 +99,14 @@ class UserProfileNavigationHelper(
             videoUrl = playUrl,
             title = title,
             authorName = authorName,
+            authorId = authorId,
+            authorAvatar = authorAvatar,
             likeCount = likeCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             commentCount = commentCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             favoriteCount = favoriteCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             shareCount = shareCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            isLiked = isLiked,
+            isFavorited = isFavorited,
             orientation = videoOrientation  // ✅ 修复：使用真实的 orientation 值
         )
     }

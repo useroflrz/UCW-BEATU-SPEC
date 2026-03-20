@@ -48,6 +48,7 @@ class UserProfileViewModel @Inject constructor(
     val isInteracting: StateFlow<Boolean> = _isInteracting.asStateFlow()
 
     private var observeWorksJob: Job? = null
+    private var observeUserJob: Job? = null
     private var observeFollowStatusJob: Job? = null
     private var observeLikesCountJob: Job? = null
 
@@ -77,6 +78,10 @@ class UserProfileViewModel @Inject constructor(
         
         // 开始观察获赞数（通过查询该用户所有视频的点赞数总和）
         startObservingLikesCount(id)
+
+        // 订阅本地用户流并触发一次远端刷新，避免“只展示传入快照不更新”的问题
+        startObservingUserById(id)
+        refreshUserFromRemote(userId = id, userName = name)
         
         // 使用用户的ID加载作品
         viewModelScope.launchNamed("user", "UserProfileViewModel_launch") {
@@ -103,6 +108,9 @@ class UserProfileViewModel @Inject constructor(
                         _user.value = localUser
                         _isLoading.value = false
                     }
+
+                    // 本地先展示后，主动触发远端刷新并回写本地
+                    refreshUserFromRemote(userId = userName, userName = userName)
                     
                     // 观察用户信息变化（使用 StateFlow 自动更新）
                     try {
@@ -150,6 +158,12 @@ class UserProfileViewModel @Inject constructor(
                         _user.value = localUser
                         _isLoading.value = false
                     }
+
+                    // 本地先展示后，主动触发远端刷新并回写本地
+                    refreshUserFromRemote(
+                        userId = userName.takeIf { userName.all { it.isDigit() } },
+                        userName = userName
+                    )
                     
                     // 然后观察用户信息变化（使用 StateFlow 自动更新）
                     // 如果本地没有，会尝试从远程获取
@@ -486,6 +500,40 @@ class UserProfileViewModel @Inject constructor(
     fun stopObservingLikesCount() {
         observeLikesCountJob?.cancel()
         observeLikesCountJob = null
+    }
+
+    private fun startObservingUserById(userId: String) {
+        observeUserJob?.cancel()
+        observeUserJob = viewModelScope.launchNamed("user", "UserProfileViewModel_observeUserById") {
+            userRepository.observeUserById(userId).collect { user ->
+                if (user != null) {
+                    _user.value = user
+                    _isLoading.value = false
+                    startObservingLikesCount(user.id)
+                }
+            }
+        }
+    }
+
+    private fun refreshUserFromRemote(userId: String? = null, userName: String? = null) {
+        viewModelScope.launchNamed("user", "UserProfileViewModel_refreshUserFromRemote") {
+            try {
+                val byId = userId?.takeIf { it.isNotBlank() }
+                val byName = userName?.takeIf { it.isNotBlank() }
+                val result = when {
+                    byId != null -> userRepository.fetchUserFromRemote(byId)
+                    byName != null && byName.all { it.isDigit() } -> userRepository.fetchUserFromRemote(byName)
+                    byName != null -> userRepository.fetchUserFromRemoteByName(byName)
+                    else -> null
+                }
+                if (result is com.ucw.beatu.shared.common.result.AppResult.Success) {
+                    _user.value = result.data
+                    _isLoading.value = false
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("UserProfileViewModel", "Remote refresh user failed: userId=$userId, userName=$userName", e)
+            }
+        }
     }
 }
 

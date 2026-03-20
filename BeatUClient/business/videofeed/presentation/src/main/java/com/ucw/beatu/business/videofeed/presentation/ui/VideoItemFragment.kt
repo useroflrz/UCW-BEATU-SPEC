@@ -10,6 +10,7 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.ViewParent
+import android.widget.Toast
 import androidx.core.os.BundleCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.viewModels
@@ -32,6 +33,7 @@ import com.ucw.beatu.business.videofeed.presentation.share.ShareImageUtils
 import com.ucw.beatu.shared.common.navigation.LandscapeLaunchContract
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
+import com.ucw.beatu.shared.common.navigation.VideoShareDeepLink
 import com.ucw.beatu.shared.common.threading.launchNamed
 import com.ucw.beatu.shared.common.util.NumberFormatter
 import com.ucw.beatu.shared.designsystem.widget.VideoControlsView
@@ -320,7 +322,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
                              return
                          }
                          val context = requireContext()
-                         val shareUrl = item.videoUrl // 若有专门的 H5 / DeepLink，可替换为专用链接
+                         val shareUrl = VideoShareDeepLink.build(item.id)
                          val posterBitmap: Bitmap = SharePosterGenerator.generate(
                              context = context,
                              coverView = pv,
@@ -344,11 +346,12 @@ class VideoItemFragment : BaseFeedItemFragment() {
                          shareCountTextView?.text = currentShareCount.toString()
                         // 使用系统分享，分享视频标题 + 播放链接
                         val context = requireContext()
+                        val shareUrl = VideoShareDeepLink.build(item.id)
                         val intent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
                             putExtra(
                                 Intent.EXTRA_TEXT,
-                                "${item.title}\n${item.videoUrl}"
+                                "${item.title}\n打开链接直达视频：${shareUrl}"
                             )
                         }
                         context.startActivity(
@@ -832,6 +835,7 @@ class VideoItemFragment : BaseFeedItemFragment() {
 
     private fun observeViewModel() {
         var previousIsPlaying = false
+        var lastInteractionError: String? = null
         viewLifecycleOwner.lifecycleScope.launchNamed("videofeed", "VideoItemFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
@@ -858,6 +862,13 @@ class VideoItemFragment : BaseFeedItemFragment() {
                     previousIsPlaying = state.isPlaying
 
                     state.error?.let { error -> Log.e(TAG, "播放错误: $error") }
+
+                    val interactionError = state.interactionError
+                    if (!interactionError.isNullOrBlank() && interactionError != lastInteractionError) {
+                        Toast.makeText(requireContext(), interactionError, Toast.LENGTH_SHORT).show()
+                        lastInteractionError = interactionError
+                        viewModel.consumeInteractionError()
+                    }
                 }
             }
         }

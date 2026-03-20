@@ -89,6 +89,7 @@
 |---|---|---|---|---|---|
 | POST | `/api/ai/recommend` | `{ videoId, consumedDurationMs, tags?, dwellMs }` | `ApiResponse<List<Video>>` | 视频播放完成后拉取推荐 | AIService |
 | POST | `/api/ai/quality` | `{ videoId, networkStats, deviceStats }` | `ApiResponse<{ quality: String, reason: String }>` | AI 清晰度建议 | AIService |
+| POST | `/api/ai/search/stream` | `{ userQuery }`（或 `{ user_query }`） | `text/event-stream`（SSE） | 云 LLM 流式生成 markdown 文本（含标题/关键词高亮），客户端按 `chunkType=answer` 增量渲染 | AIService |
 
 #### 2.5 监控指标接口
 

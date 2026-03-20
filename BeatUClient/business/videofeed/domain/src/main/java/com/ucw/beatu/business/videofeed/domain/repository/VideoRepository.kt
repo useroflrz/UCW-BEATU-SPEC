@@ -1,6 +1,7 @@
 package com.ucw.beatu.business.videofeed.domain.repository
 
 import com.ucw.beatu.business.videofeed.domain.model.Comment
+import com.ucw.beatu.business.videofeed.domain.model.InteractionSyncEvent
 import com.ucw.beatu.business.videofeed.domain.model.Video
 import com.ucw.beatu.shared.common.result.AppResult
 import kotlinx.coroutines.flow.Flow
@@ -79,5 +80,10 @@ interface VideoRepository {
      * @param positionMs 播放位置（毫秒）
      */
     suspend fun saveWatchHistory(videoId: Long, positionMs: Long = 0L)
+
+    /**
+     * 观察互动异步同步事件（失败回滚/提示）。
+     */
+    fun observeInteractionSyncEvents(): Flow<InteractionSyncEvent>
 }
 

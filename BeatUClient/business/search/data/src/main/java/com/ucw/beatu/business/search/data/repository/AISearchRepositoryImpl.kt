@@ -97,7 +97,9 @@ class AISearchRepositoryImpl @Inject constructor(
     private fun processChunk(chunk: AISearchStreamChunk): AISearchResult {
         return when (chunk.chunkType) {
             "answer" -> {
-                AISearchResult(aiAnswer = chunk.content)
+                AISearchResult(
+                    aiAnswer = chunk.content
+                )
             }
             "keywords" -> {
                 try {
@@ -108,7 +110,7 @@ class AISearchRepositoryImpl @Inject constructor(
                     AISearchResult()
                 }
             }
-            "videoIds" -> {
+            "videoIds", "videos" -> {
                 try {
                     val videoIds = parseJsonArrayToLong(chunk.content)  // ✅ 修改：解析为 Long 列表
                     AISearchResult(videoIds = videoIds)
@@ -134,7 +136,7 @@ class AISearchRepositoryImpl @Inject constructor(
             }
         }
     }
-    
+
     /**
      * 解析 JSON 数组字符串为 String 列表（用于关键词）
      */

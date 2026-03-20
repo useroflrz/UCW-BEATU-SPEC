@@ -1,5 +1,6 @@
 package com.ucw.beatu
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -18,6 +19,7 @@ import com.ucw.beatu.business.videofeed.presentation.ui.FeedFragment.MainActivit
 import com.ucw.beatu.business.videofeed.presentation.ui.FeedFragmentCallback
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
+import com.ucw.beatu.shared.common.navigation.VideoShareDeepLink
 import com.ucw.beatu.shared.designsystem.widget.TabIndicatorView
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -41,6 +43,7 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
 
     private var feedFragmentCallback: FeedFragmentCallback? = null
     private var navController: NavController? = null
+    private var pendingSharedVideoId: Long? = null
 
     private var followTabCenterX: Float = 0f
     private var followTabCenterY: Float = 0f
@@ -104,11 +107,20 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
                     super.onFragmentViewCreated(fm, f, view, savedInstanceState)
                     if (f is FeedFragment) {
                         feedFragmentCallback = f
+                        openPendingSharedVideoIfPossible()
                     }
                 }
             },
             true
         )
+
+        handleIncomingIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIncomingIntent(intent)
     }
 
     /**
@@ -319,6 +331,9 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
      */
     private fun setupNavigationListener() {
         navController?.addOnDestinationChangedListener { _, destination, _ ->
+            if (isFeedDestination(destination.id)) {
+                openPendingSharedVideoIfPossible()
+            }
             // 根据当前目标页面控制顶部导航栏的显示/隐藏和视频播放
             when (destination.id) {
                 R.id.userProfile,
@@ -484,6 +499,48 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
         } else {
             Log.d(TAG, "Not in recommend tab, currentTabPosition: $currentTabPosition")
         }
+    }
+
+    private fun handleIncomingIntent(intent: Intent?) {
+        val videoId = VideoShareDeepLink.parseVideoId(intent?.data) ?: return
+        pendingSharedVideoId = videoId
+        Log.d(TAG, "handleIncomingIntent: received shared video deep link, videoId=$videoId")
+        openPendingSharedVideoIfPossible()
+    }
+
+    private fun openPendingSharedVideoIfPossible() {
+        val videoId = pendingSharedVideoId ?: return
+        val callback = feedFragmentCallback ?: return
+        if (!ensureFeedVisibleForDeepLink()) {
+            return
+        }
+        callback.switchToTab(1)
+        callback.openVideoById(videoId)
+        pendingSharedVideoId = null
+    }
+
+    private fun ensureFeedVisibleForDeepLink(): Boolean {
+        val controller = navController ?: return false
+        val feedDestinationId = NavigationHelper.getResourceId(this, NavigationIds.FEED)
+        if (feedDestinationId == 0) return false
+        if (controller.currentDestination?.id == feedDestinationId) return true
+
+        return runCatching {
+            if (controller.popBackStack(feedDestinationId, false)) {
+                true
+            } else {
+                controller.navigate(feedDestinationId)
+                true
+            }
+        }.getOrElse {
+            Log.w(TAG, "ensureFeedVisibleForDeepLink: failed to navigate feed", it)
+            false
+        }
+    }
+
+    private fun isFeedDestination(destinationId: Int): Boolean {
+        val feedDestinationId = NavigationHelper.getResourceId(this, NavigationIds.FEED)
+        return feedDestinationId != 0 && destinationId == feedDestinationId
     }
     
     /**

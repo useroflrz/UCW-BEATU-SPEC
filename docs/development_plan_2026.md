@@ -5,6 +5,121 @@
 
 ### 1. 当前迭代任务
 
+- [x] 搜索链接直达改为“内部路由到 Feed + videoId”  
+  - 2026-03-08 - done by AI  
+  - 需求：修复搜索框输入链接后点击搜索出现应用异常切换问题，移除 `ACTION_VIEW` 二次启动路径，改为应用内导航。  
+  - 改动范围：  
+    1. 更新：`BeatUClient/business/search/presentation/src/main/java/com/ucw/beatu/business/search/presentation/ui/SearchFragment.kt`（命中链接后解析 `videoId` 写入导航 `savedStateHandle`，直接走 `action_search_to_feed`）  
+    2. 更新：`BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/ui/FeedFragment.kt`（监听 `savedStateHandle` 的目标 `videoId`，收到后调用 `openVideoById`）  
+    3. 更新：`BeatUClient/shared/common/src/main/java/com/ucw/beatu/shared/common/navigation/NavigationIds.kt`（新增跨模块导航参数 key 常量）  
+    4. 更新：`BeatUClient/business/search/presentation/src/main/java/com/ucw/beatu/business/search/presentation/ui/SearchFragment.kt`（增强回流可靠性：优先写 `previousBackStackEntry(feed)`，并优先 `popBackStack(feed,false)` 回退）  
+  - 结果：搜索页链接命中后不再发 `Intent`，改为内部回到 Feed 并定位目标视频播放。  
+
+- [x] 互动失败回滚补齐用户可见提示（竖屏）  
+  - 2026-03-08 - done by AI  
+  - 需求：点赞/收藏异步同步失败后，除状态回滚外，需明确给用户提示，避免“已回滚但无感知”。  
+  - 改动范围：  
+    1. 更新：`BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/ui/VideoItemFragment.kt`（监听 `interactionError`，弹 `Toast` 后调用 `consumeInteractionError()` 清空）  
+  - 结果：竖屏视频页在点赞/收藏失败并回滚时可即时提示用户；评论失败提示链路保持不变。  
+
+- [x] DeepLink 在 App 内统一回流主页并定位目标视频播放  
+  - 2026-03-08 - done by AI  
+  - 需求：支持 `beatu://video/{id}` 与 `https://beatu.app/video/{id}` 在应用内解析后，统一回到主页 Feed 并打开对应视频播放，避免停留在搜索/个人页。  
+  - 改动范围：  
+    1. 更新：`BeatUClient/app/src/main/java/com/ucw/beatu/MainActivity.kt`（DeepLink 待处理视频在 `feed` 可见后再分发；非 `feed` 目标时先导航回 `feed` 再执行 `openVideoById`）  
+    2. 更新：`BeatUClient/business/search/presentation/src/main/java/com/ucw/beatu/business/search/presentation/ui/SearchFragment.kt`（`ACTION_VIEW` intent 限制到当前包名，确保链接在本 App 内处理）  
+  - 结果：应用内触发 DeepLink 时会先回到主页，再切到推荐流并定位到目标视频播放；`beatu://` 与 `https://beatu.app/video/...` 行为保持一致。  
+
+- [x] 搜索框支持“链接识别并直达视频”  
+  - 2026-03-08 - done by AI  
+  - 需求：用户在搜索框输入或粘贴分享链接后，按搜索键可直接跳转到目标视频；普通关键词搜索流程保持不变。  
+  - 改动范围：  
+    1. 更新：`BeatUClient/business/search/presentation/src/main/java/com/ucw/beatu/business/search/presentation/ui/SearchFragment.kt`（`performSearch` 增加链接优先分支：整串解析 + 文本中提取 `beatu://...` / `https://beatu.app/video...`；命中后 `ACTION_VIEW` 跳转，失败回退普通搜索）  
+  - 结果：纯链接与混合文本（含链接）可直达对应视频；无效链接或普通关键词继续走原搜索结果列表。  
+
+- [x] AI 搜索结果页优化关键词展示与交互输入联动  
+  - 2026-03-08 - done by AI  
+  - 需求：解决“AI 回答后重复列举关键词影响阅读”与“点击关键词后二次搜索未回填搜索框”的体验问题。  
+  - 改动范围：  
+    1. 更新：`BeatUClient/business/search/presentation/src/main/java/com/ucw/beatu/business/search/presentation/ui/SearchResultFragment.kt`（渲染前过滤“关键词”段落；关键词点击时先回填搜索框再触发搜索）  
+  - 结果：AI 回答区域不再显示尾部关键词列举，保留关键词点击搜索能力且交互与搜索框状态一致。  
+
+- [x] 分享链接可点击并可回流 App 指定视频  
+  - 2026-03-08 - done by AI  
+  - 需求：修复“分享 DeepLink 文本在聊天场景不可点击”的问题，同时保持点击后可直达 App 对应视频。  
+  - 改动范围：  
+    1. 更新：`BeatUClient/shared/common/src/main/java/com/ucw/beatu/shared/common/navigation/VideoShareDeepLink.kt`（默认构造可点击 `https://beatu.app/video/{id}`；兼容解析旧 `beatu://video/{id}`）  
+    2. 更新：`BeatUClient/app/src/main/AndroidManifest.xml`（为 `MainActivity` 增加 `https://beatu.app/video...` 的 `intent-filter`）  
+    3. 更新：`BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/ui/VideoItemFragment.kt`（分享文本改为可点击 URL）  
+  - 结果：分享文案在常见 IM 中可被识别为可点击链接，点击后仍可由 `MainActivity` 解析并跳转到目标视频。  
+
+- [x] 用户主页与作品页补齐“本地优先 + 远端刷新 + 互动态透传”  
+  - 2026-03-08 - done by AI  
+  - 需求：修复“从视频头像进入个人页数据不更新、从个人页点进视频互动态丢失”的问题，避免页面只消费本地快照。  
+  - 改动范围：  
+    1. 更新：`BeatUClient/business/user/presentation/src/main/java/com/ucw/beatu/business/user/presentation/viewmodel/UserProfileViewModel.kt`（设置用户快照后立即订阅本地流并触发远端刷新回写；`loadUser` 本地命中后也会主动刷新远端）  
+    2. 更新：`BeatUClient/shared/database/src/main/java/com/ucw/beatu/shared/database/dao/VideoInteractionDao.kt`（新增按用户观察互动记录流）  
+    3. 更新：`BeatUClient/business/user/data/src/main/java/com/ucw/beatu/business/user/data/local/UserWorksLocalDataSource.kt`（将作品列表与互动表实时合并，给作品补齐 `isLiked/isFavorited`）  
+    4. 更新：`BeatUClient/business/user/domain/src/main/java/com/ucw/beatu/business/user/domain/model/UserWork.kt`、`.../data/mapper/UserWorkMapper.kt`、`.../presentation/ui/helper/UserProfileNavigationHelper.kt`（补齐作者信息与互动态，透传到 `VideoItem`）  
+  - 结果：头像进入个人主页后会自动远端刷新并回写本地；从个人主页进入视频时点赞/收藏状态与本地互动记录一致。  
+
+- [x] AI 搜索关键词收敛为 markdown 单通道并限制上限  
+  - 2026-03-08 - done by AI  
+  - 需求：解决 AI 搜索关键词过多、噪声词累积问题，关键词仅从云 LLM markdown 中 `**关键词**` 解析，统一最多 5 个。  
+  - 改动范围：  
+    1. 更新：`BeatUClient/business/search/data/src/main/java/com/ucw/beatu/business/search/data/repository/AISearchRepositoryImpl.kt`（`answer` 分片不再本地 NLP 抽词，仅透传回答）  
+    2. 更新：`BeatUClient/business/search/presentation/src/main/java/com/ucw/beatu/business/search/presentation/viewmodel/AISearchViewModel.kt`（仅从 `**...**` 解析关键词，`normalize + distinct + take(5)`）  
+  - 结果：关键词来源收敛为单通道，数量稳定在 5 个以内，首关键词驱动搜索逻辑保持不变且更稳定。  
+
+- [x] AI 搜索接口切换为云 LLM SSE 流式 markdown 输出  
+  - 2026-03-06 - done by AI  
+  - 需求：将 `/api/ai/search/stream` 从本地规则回答切换为云 LLM 生成，输出可直接被客户端 AST 渲染的 markdown（标题 + 关键词高亮），保持 SSE 协议不变。  
+  - 改动范围：  
+    1. 更新：`BeatUBackend/services/ai_search_service.py`（接入云 LLM `astream`，输出 `chunkType=answer` SSE 数据块）  
+    2. 更新：`BeatUBackend/routes/ai.py`（接口注释改为云 LLM 流式 markdown）  
+    3. 更新：`docs/api_reference.md`、`docs/architecture.md`（补齐接口与链路说明）  
+  - 结果：客户端无需改 SSE 解析协议，即可接收云 LLM 流式 markdown 文本并实时渲染。  
+
+- [x] 点赞/收藏/评论乐观更新补齐“异步失败回滚提示”闭环  
+  - 2026-03-06 - done by AI  
+  - 需求：将“本地先更新、远程异步同步、失败后可见回滚提示”在点赞/收藏/评论链路中真实落地，避免仅日志回滚导致用户无感知。  
+  - 改动范围：  
+    1. 新增：`BeatUClient/business/videofeed/domain/model/InteractionSyncEvent.kt`（定义互动同步失败事件）  
+    2. 新增：`BeatUClient/business/videofeed/domain/usecase/ObserveInteractionSyncEventsUseCase.kt`（暴露事件流）  
+    3. 更新：`BeatUClient/business/videofeed/domain/repository/VideoRepository.kt`、`.../data/repository/VideoRepositoryImpl.kt`（在异步同步失败后发出回滚事件）  
+    4. 更新：`BeatUClient/.../videofeed/presentation/viewmodel/VideoItemViewModel.kt`、`.../videofeed/presentation/ui/VideoItemFragment.kt`（竖屏点赞/收藏失败时 UI 回滚并提示）  
+    5. 更新：`BeatUClient/.../videofeed/presentation/ui/VideoCommentsDialogFragment.kt`（评论异步失败时移除临时评论并 Toast 提示）  
+    6. 更新：`BeatUClient/.../landscape/presentation/viewmodel/LandscapeVideoItemViewModel.kt`、`.../landscape/presentation/ui/LandscapeVideoItemFragment.kt`（横屏点赞/收藏失败时 UI 回滚并提示）  
+  - 结果：互动链路满足“乐观更新 + 异步同步 + 失败回滚提示”闭环，用户可感知失败并看到状态回滚。  
+
+- [x] 分享链接支持 Deep Link 回流到指定视频播放  
+  - 2026-03-06 - done by AI  
+  - 需求：分享内容改为“标题 + 可点击链接”，用户点击链接后可拉起 App，并自动进入对应视频播放。  
+  - 改动范围：  
+    1. 新增：`BeatUClient/shared/common/src/main/java/com/ucw/beatu/shared/common/navigation/VideoShareDeepLink.kt`（统一构建/解析 `beatu://video/{id}`）  
+    2. 更新：`BeatUClient/business/videofeed/presentation/src/main/java/com/ucw/beatu/business/videofeed/presentation/ui/VideoItemFragment.kt`（分享文案与海报二维码链接改为 Deep Link）  
+    3. 更新：`BeatUClient/business/landscape/presentation/src/main/java/com/ucw/beatu/business/landscape/presentation/ui/LandscapeVideoItemFragment.kt`（横屏分享链路对齐）  
+    4. 更新：`BeatUClient/app/src/main/AndroidManifest.xml`、`app/src/main/java/com/ucw/beatu/MainActivity.kt`、`FeedFragment.kt`、`RecommendFragment.kt`、`FeedFragmentCallback.kt`、`VideoFeedAdapter.kt`、`RecommendViewModel.kt`（注册 Deep Link、解析 Intent、按 `videoId` 定位并自动播放）  
+  - 结果：分享链接可直接唤起 App 并定位到目标视频；若列表未命中，会拉取视频详情后置顶播放，提升分享回流命中率。  
+
+- [x] AI 流式搜索链路完整接入页面（OkHttp + SSE + StateFlow + AST 渲染）
+  - 2026-03-02 - done by AI  
+  - 需求：将 AI 流式搜索从网络到页面展示全链路打通，接入 AST 富文本渲染（标题、关键词高亮），并修复前后端 SSE 数据块字段不一致导致的视频结果丢失问题。
+  - 改动范围：  
+    1. 更新：`BeatUClient/business/search/presentation/src/main/java/com/ucw/beatu/business/search/presentation/ui/SearchResultFragment.kt`（接入 `AiAnswerAstRenderer`、关键词高亮点击、关键词驱动结果收敛）  
+    2. 更新：`BeatUClient/business/search/data/src/main/java/com/ucw/beatu/business/search/data/repository/AISearchRepositoryImpl.kt`（兼容 `videos` 与 `videoIds` 数据块）  
+    3. 更新：`BeatUBackend/services/ai_search_service.py`（统一下发 `videoIds` 数据块）  
+    4. 更新：`BeatUBackend/routes/ai.py`（接口注释与数据块语义同步）  
+  - 结果：搜索结果页支持 AI 分段流式富文本实时展示，关键词高亮可直接触发二次搜索；前后端 SSE 数据块协议对齐，视频 ID 结果可稳定进入内容消费链路。  
+
+- [x] 客户端视频渲染控件统一为 `SurfaceView`  
+  - 2026-03-02 - done by AI  
+  - 需求：仅调整视频渲染相关控件，将客户端播放器渲染类型从 `TextureView` 切换为 `SurfaceView`，避免误改文本控件。  
+  - 改动范围：  
+    1. 更新：`BeatUClient/business/videofeed/presentation/src/main/res/layout/item_video.xml`（`app:surface_type` 改为 `surface_view`）  
+    2. 更新：`BeatUClient/business/landscape/presentation/src/main/res/layout/fragment_landscape_video_item.xml`（`app:surface_type` 改为 `surface_view`）  
+  - 结果：竖屏与横屏视频播放页渲染类型统一为 `SurfaceView`，视频渲染链路配置收敛。  
+
 - [x] 第三轮 Backend 方法级 API 收敛（Service 内部定义-调用矩阵）  
   - 2026-02-28 - done by AI  
   - 需求：将 `BeatUBackend/services` 从“文件级收敛”推进到“方法级收敛”，按定义-调用矩阵识别可删/可合并/可重命名项，并直接落地。  

@@ -1,5 +1,6 @@
 package com.ucw.beatu.business.search.presentation.ui
 
+import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -21,6 +22,7 @@ import com.ucw.beatu.business.search.presentation.R
 import com.ucw.beatu.business.search.presentation.ui.widget.FlowLayout
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
+import com.ucw.beatu.shared.common.navigation.VideoShareDeepLink
 import com.ucw.beatu.shared.database.BeatUDatabase
 import com.ucw.beatu.shared.database.dao.SearchHistoryDao
 import com.ucw.beatu.shared.database.entity.SearchHistoryEntity
@@ -68,6 +70,10 @@ class SearchFragment : Fragment() {
     }
     
     private var currentState = SearchState.BEFORE_SEARCH
+    private val deepLinkRegexes = listOf(
+        Regex("beatu://video(?:/\\d+|\\?id=\\d+)", RegexOption.IGNORE_CASE),
+        Regex("https://beatu\\.app/video/\\d+(?:\\?[^\\s]*)?", RegexOption.IGNORE_CASE)
+    )
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -238,18 +244,91 @@ class SearchFragment : Fragment() {
      * 执行搜索
      */
     private fun performSearch(query: String) {
-        if (query.isBlank()) {
+        val normalizedQuery = query.trim()
+        if (normalizedQuery.isBlank()) {
+            return
+        }
+
+        // 链接优先：当输入为（或包含）可解析视频链接时，直接走 deep link 跳转。
+        val parsedDeepLink = parseVideoDeepLinkInput(normalizedQuery)
+        if (parsedDeepLink != null) {
+            val videoId = VideoShareDeepLink.parseVideoId(parsedDeepLink)
+            if (videoId != null) {
+                routeToFeedAndOpenVideo(videoId)
+                return
+            }
             return
         }
         
         // ✅ 保存搜索历史
-        saveSearchHistory(query)
+        saveSearchHistory(normalizedQuery)
         
         // 隐藏键盘
         val imm = activity?.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
         imm?.hideSoftInputFromWindow(searchEditText.windowToken, 0)
         
-        navigateToSearchResult(query)
+        navigateToSearchResult(normalizedQuery)
+    }
+
+    private fun parseVideoDeepLinkInput(input: String): Uri? {
+        val directUri = input.toUriOrNull()
+        if (directUri != null && VideoShareDeepLink.parseVideoId(directUri) != null) {
+            return directUri
+        }
+        deepLinkRegexes.forEach { regex ->
+            val match = regex.find(input)?.value ?: return@forEach
+            val matchedUri = match.toUriOrNull()
+            if (matchedUri != null && VideoShareDeepLink.parseVideoId(matchedUri) != null) {
+                return matchedUri
+            }
+        }
+        return null
+    }
+
+    private fun routeToFeedAndOpenVideo(videoId: Long) {
+        val imm = activity?.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+        imm?.hideSoftInputFromWindow(searchEditText.windowToken, 0)
+
+        val navController = findNavController()
+        val context = requireContext()
+        val feedDestinationId = NavigationHelper.getResourceId(context, NavigationIds.FEED)
+        val targetSavedStateHandle = when {
+            feedDestinationId != 0 &&
+                navController.previousBackStackEntry?.destination?.id == feedDestinationId -> {
+                navController.previousBackStackEntry?.savedStateHandle
+            }
+
+            feedDestinationId != 0 -> {
+                runCatching { navController.getBackStackEntry(feedDestinationId).savedStateHandle }.getOrNull()
+            }
+
+            else -> null
+        }
+
+        if (targetSavedStateHandle == null) {
+            android.util.Log.w("SearchFragment", "No feed backStackEntry found for target videoId=$videoId")
+        } else {
+            targetSavedStateHandle[NavigationIds.ARG_TARGET_VIDEO_ID] = videoId
+        }
+
+        runCatching {
+            if (feedDestinationId != 0 && navController.popBackStack(feedDestinationId, false)) {
+                return@runCatching
+            }
+
+            NavigationHelper.navigate(navController, NavigationIds.ACTION_SEARCH_TO_FEED, context)
+        }.onFailure {
+            android.util.Log.w("SearchFragment", "Navigate feed failed for target videoId=$videoId", it)
+            if (!navController.popBackStack()) {
+                navController.navigateUp()
+            }
+        }
+    }
+
+    private fun String.toUriOrNull(): Uri? {
+        return runCatching { Uri.parse(this) }
+            .getOrNull()
+            ?.takeIf { !it.scheme.isNullOrBlank() }
     }
     
     /**

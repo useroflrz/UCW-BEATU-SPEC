@@ -15,7 +15,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import com.ucw.beatu.business.videofeed.domain.model.Comment
+import com.ucw.beatu.business.videofeed.domain.model.InteractionSyncEvent
 import com.ucw.beatu.business.videofeed.domain.usecase.GetCommentsUseCase
+import com.ucw.beatu.business.videofeed.domain.usecase.ObserveInteractionSyncEventsUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.PostCommentUseCase
 import com.ucw.beatu.business.videofeed.presentation.R
 import com.ucw.beatu.shared.common.result.AppResult
@@ -23,7 +25,7 @@ import com.ucw.beatu.shared.common.threading.launchNamed
 import com.ucw.beatu.shared.common.util.TimeFormatter
 import com.ucw.beatu.shared.designsystem.R as DesignSystemR
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import javax.inject.Inject
 
 /**
@@ -42,6 +44,9 @@ class VideoCommentsDialogFragment : DialogFragment() {
     @Inject
     lateinit var postCommentUseCase: PostCommentUseCase
 
+    @Inject
+    lateinit var observeInteractionSyncEventsUseCase: ObserveInteractionSyncEventsUseCase
+
     private val videoId: Long? get() = arguments?.getLong(ARG_VIDEO_ID)  // ✅ 修改：从 String? 改为 Long?，使用 getLong
     private val initialCommentCount: Int get() = arguments?.getInt(ARG_COMMENT_COUNT) ?: 0
 
@@ -54,6 +59,8 @@ class VideoCommentsDialogFragment : DialogFragment() {
 
     private var adapter: CommentsAdapter? = null
     private var isPosting = false
+    private var displayedCommentCount = 0
+    private val pendingCommentIds = mutableSetOf<String>()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -77,7 +84,8 @@ class VideoCommentsDialogFragment : DialogFragment() {
         adapter = CommentsAdapter(mutableListOf())
         commentsRecyclerView?.adapter = adapter
 
-        commentTitleView?.text = "${initialCommentCount}条评论"
+        displayedCommentCount = initialCommentCount
+        commentTitleView?.text = "${displayedCommentCount}条评论"
 
         closeButton?.setOnClickListener { dismissAllowingStateLoss() }
 
@@ -89,6 +97,7 @@ class VideoCommentsDialogFragment : DialogFragment() {
         }
 
         loadComments()
+        observeInteractionSyncEvents()
     }
 
     override fun onStart() {
@@ -178,12 +187,15 @@ class VideoCommentsDialogFragment : DialogFragment() {
                 is AppResult.Success -> {
                     // 将新评论插入到列表顶部
                     adapter?.prependComment(result.data)
+                    if (result.data.id.startsWith("pending_")) {
+                        pendingCommentIds.add(result.data.id)
+                    }
                     commentsRecyclerView?.scrollToPosition(0)
                     inputEditText?.setText("")
                     
                     // 更新评论数量
-                    val newCount = initialCommentCount + 1
-                    commentTitleView?.text = "${newCount}条评论"
+                    displayedCommentCount += 1
+                    commentTitleView?.text = "${displayedCommentCount}条评论"
                 }
                 is AppResult.Error -> {
                     Log.e(TAG, "Failed to post comment", result.throwable)
@@ -199,6 +211,25 @@ class VideoCommentsDialogFragment : DialogFragment() {
             }
             isPosting = false
             sendButton?.isEnabled = true
+        }
+    }
+
+    private fun observeInteractionSyncEvents() {
+        val currentVideoId = videoId ?: return
+        viewLifecycleOwner.lifecycleScope.launchNamed("videofeed", "VideoCommentsDialogFragment_observeInteractionSyncEvents") {
+            observeInteractionSyncEventsUseCase().collect { event ->
+                if (event !is InteractionSyncEvent.CommentSyncFailed) return@collect
+                if (event.videoId != currentVideoId) return@collect
+                if (!pendingCommentIds.contains(event.tempCommentId)) return@collect
+
+                pendingCommentIds.remove(event.tempCommentId)
+                adapter?.removeCommentById(event.tempCommentId)
+                if (displayedCommentCount > 0) {
+                    displayedCommentCount -= 1
+                }
+                commentTitleView?.text = "${displayedCommentCount}条评论"
+                Toast.makeText(requireContext(), event.message, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -246,6 +277,13 @@ private class CommentsAdapter(
     fun prependComment(comment: Comment) {
         items.add(0, comment)
         notifyItemInserted(0)
+    }
+
+    fun removeCommentById(commentId: String) {
+        val targetIndex = items.indexOfFirst { it.id == commentId }
+        if (targetIndex < 0) return
+        items.removeAt(targetIndex)
+        notifyItemRemoved(targetIndex)
     }
 }
 

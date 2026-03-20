@@ -3,6 +3,7 @@ from datetime import datetime
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+import uvicorn
 
 from core.config import settings
 from core.middleware import RequestLoggingMiddleware
@@ -57,3 +58,10 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host=settings.server_host,
+        port=settings.server_port,
+        reload=True,
+    )

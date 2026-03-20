@@ -2,9 +2,9 @@ package com.ucw.beatu.business.videofeed.data.repository
 
 import com.ucw.beatu.business.videofeed.data.local.VideoInteractionLocalDataSource
 import com.ucw.beatu.business.videofeed.data.local.VideoLocalDataSource
-import com.ucw.beatu.business.videofeed.data.mapper.toEntity
 import com.ucw.beatu.business.videofeed.data.remote.VideoRemoteDataSource
 import com.ucw.beatu.business.videofeed.domain.model.Comment
+import com.ucw.beatu.business.videofeed.domain.model.InteractionSyncEvent
 import com.ucw.beatu.business.videofeed.domain.model.Video
 import com.ucw.beatu.business.videofeed.domain.repository.VideoRepository
 import com.ucw.beatu.shared.database.BeatUDatabase
@@ -19,6 +19,8 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
@@ -42,6 +44,10 @@ class VideoRepositoryImpl @Inject constructor(
 
     private val syncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val TAG = "VideoRepositoryImpl"
+    private val interactionSyncEvents = MutableSharedFlow<InteractionSyncEvent>(
+        replay = 0,
+        extraBufferCapacity = 32
+    )
     
     // ✅ 修改：当前用户ID，根据SQL，userId "BEATU" 对应的 userName 也是 "BEATU"
     // 使用 userId 而不是 userName，确保与数据库一致
@@ -314,6 +320,13 @@ class VideoRepositoryImpl @Inject constructor(
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback like video local state: videoId=$videoId", e)
                         }
+                        interactionSyncEvents.tryEmit(
+                            InteractionSyncEvent.LikeSyncFailed(
+                                videoId = videoId,
+                                rollbackToLiked = false,
+                                message = "点赞同步失败，已回滚"
+                            )
+                        )
                     }
                     else -> {
                         Log.w(TAG, "Like video sync unknown result: videoId=$videoId")
@@ -324,6 +337,13 @@ class VideoRepositoryImpl @Inject constructor(
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback like video local state: videoId=$videoId", e)
                         }
+                        interactionSyncEvents.tryEmit(
+                            InteractionSyncEvent.LikeSyncFailed(
+                                videoId = videoId,
+                                rollbackToLiked = false,
+                                message = "点赞同步异常，已回滚"
+                            )
+                        )
                     }
                 }
             } catch (e: Exception) {
@@ -335,6 +355,13 @@ class VideoRepositoryImpl @Inject constructor(
                 } catch (rollbackException: Exception) {
                     Log.e(TAG, "Failed to rollback like video local state: videoId=$videoId", rollbackException)
                 }
+                interactionSyncEvents.tryEmit(
+                    InteractionSyncEvent.LikeSyncFailed(
+                        videoId = videoId,
+                        rollbackToLiked = false,
+                        message = "点赞同步异常，已回滚"
+                    )
+                )
             }
         }
 
@@ -367,6 +394,13 @@ class VideoRepositoryImpl @Inject constructor(
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback unlike video local state: videoId=$videoId", e)
                         }
+                        interactionSyncEvents.tryEmit(
+                            InteractionSyncEvent.LikeSyncFailed(
+                                videoId = videoId,
+                                rollbackToLiked = true,
+                                message = "取消点赞同步失败，已回滚"
+                            )
+                        )
                     }
                     else -> {
                         Log.w(TAG, "Unlike video sync unknown result: videoId=$videoId")
@@ -377,6 +411,13 @@ class VideoRepositoryImpl @Inject constructor(
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback unlike video local state: videoId=$videoId", e)
                         }
+                        interactionSyncEvents.tryEmit(
+                            InteractionSyncEvent.LikeSyncFailed(
+                                videoId = videoId,
+                                rollbackToLiked = true,
+                                message = "取消点赞同步异常，已回滚"
+                            )
+                        )
                     }
                 }
             } catch (e: Exception) {
@@ -388,6 +429,13 @@ class VideoRepositoryImpl @Inject constructor(
                 } catch (rollbackException: Exception) {
                     Log.e(TAG, "Failed to rollback unlike video local state: videoId=$videoId", rollbackException)
                 }
+                interactionSyncEvents.tryEmit(
+                    InteractionSyncEvent.LikeSyncFailed(
+                        videoId = videoId,
+                        rollbackToLiked = true,
+                        message = "取消点赞同步异常，已回滚"
+                    )
+                )
             }
         }
 
@@ -427,6 +475,13 @@ class VideoRepositoryImpl @Inject constructor(
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback favorite video local state: videoId=$videoId", e)
                         }
+                        interactionSyncEvents.tryEmit(
+                            InteractionSyncEvent.FavoriteSyncFailed(
+                                videoId = videoId,
+                                rollbackToFavorited = false,
+                                message = "收藏同步失败，已回滚"
+                            )
+                        )
                     }
                     else -> {
                         Log.w(TAG, "Favorite video sync unknown result: videoId=$videoId")
@@ -437,6 +492,13 @@ class VideoRepositoryImpl @Inject constructor(
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback favorite video local state: videoId=$videoId", e)
                         }
+                        interactionSyncEvents.tryEmit(
+                            InteractionSyncEvent.FavoriteSyncFailed(
+                                videoId = videoId,
+                                rollbackToFavorited = false,
+                                message = "收藏同步异常，已回滚"
+                            )
+                        )
                     }
                 }
             } catch (e: Exception) {
@@ -448,6 +510,13 @@ class VideoRepositoryImpl @Inject constructor(
                 } catch (rollbackException: Exception) {
                     Log.e(TAG, "Failed to rollback favorite video local state: videoId=$videoId", rollbackException)
                 }
+                interactionSyncEvents.tryEmit(
+                    InteractionSyncEvent.FavoriteSyncFailed(
+                        videoId = videoId,
+                        rollbackToFavorited = false,
+                        message = "收藏同步异常，已回滚"
+                    )
+                )
             }
         }
 
@@ -480,6 +549,13 @@ class VideoRepositoryImpl @Inject constructor(
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback unfavorite video local state: videoId=$videoId", e)
                         }
+                        interactionSyncEvents.tryEmit(
+                            InteractionSyncEvent.FavoriteSyncFailed(
+                                videoId = videoId,
+                                rollbackToFavorited = true,
+                                message = "取消收藏同步失败，已回滚"
+                            )
+                        )
                     }
                     else -> {
                         Log.w(TAG, "Unfavorite video sync unknown result: videoId=$videoId")
@@ -490,6 +566,13 @@ class VideoRepositoryImpl @Inject constructor(
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback unfavorite video local state: videoId=$videoId", e)
                         }
+                        interactionSyncEvents.tryEmit(
+                            InteractionSyncEvent.FavoriteSyncFailed(
+                                videoId = videoId,
+                                rollbackToFavorited = true,
+                                message = "取消收藏同步异常，已回滚"
+                            )
+                        )
                     }
                 }
             } catch (e: Exception) {
@@ -501,6 +584,13 @@ class VideoRepositoryImpl @Inject constructor(
                 } catch (rollbackException: Exception) {
                     Log.e(TAG, "Failed to rollback unfavorite video local state: videoId=$videoId", rollbackException)
                 }
+                interactionSyncEvents.tryEmit(
+                    InteractionSyncEvent.FavoriteSyncFailed(
+                        videoId = videoId,
+                        rollbackToFavorited = true,
+                        message = "取消收藏同步异常，已回滚"
+                    )
+                )
             }
         }
 
@@ -528,8 +618,6 @@ class VideoRepositoryImpl @Inject constructor(
             isAiReply = false,
             likeCount = 0
         )
-        // 保存为待同步状态（isPending = true）
-        val pendingEntity = pendingComment.toEntity().copy(isPending = true)
         localDataSource.saveComment(pendingComment) // 保存临时评论
         
         Log.d(TAG, "Post comment: videoId=$videoId, tempCommentId=$tempCommentId (local saved, pending sync)")
@@ -561,6 +649,13 @@ class VideoRepositoryImpl @Inject constructor(
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback post comment local state: videoId=$videoId", e)
                         }
+                        interactionSyncEvents.tryEmit(
+                            InteractionSyncEvent.CommentSyncFailed(
+                                videoId = videoId,
+                                tempCommentId = tempCommentId,
+                                message = "评论同步失败，已回滚"
+                            )
+                        )
                     }
                     else -> {}
                 }
@@ -573,6 +668,13 @@ class VideoRepositoryImpl @Inject constructor(
                 } catch (rollbackException: Exception) {
                     Log.e(TAG, "Failed to rollback post comment local state: videoId=$videoId", rollbackException)
                 }
+                interactionSyncEvents.tryEmit(
+                    InteractionSyncEvent.CommentSyncFailed(
+                        videoId = videoId,
+                        tempCommentId = tempCommentId,
+                        message = "评论同步异常，已回滚"
+                    )
+                )
             }
         }
         
@@ -717,6 +819,10 @@ class VideoRepositoryImpl @Inject constructor(
                 // 策略B：不回滚，保留待同步状态，下次启动时继续重试
             }
         }
+    }
+
+    override fun observeInteractionSyncEvents(): Flow<InteractionSyncEvent> {
+        return interactionSyncEvents.asSharedFlow()
     }
 
 }

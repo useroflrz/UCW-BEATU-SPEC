@@ -33,6 +33,11 @@ interface FeedFragmentCallback {
      * 当 ViewPager2 切换完成时，FeedFragment 会调用此方法通知 MainActivity 更新指示器
      */
     fun onIndicatorTabSelected(position: Int)
+
+    /**
+     * 按视频 ID 打开并播放指定视频（用于分享 Deep Link）
+     */
+    fun openVideoById(videoId: Long)
 }
 
 

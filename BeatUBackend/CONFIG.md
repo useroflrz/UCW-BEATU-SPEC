@@ -32,8 +32,8 @@ cp .env.example .env
 # 数据库配置示例
 DATABASE_URL=mysql+pymysql://用户名:密码@主机:端口/数据库名
 
-# 例如：
-DATABASE_URL=mysql+pymysql://jeecg:haomo123@192.168.1.206:3306/jeecg-boot3
+# 例如（本地数据库）：
+DATABASE_URL=mysql+pymysql://root:13326932249@localhost:3306/beatu
 ```
 
 ### 3. 配置项说明
@@ -43,7 +43,7 @@ DATABASE_URL=mysql+pymysql://jeecg:haomo123@192.168.1.206:3306/jeecg-boot3
 | `PROJECT_NAME` | 项目名称 | BeatU Backend | - |
 | `VERSION` | 版本号 | 0.1.0 | - |
 | `DEBUG` | 调试模式 | False | True/False |
-| `DATABASE_URL` | 数据库连接URL | mysql+pymysql://jeecg:haomo123@192.168.1.206:3306/jeecg-boot3 | mysql+pymysql://user:pass@host:port/db |
+| `DATABASE_URL` | 数据库连接URL | mysql+pymysql://root:13326932249@localhost:3306/beatu | mysql+pymysql://user:pass@host:port/db |
 | `REDIS_URL` | Redis连接URL | redis://localhost:6379/0 | redis://host:port/db |
 | `API_KEY` | API密钥 | dev-key | - |
 | `MCP_API_KEY` | MCP LLM API Key（用于 AgentMCP） | 空 | 你的 LLM API Key |

@@ -7,7 +7,6 @@ import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextPaint
 import android.text.style.ClickableSpan
-import android.text.style.BackgroundColorSpan
 import android.text.style.CharacterStyle
 import android.text.style.ForegroundColorSpan
 import android.text.style.RelativeSizeSpan
@@ -165,7 +164,6 @@ object AiAnswerAstRenderer {
                     builder.append(chunk.text)
                     val end = builder.length
                     builder.setSpan(TypefaceSpan("monospace"), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    builder.setSpan(BackgroundColorSpan(0x332196F3), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                     builder.setSpan(ForegroundColorSpan(0xFFBBDEFB.toInt()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 }
             }
@@ -206,13 +204,7 @@ object AiAnswerAstRenderer {
                     val globalStart = start + idx
                     val globalEnd = globalStart + keyword.length
                     builder.setSpan(
-                        BackgroundColorSpan(0x66FFC107),
-                        globalStart,
-                        globalEnd,
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
-                    builder.setSpan(
-                        ForegroundColorSpan(0xFF111111.toInt()),
+                        ForegroundColorSpan(0xFFFFC107.toInt()),
                         globalStart,
                         globalEnd,
                         Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -240,6 +232,7 @@ object AiAnswerAstRenderer {
 
         override fun updateDrawState(ds: TextPaint) {
             ds.isUnderlineText = false
+            ds.color = 0xFFFFC107.toInt()
         }
     }
 

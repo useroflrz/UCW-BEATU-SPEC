@@ -88,6 +88,7 @@ class RecommendFragment : Fragment() {
     private var isSpeedAdjusting = false // 是否正在倍速调节
     private var pendingRestoreIndex: Int? = null
     private var pendingResumeRequest = false
+    private var pendingDeepLinkVideoId: Long? = null
 
     private var gestureDetector: GestureDetector? = null
     private var rootView: View? = null
@@ -173,6 +174,30 @@ class RecommendFragment : Fragment() {
         } else {
             pauseAllVideoItems()
             pendingResumeRequest = false
+        }
+    }
+
+    /**
+     * 分享 Deep Link 入口：按 videoId 打开对应视频并自动播放。
+     */
+    fun openVideoById(videoId: Long) {
+        pendingDeepLinkVideoId = videoId
+        if (tryOpenDeepLinkVideo(videoId)) {
+            pendingDeepLinkVideoId = null
+            return
+        }
+
+        viewLifecycleOwner.lifecycleScope.launchNamed("videofeed", "RecommendFragment_launch") {
+            val ensured = viewModel.ensureVideoInList(videoId)
+            if (ensured) {
+                view?.post {
+                    if (tryOpenDeepLinkVideo(videoId)) {
+                        pendingDeepLinkVideoId = null
+                    }
+                }
+            } else {
+                Log.w(TAG, "openVideoById: 无法加载指定视频，videoId=$videoId")
+            }
         }
     }
 
@@ -496,6 +521,12 @@ class RecommendFragment : Fragment() {
                             val currentIndex = viewPager?.currentItem ?: 0
                             viewPager?.post { handlePageSelected(currentIndex) }
                         }
+
+                        pendingDeepLinkVideoId?.let { targetId ->
+                            if (tryOpenDeepLinkVideo(targetId)) {
+                                pendingDeepLinkVideoId = null
+                            }
+                        }
                     } else {
                         Log.d(TAG, "Video list is empty")
                     }
@@ -607,6 +638,16 @@ class RecommendFragment : Fragment() {
         if (currentPosition >= 0) {
             handlePageSelected(currentPosition)
         }
+    }
+
+    private fun tryOpenDeepLinkVideo(videoId: Long): Boolean {
+        val targetIndex = adapter?.indexOfVideoId(videoId) ?: -1
+        if (targetIndex < 0) return false
+
+        Log.d(TAG, "tryOpenDeepLinkVideo: 命中视频，videoId=$videoId, index=$targetIndex")
+        viewPager?.setCurrentItem(targetIndex, false)
+        viewPager?.post { handlePageSelected(targetIndex) }
+        return true
     }
     
     /**

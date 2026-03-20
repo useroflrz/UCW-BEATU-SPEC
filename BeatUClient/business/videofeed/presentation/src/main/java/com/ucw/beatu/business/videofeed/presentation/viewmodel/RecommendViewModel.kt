@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ucw.beatu.business.videofeed.domain.usecase.GetFeedUseCase
+import com.ucw.beatu.business.videofeed.domain.usecase.GetVideoDetailUseCase
 import com.ucw.beatu.business.videofeed.presentation.mapper.toVideoItem
 import com.ucw.beatu.shared.common.model.FeedContentType
 import com.ucw.beatu.shared.common.model.VideoItem
@@ -43,7 +44,8 @@ data class RecommendUiState(
 class RecommendViewModel @Inject constructor(
     application: Application,
     private val playerPool: VideoPlayerPool,
-    private val getFeedUseCase: GetFeedUseCase
+    private val getFeedUseCase: GetFeedUseCase,
+    private val getVideoDetailUseCase: GetVideoDetailUseCase
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(RecommendUiState())
@@ -391,6 +393,39 @@ class RecommendViewModel @Inject constructor(
             isRefreshing = false,
             error = null
         )
+    }
+
+    /**
+     * Deep Link 场景：确保指定视频在当前列表可播放。
+     * 若列表未命中，则拉取视频详情并置顶插入，随后由 UI 滚动到该项并自动播放。
+     */
+    suspend fun ensureVideoInList(videoId: Long): Boolean {
+        if (_uiState.value.videoList.any { it.id == videoId }) {
+            return true
+        }
+
+        return when (val result = getVideoDetailUseCase(videoId)) {
+            is AppResult.Success -> {
+                val target = result.data.toVideoItem()
+                videoSourceMap[target.id] = "deep_link"
+                _uiState.value = _uiState.value.copy(
+                    videoList = listOf(target) + _uiState.value.videoList.filterNot { it.id == target.id },
+                    error = null
+                )
+                true
+            }
+
+            is AppResult.Error -> {
+                android.util.Log.w(
+                    "RecommendViewModel",
+                    "ensureVideoInList: fetch detail failed, videoId=$videoId, message=${result.message}",
+                    result.throwable
+                )
+                false
+            }
+
+            else -> false
+        }
     }
     
     /**

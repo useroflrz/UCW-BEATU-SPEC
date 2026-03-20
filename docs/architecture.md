@@ -116,6 +116,11 @@ Data Layer (RemoteDataSource + LocalCache + PlayerDataSource)
 - **AI 内容理解/推荐**：
   1. Player 结束事件 → 埋点 → `AiRepository` 调用 `BeatUAIService /recommend`.
   2. 返回标签/推荐列表 → FeedRepository 更新 Paging 源 → ViewModel 刷新。
+- **AI 搜索（SSE 流式）**：
+  1. 客户端 `SearchResultFragment` 发起 `POST /api/ai/search/stream`（SSE）。
+  2. 后端 `routes/ai.py` 将请求转发到 `services/ai_search_service.py`。
+  3. `AISearchService` 调用云 LLM（`MCP_API_KEY/MCP_BASE_URL/MCP_MODEL`）进行流式推理，输出 markdown 文本（`##` 标题 + `**关键词**` 高亮）。
+  4. 后端按 `chunkType=answer` 分块回传，客户端增量拼接并通过 AST 富文本渲染。
 - **AI 评论助手 (@元宝)**：
   1. 评论输入框 `@元宝` 触发 `AiRepository.ask(videoId, question)`.
   2. 返回答案 + 置信度 → 评论列表插入机器人回复。

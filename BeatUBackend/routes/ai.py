@@ -80,23 +80,18 @@ def get_ai_search_service() -> AISearchService:
 async def ai_search_stream(
     payload: AISearchRequest,
     service: AISearchService = Depends(get_ai_search_service),
-    db: Session = Depends(get_db),
 ):
     """
     AI 搜索流式接口
     
-    使用 MCP Agent 异步联网搜索用户的关键字，并以流式协议返回结果。
-    同时根据关键词搜索相关视频并返回。
+    使用云 LLM 生成 markdown 搜索结果，并以流式协议返回结果。
     
     返回 Server-Sent Events (SSE) 格式的流式响应，包含：
-    - answer: Agent 联网搜索的文本结果（流式输出）
-    - keywords: 提取的关键词列表
-    - videos: 根据关键词搜索到的视频 ID 列表
+    - answer: AI 搜索 markdown 文本（流式输出，含标题/关键词高亮）
     
     Args:
         payload: 搜索请求，包含 user_query 字段
         service: AI 搜索服务实例
-        db: 数据库会话（用于搜索视频）
     
     Returns:
         StreamingResponse: SSE 格式的流式响应
@@ -104,7 +99,7 @@ async def ai_search_stream(
     async def generate():
         """生成流式响应"""
         try:
-            async for chunk in service.search_stream(payload.user_query, db=db):
+            async for chunk in service.search_stream(payload.user_query):
                 yield chunk
         except Exception as e:
             error_data = {

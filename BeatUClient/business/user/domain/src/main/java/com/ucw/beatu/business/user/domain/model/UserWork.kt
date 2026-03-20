@@ -8,12 +8,16 @@ data class UserWork(
     val coverUrl: String,
     val playUrl: String,
     val title: String,
+    val authorId: String,
+    val authorAvatar: String? = null,
     val durationMs: Long,
     val viewCount: Long,
     val likeCount: Long,
     val commentCount: Long,
     val favoriteCount: Long,
     val shareCount: Long,
+    val isLiked: Boolean = false,
+    val isFavorited: Boolean = false,
     val orientation: String = "PORTRAIT"  // ✅ 新增：视频方向，默认为 PORTRAIT
 )
 

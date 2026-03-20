@@ -18,6 +18,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.widget.Toast
 import android.view.WindowManager
 import android.widget.ImageButton
 import android.widget.LinearLayout
@@ -41,6 +42,7 @@ import com.ucw.beatu.business.videofeed.presentation.share.ShareImageUtils
 import com.ucw.beatu.business.videofeed.presentation.share.SharePosterGenerator
 import com.ucw.beatu.business.videofeed.presentation.ui.VideoCommentsDialogFragment
 import com.ucw.beatu.business.videofeed.presentation.ui.VideoShareDialogFragment
+import com.ucw.beatu.shared.common.navigation.VideoShareDeepLink
 import com.ucw.beatu.shared.common.threading.launchNamed
 import dagger.hilt.android.AndroidEntryPoint
 import com.ucw.beatu.shared.designsystem.R as DesignSystemR
@@ -442,7 +444,7 @@ class LandscapeVideoItemFragment : Fragment() {
                     }
 
                     val context = requireContext()
-                    val shareUrl = item.videoUrl
+                    val shareUrl = VideoShareDeepLink.build(item.id)
                     val posterBitmap: Bitmap = SharePosterGenerator.generate(
                         context = context,
                         coverView = pv,
@@ -464,11 +466,12 @@ class LandscapeVideoItemFragment : Fragment() {
                     viewModel.reportShare()
 
                     val context = requireContext()
+                    val deepLink = VideoShareDeepLink.build(item.id)
                     val intent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(
                             Intent.EXTRA_TEXT,
-                            "${item.title}\n${item.videoUrl}"
+                            "${item.title}\n${deepLink}"
                         )
                     }
                     context.startActivity(
@@ -965,11 +968,18 @@ class LandscapeVideoItemFragment : Fragment() {
     }
 
     private fun observeControls() {
+        var lastInteractionMessage: String? = null
         viewLifecycleOwner.lifecycleScope.launchNamed("landscape", "LandscapeVideoItemFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.controlsState.collect { state ->
                     latestControlsState = state
                     renderControlState(state)
+                    val interactionMessage = state.interactionMessage
+                    if (!interactionMessage.isNullOrBlank() && interactionMessage != lastInteractionMessage) {
+                        Toast.makeText(requireContext(), interactionMessage, Toast.LENGTH_SHORT).show()
+                        lastInteractionMessage = interactionMessage
+                        viewModel.consumeInteractionMessage()
+                    }
                 }
             }
         }

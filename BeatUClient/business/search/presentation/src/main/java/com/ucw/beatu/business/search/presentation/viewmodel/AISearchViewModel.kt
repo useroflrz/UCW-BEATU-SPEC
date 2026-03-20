@@ -33,6 +33,15 @@ data class AISearchUiState(
 class AISearchViewModel @Inject constructor(
     private val repository: AISearchRepository
 ) : ViewModel() {
+    companion object {
+        private const val MAX_KEYWORDS = 5
+        private val MARKDOWN_BOLD_KEYWORD_REGEX = Regex("\\*\\*([^*]{2,20})\\*\\*")
+        private val KEYWORD_EDGE_SYMBOLS_REGEX = Regex("^[\\p{Punct}\\p{S}\\s]+|[\\p{Punct}\\p{S}\\s]+$")
+        private val KEYWORD_STOP_WORDS = setOf(
+            "我们", "你们", "这是", "当前", "问题", "回答", "继续", "方向",
+            "原理", "步骤", "思路", "方案", "可以", "展开", "搜索结果"
+        )
+    }
     
     private val _uiState = MutableStateFlow(AISearchUiState())
     val uiState: StateFlow<AISearchUiState> = _uiState.asStateFlow()
@@ -57,14 +66,16 @@ class AISearchViewModel @Inject constructor(
             .onEach { result ->
                 // 累积更新状态
                 _uiState.update { currentState ->
+                    val nextAnswer = if (result.aiAnswer.isNotEmpty()) {
+                        // 流式累积 AI 回答
+                        currentState.aiAnswer + result.aiAnswer
+                    } else {
+                        currentState.aiAnswer
+                    }
+                    val parsedKeywords = extractKeywordsFromMarkdown(nextAnswer)
                     currentState.copy(
-                        aiAnswer = if (result.aiAnswer.isNotEmpty()) {
-                            // 流式累积 AI 回答
-                            currentState.aiAnswer + result.aiAnswer
-                        } else {
-                            currentState.aiAnswer
-                        },
-                        keywords = result.keywords.ifEmpty { currentState.keywords },
+                        aiAnswer = nextAnswer,
+                        keywords = parsedKeywords,
                         videoIds = result.videoIds.ifEmpty { currentState.videoIds },
                         localVideoIds = result.localVideoIds.ifEmpty { currentState.localVideoIds },
                         isLoading = false,
@@ -94,6 +105,25 @@ class AISearchViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         searchJob?.cancel()
+    }
+
+    private fun extractKeywordsFromMarkdown(text: String): List<String> {
+        if (text.isBlank()) return emptyList()
+        return MARKDOWN_BOLD_KEYWORD_REGEX.findAll(text)
+            .mapNotNull { normalizeKeyword(it.groupValues[1]) }
+            .distinct()
+            .take(MAX_KEYWORDS)
+            .toList()
+    }
+
+    private fun normalizeKeyword(raw: String): String? {
+        val normalized = raw.trim()
+            .replace(KEYWORD_EDGE_SYMBOLS_REGEX, "")
+            .trim()
+
+        if (normalized.length !in 2..20) return null
+        if (normalized in KEYWORD_STOP_WORDS) return null
+        return normalized
     }
 }
 

@@ -3,6 +3,7 @@ package com.ucw.beatu.business.search.presentation.ui
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.text.method.LinkMovementMethod
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -23,6 +24,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import android.widget.ProgressBar
 import com.ucw.beatu.business.search.presentation.R
+import com.ucw.beatu.business.search.presentation.ui.richtext.AiAnswerAstRenderer
 import com.ucw.beatu.business.search.presentation.viewmodel.AISearchViewModel
 import com.ucw.beatu.business.search.presentation.viewmodel.AISearchUiState
 import com.ucw.beatu.business.search.presentation.viewmodel.SearchResultVideoViewModel
@@ -56,6 +58,9 @@ class SearchResultFragment : Fragment() {
     private lateinit var aiAnswerText: TextView
     private lateinit var aiLoadingProgress: ProgressBar
     private lateinit var aiErrorText: TextView
+    private var lastAppliedAiKeyword: String? = null
+    private val keywordSectionHeadingRegex = Regex("^#{1,6}\\s*关键词\\s*$")
+    private val keywordLineRegex = Regex("^(?:[-*•]\\s*)?\\*\\*[^*]{1,30}\\*\\*\\s*$")
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -129,6 +134,8 @@ class SearchResultFragment : Fragment() {
         aiAnswerText = view.findViewById(R.id.tv_ai_answer)
         aiLoadingProgress = view.findViewById(R.id.pb_ai_loading)
         aiErrorText = view.findViewById(R.id.tv_ai_error)
+        aiAnswerText.movementMethod = LinkMovementMethod.getInstance()
+        aiAnswerText.highlightColor = android.graphics.Color.TRANSPARENT
     }
 
     private fun setupResultList(view: View) {
@@ -143,6 +150,7 @@ class SearchResultFragment : Fragment() {
     private fun triggerSearch(query: String) {
         if (query.isBlank()) return
         currentQuery = query
+        lastAppliedAiKeyword = null
         viewModel.initSearch(query, titleKeyword = "")
         // 触发AI搜索
         aiSearchViewModel.search(query)
@@ -175,6 +183,7 @@ class SearchResultFragment : Fragment() {
     private var lastErrorShown: String? = null // 记录上次显示的错误，避免重复提示
     
     private fun updateAISearchUI(state: AISearchUiState) {
+        applyAiKeywordToSearchResults(state)
         when {
             state.isLoading -> {
                 // 显示加载状态
@@ -208,7 +217,16 @@ class SearchResultFragment : Fragment() {
                 aiLoadingProgress.isVisible = false
                 aiAnswerText.isVisible = true
                 aiErrorText.isVisible = false
-                aiAnswerText.text = state.aiAnswer
+                val displayAnswer = sanitizeAiAnswerForDisplay(state.aiAnswer)
+                aiAnswerText.text = AiAnswerAstRenderer.render(
+                    answer = displayAnswer,
+                    keywords = state.keywords,
+                    onKeywordClick = { keyword ->
+                        searchEditText.setText(keyword)
+                        searchEditText.setSelection(keyword.length)
+                        triggerSearch(keyword)
+                    }
+                )
                 lastErrorShown = null // 重置错误记录
             }
             else -> {
@@ -217,6 +235,44 @@ class SearchResultFragment : Fragment() {
                 lastErrorShown = null // 重置错误记录
             }
         }
+    }
+
+    private fun applyAiKeywordToSearchResults(state: AISearchUiState) {
+        val keyword = state.keywords.firstOrNull()?.trim().orEmpty()
+        if (keyword.isBlank()) return
+        if (keyword.equals(lastAppliedAiKeyword, ignoreCase = true)) return
+        lastAppliedAiKeyword = keyword
+
+        // 当 AI 首次给出关键词时，用它驱动搜索结果列表收敛，形成可消费的视频列表。
+        viewModel.initSearch(currentQuery, titleKeyword = keyword)
+    }
+
+    /**
+     * 隐藏 AI 回答中的“关键词列举”段落，仅保留正文内容展示。
+     * 点击关键词搜索能力仍通过 state.keywords + 富文本点击回调保留。
+     */
+    private fun sanitizeAiAnswerForDisplay(answer: String): String {
+        if (answer.isBlank()) return answer
+        val lines = answer.replace("\r\n", "\n").split('\n')
+        val output = mutableListOf<String>()
+        var inKeywordSection = false
+
+        for (rawLine in lines) {
+            val line = rawLine.trim()
+            if (!inKeywordSection && keywordSectionHeadingRegex.matches(line)) {
+                inKeywordSection = true
+                continue
+            }
+            if (inKeywordSection) {
+                if (line.isEmpty() || keywordLineRegex.matches(line)) {
+                    continue
+                }
+                inKeywordSection = false
+            }
+            output += rawLine
+        }
+
+        return output.joinToString("\n").trimEnd()
     }
 
     data class SearchResultUiModel(

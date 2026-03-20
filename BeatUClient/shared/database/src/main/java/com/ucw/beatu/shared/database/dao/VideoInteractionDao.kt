@@ -50,6 +50,12 @@ interface VideoInteractionDao {
     suspend fun getInteractionsByUser(userId: String): List<VideoInteractionEntity>
 
     /**
+     * 观察指定用户的所有互动记录（用于列表实时合并互动状态）
+     */
+    @Query("SELECT * FROM beatu_video_interaction WHERE userId = :userId")
+    fun observeInteractionsByUser(userId: String): Flow<List<VideoInteractionEntity>>
+
+    /**
      * 删除互动记录
      */
     @Query("DELETE FROM beatu_video_interaction WHERE videoId = :videoId AND userId = :userId")

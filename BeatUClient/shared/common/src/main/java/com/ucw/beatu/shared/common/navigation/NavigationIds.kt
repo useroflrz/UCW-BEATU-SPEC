@@ -5,6 +5,9 @@ package com.ucw.beatu.shared.common.navigation
  * 用于跨模块导航，避免直接依赖 app 模块的 R 类
  */
 object NavigationIds {
+    // Shared saved-state keys
+    const val ARG_TARGET_VIDEO_ID = "arg_target_video_id"
+
     // Destination IDs
     const val FEED = "feed"
     const val USER_PROFILE = "userProfile"

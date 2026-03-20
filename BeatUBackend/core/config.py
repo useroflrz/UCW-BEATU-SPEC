@@ -34,8 +34,8 @@ def build_database_url() -> str:
     if database_url:
         return database_url
     
-    # 如果没有设置 DATABASE_URL，使用默认值作为后备
-    return "mysql+pymysql://jeecg:haomo123@192.168.1.206:3306/jeecg-boot3"
+    # 如果没有设置 DATABASE_URL，使用本地数据库默认值作为后备
+    return "mysql+pymysql://root:13326932249@localhost:3306/beatu"
 
 
 class Settings(BaseSettings):
@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     使用说明：
     - 数据库连接：在 .env 文件中设置 DATABASE_URL 环境变量
     - 格式：DATABASE_URL=mysql+pymysql://用户名:密码@主机:端口/数据库名
-    - 示例：DATABASE_URL=mysql+pymysql://jeecg:haomo123@192.168.1.206:3306/jeecg-boot3
+    - 示例：DATABASE_URL=mysql+pymysql://root:13326932249@localhost:3306/beatu
     - 修改配置后重启服务生效
     """
     project_name: str = Field(default="BeatU Backend", description="项目名称")
@@ -65,6 +65,8 @@ class Settings(BaseSettings):
     )
     api_key: str = Field(default="dev-key", description="API密钥，用于内部服务调用")
     api_prefix: str = Field(default="/api", description="API路由前缀")
+    server_host: str = Field(default="0.0.0.0", description="服务监听地址")
+    server_port: int = Field(default=9306, ge=1, le=65535, description="服务监听端口")
     
     # 分页配置
     default_page_size: int = Field(default=10, ge=1, le=100, description="默认每页数量")

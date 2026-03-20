@@ -7,10 +7,12 @@ import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.ucw.beatu.business.videofeed.domain.usecase.FavoriteVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.LikeVideoUseCase
+import com.ucw.beatu.business.videofeed.domain.usecase.ObserveInteractionSyncEventsUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.SaveWatchHistoryUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.UnfavoriteVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.ShareVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.UnlikeVideoUseCase
+import com.ucw.beatu.business.videofeed.domain.model.InteractionSyncEvent
 import com.ucw.beatu.shared.common.result.AppResult
 import com.ucw.beatu.shared.common.threading.launchNamed
 import com.ucw.beatu.shared.player.VideoPlayer
@@ -24,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -45,7 +48,8 @@ data class VideoItemUiState(
     val isFavorited: Boolean = false,
     val likeCount: Long = 0L,
     val favoriteCount: Long = 0L,
-    val isInteracting: Boolean = false // 是否正在执行互动操作
+    val isInteracting: Boolean = false, // 是否正在执行互动操作
+    val interactionError: String? = null
 )
 
 @HiltViewModel
@@ -58,7 +62,8 @@ class VideoItemViewModel @Inject constructor(
     private val favoriteVideoUseCase: FavoriteVideoUseCase,
     private val unfavoriteVideoUseCase: UnfavoriteVideoUseCase,
     private val shareVideoUseCase: ShareVideoUseCase,
-    private val saveWatchHistoryUseCase: SaveWatchHistoryUseCase
+    private val saveWatchHistoryUseCase: SaveWatchHistoryUseCase,
+    private val observeInteractionSyncEventsUseCase: ObserveInteractionSyncEventsUseCase
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(VideoItemUiState())
@@ -72,6 +77,10 @@ class VideoItemViewModel @Inject constructor(
     private var exoPlayerListener: Player.Listener? = null
     private var handoffInProgress = false
     private var pendingSession: PlaybackSession? = null // 保存会话信息，在 onReady 中使用
+
+    init {
+        observeInteractionSyncEvents()
+    }
 
     /**
      * 播放视频
@@ -873,6 +882,60 @@ class VideoItemViewModel @Inject constructor(
         }
     }
 
+    private fun observeInteractionSyncEvents() {
+        viewModelScope.launchNamed("videofeed", "VideoItemViewModel_observeInteractionSyncEvents") {
+            observeInteractionSyncEventsUseCase().collect { event ->
+                val state = _uiState.value
+                val currentId = state.currentVideoId ?: return@collect
+                if (currentId != when (event) {
+                        is InteractionSyncEvent.LikeSyncFailed -> event.videoId
+                        is InteractionSyncEvent.FavoriteSyncFailed -> event.videoId
+                        is InteractionSyncEvent.CommentSyncFailed -> event.videoId
+                    }
+                ) {
+                    return@collect
+                }
+
+                _uiState.value = when (event) {
+                    is InteractionSyncEvent.LikeSyncFailed -> {
+                        val likeCount = when {
+                            state.isLiked == event.rollbackToLiked -> state.likeCount
+                            event.rollbackToLiked -> state.likeCount + 1
+                            else -> (state.likeCount - 1).coerceAtLeast(0)
+                        }
+                        state.copy(
+                            isLiked = event.rollbackToLiked,
+                            likeCount = likeCount,
+                            isInteracting = false,
+                            interactionError = event.message
+                        )
+                    }
+
+                    is InteractionSyncEvent.FavoriteSyncFailed -> {
+                        val favoriteCount = when {
+                            state.isFavorited == event.rollbackToFavorited -> state.favoriteCount
+                            event.rollbackToFavorited -> state.favoriteCount + 1
+                            else -> (state.favoriteCount - 1).coerceAtLeast(0)
+                        }
+                        state.copy(
+                            isFavorited = event.rollbackToFavorited,
+                            favoriteCount = favoriteCount,
+                            isInteracting = false,
+                            interactionError = event.message
+                        )
+                    }
+
+                    is InteractionSyncEvent.CommentSyncFailed -> state
+                }
+            }
+        }
+    }
+
+    fun consumeInteractionError() {
+        if (_uiState.value.interactionError.isNullOrBlank()) return
+        _uiState.value = _uiState.value.copy(interactionError = null)
+    }
+
     /**
      * 切换点赞状态
      */
@@ -891,7 +954,8 @@ class VideoItemViewModel @Inject constructor(
             isLiked = targetLiked,
             likeCount = optimisticCount,
             isInteracting = true,
-            error = null
+            error = null,
+            interactionError = null
         )
 
         viewModelScope.launchNamed("videofeed", "VideoItemViewModel_launch") {
@@ -914,7 +978,8 @@ class VideoItemViewModel @Inject constructor(
                     // 失败：保留当前乐观状态，只记录错误，交由 UI 以 Toast 提示
                     _uiState.value.copy(
                         isInteracting = false,
-                        error = result.throwable.message ?: "点赞失败，请稍后重试"
+                        error = result.throwable.message ?: "点赞失败，请稍后重试",
+                        interactionError = result.throwable.message ?: "点赞失败，请稍后重试"
                     )
                 }
                 is AppResult.Loading -> _uiState.value
@@ -949,7 +1014,8 @@ class VideoItemViewModel @Inject constructor(
             isFavorited = targetFavorited,
             favoriteCount = optimisticCount,
             isInteracting = true,
-            error = null
+            error = null,
+            interactionError = null
         )
 
         viewModelScope.launchNamed("videofeed", "VideoItemViewModel_launch") {
@@ -970,7 +1036,8 @@ class VideoItemViewModel @Inject constructor(
                     android.util.Log.e("VideoItemViewModel", "toggleFavorite: 失败, videoId=$videoId", result.throwable)
                     _uiState.value.copy(
                         isInteracting = false,
-                        error = result.throwable.message ?: "收藏失败，请稍后重试"
+                        error = result.throwable.message ?: "收藏失败，请稍后重试",
+                        interactionError = result.throwable.message ?: "收藏失败，请稍后重试"
                     )
                 }
                 is AppResult.Loading -> _uiState.value

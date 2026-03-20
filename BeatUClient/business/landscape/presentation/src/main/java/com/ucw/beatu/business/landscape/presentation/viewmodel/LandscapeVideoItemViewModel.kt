@@ -6,8 +6,10 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.ucw.beatu.business.landscape.presentation.model.VideoItem
+import com.ucw.beatu.business.videofeed.domain.model.InteractionSyncEvent
 import com.ucw.beatu.business.videofeed.domain.usecase.FavoriteVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.LikeVideoUseCase
+import com.ucw.beatu.business.videofeed.domain.usecase.ObserveInteractionSyncEventsUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.ShareVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.UnfavoriteVideoUseCase
 import com.ucw.beatu.business.videofeed.domain.usecase.UnlikeVideoUseCase
@@ -25,6 +27,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -42,7 +45,8 @@ class LandscapeVideoItemViewModel @Inject constructor(
     private val unlikeVideoUseCase: UnlikeVideoUseCase,
     private val favoriteVideoUseCase: FavoriteVideoUseCase,
     private val unfavoriteVideoUseCase: UnfavoriteVideoUseCase,
-    private val shareVideoUseCase: ShareVideoUseCase
+    private val shareVideoUseCase: ShareVideoUseCase,
+    private val observeInteractionSyncEventsUseCase: ObserveInteractionSyncEventsUseCase
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(LandscapeVideoItemUiState())
@@ -61,6 +65,10 @@ class LandscapeVideoItemViewModel @Inject constructor(
     private var playerListener: VideoPlayer.Listener? = null
     private var handoffFromPortrait = false
     private var pendingSession: PlaybackSession? = null // 保存会话信息，在 onReady 中使用
+
+    init {
+        observeInteractionSyncEvents()
+    }
 
     fun bindVideoMeta(videoItem: VideoItem) {
         _controlsState.value = LandscapeControlsState(
@@ -267,7 +275,11 @@ class LandscapeVideoItemViewModel @Inject constructor(
         val prev = _controlsState.value
         val targetLiked = !prev.isLiked
         val optimisticCount = (prev.likeCount + if (targetLiked) 1 else -1).coerceAtLeast(0)
-        _controlsState.value = prev.copy(isLiked = targetLiked, likeCount = optimisticCount)
+        _controlsState.value = prev.copy(
+            isLiked = targetLiked,
+            likeCount = optimisticCount,
+            interactionMessage = null
+        )
 
         viewModelScope.launchNamed("landscape", "LandscapeVideoItemViewModel_launch") {
             val result = if (targetLiked) {
@@ -277,7 +289,7 @@ class LandscapeVideoItemViewModel @Inject constructor(
             }
             if (result is com.ucw.beatu.shared.common.result.AppResult.Error) {
                 // 失败回滚
-                _controlsState.value = prev
+                _controlsState.value = prev.copy(interactionMessage = "点赞失败，请稍后重试")
             }
         }
     }
@@ -287,7 +299,11 @@ class LandscapeVideoItemViewModel @Inject constructor(
         val prev = _controlsState.value
         val targetFavorited = !prev.isFavorited
         val optimisticCount = (prev.favoriteCount + if (targetFavorited) 1 else -1).coerceAtLeast(0)
-        _controlsState.value = prev.copy(isFavorited = targetFavorited, favoriteCount = optimisticCount)
+        _controlsState.value = prev.copy(
+            isFavorited = targetFavorited,
+            favoriteCount = optimisticCount,
+            interactionMessage = null
+        )
 
         viewModelScope.launchNamed("landscape", "LandscapeVideoItemViewModel_launch") {
             val result = if (targetFavorited) {
@@ -296,7 +312,55 @@ class LandscapeVideoItemViewModel @Inject constructor(
                 unfavoriteVideoUseCase(videoId)
             }
             if (result is com.ucw.beatu.shared.common.result.AppResult.Error) {
-                _controlsState.value = prev
+                _controlsState.value = prev.copy(interactionMessage = "收藏失败，请稍后重试")
+            }
+        }
+    }
+
+    fun consumeInteractionMessage() {
+        if (_controlsState.value.interactionMessage.isNullOrBlank()) return
+        _controlsState.update { it.copy(interactionMessage = null) }
+    }
+
+    private fun observeInteractionSyncEvents() {
+        viewModelScope.launchNamed("landscape", "LandscapeVideoItemViewModel_observeInteractionSyncEvents") {
+            observeInteractionSyncEventsUseCase().collect { event ->
+                val currentVideoId = _uiState.value.currentVideoId ?: return@collect
+                when (event) {
+                    is InteractionSyncEvent.LikeSyncFailed -> {
+                        if (event.videoId != currentVideoId) return@collect
+                        _controlsState.update { state ->
+                            val likeCount = when {
+                                state.isLiked == event.rollbackToLiked -> state.likeCount
+                                event.rollbackToLiked -> state.likeCount + 1
+                                else -> (state.likeCount - 1).coerceAtLeast(0)
+                            }
+                            state.copy(
+                                isLiked = event.rollbackToLiked,
+                                likeCount = likeCount,
+                                interactionMessage = event.message
+                            )
+                        }
+                    }
+
+                    is InteractionSyncEvent.FavoriteSyncFailed -> {
+                        if (event.videoId != currentVideoId) return@collect
+                        _controlsState.update { state ->
+                            val favoriteCount = when {
+                                state.isFavorited == event.rollbackToFavorited -> state.favoriteCount
+                                event.rollbackToFavorited -> state.favoriteCount + 1
+                                else -> (state.favoriteCount - 1).coerceAtLeast(0)
+                            }
+                            state.copy(
+                                isFavorited = event.rollbackToFavorited,
+                                favoriteCount = favoriteCount,
+                                interactionMessage = event.message
+                            )
+                        }
+                    }
+
+                    is InteractionSyncEvent.CommentSyncFailed -> Unit
+                }
             }
         }
     }
@@ -542,6 +606,7 @@ data class LandscapeControlsState(
     val isLiked: Boolean = false,
     val isFavorited: Boolean = false,
     val likeCount: Int = 0,
-    val favoriteCount: Int = 0
+    val favoriteCount: Int = 0,
+    val interactionMessage: String? = null
 )
 

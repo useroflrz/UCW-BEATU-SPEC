@@ -6,15 +6,12 @@
     android:background="#000000">
 
     <!-- 播放器
-         使用 texture_view 替代默认的 surface_view，以获得更好的横竖屏切换体验：
-         - TextureView 的 Surface 生命周期更可控
-         - 切换时 Surface 的重新初始化更快
-         - 减少黑屏时间，提升用户体验 -->
+         使用 surface_view 作为统一渲染面，降低渲染链路开销。 -->
     <androidx.media3.ui.PlayerView
         android:id="@+id/player_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:surface_type="texture_view"
+        app:surface_type="surface_view"
         app:use_controller="false" />
 
     <!-- 横屏控制面板（透明覆盖层，可显示/隐藏） -->
