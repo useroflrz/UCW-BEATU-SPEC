@@ -3,9 +3,23 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main_nav_graph"
-    app:startDestination="@id/feed">
+    app:startDestination="@id/login">
 
-    <!-- Feed 页面 - 主页面，作为起始目的地 -->
+    <!-- 登录：无会话时展示；已登录则自动进入 feed -->
+    <fragment
+        android:id="@+id/login"
+        android:name="com.ucw.beatu.auth.LoginFragment"
+        android:label="Login"
+        tools:layout="@layout/fragment_login">
+
+        <action
+            android:id="@+id/action_login_to_feed"
+            app:destination="@id/feed"
+            app:popUpTo="@id/login"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <!-- Feed 页面 - 主页面 -->
     <fragment
         android:id="@+id/feed"
         android:name="com.ucw.beatu.business.videofeed.presentation.ui.FeedFragment"

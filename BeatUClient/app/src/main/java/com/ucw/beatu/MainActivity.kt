@@ -20,6 +20,7 @@ import com.ucw.beatu.business.videofeed.presentation.ui.FeedFragmentCallback
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
 import com.ucw.beatu.shared.common.navigation.VideoShareDeepLink
+import com.ucw.beatu.shared.common.user.AuthSessionHolder
 import com.ucw.beatu.shared.designsystem.widget.TabIndicatorView
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -93,7 +94,16 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
 
         val navHostFragment =
             supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment
-        navController = navHostFragment?.navController
+        val nc = navHostFragment?.navController
+        // 首次进入：按本地会话设置起点，已登录则直接 Feed，避免先显示登录页再跳转
+        if (savedInstanceState == null && nc != null) {
+            val graph = nc.navInflater.inflate(R.navigation.main_nav_graph)
+            val startDest =
+                if (AuthSessionHolder.userId?.isNotBlank() == true) R.id.feed else R.id.login
+            graph.setStartDestination(startDest)
+            nc.graph = graph
+        }
+        navController = nc
         setupNavigationListener()
 
         supportFragmentManager.registerFragmentLifecycleCallbacks(
@@ -336,6 +346,9 @@ class MainActivity : AppCompatActivity(), MainActivityBridge {
             }
             // 根据当前目标页面控制顶部导航栏的显示/隐藏和视频播放
             when (destination.id) {
+                R.id.login -> {
+                    hideTopNavigation(immediate = true)
+                }
                 R.id.userProfile,
                 R.id.search -> {
                     // 进入个人主页或搜索页面时隐藏顶部导航栏（带动画）

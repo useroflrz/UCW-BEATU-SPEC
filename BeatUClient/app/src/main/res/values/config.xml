@@ -2,7 +2,7 @@
 <resources>
     <!-- 后端服务基础URL -->
     <!-- 开发环境：真机同 Wi-Fi 访问宿主机后端地址 -->
-    <string name="base_url">http://192.168.31.94:9306/</string>
+    <string name="base_url">http://192.168.86.181:9306/</string>
     <!-- 生产环境：生产服务器地址 -->
 <!--    <string name="base_url">http://8.136.42.115:9306/</string>-->
     

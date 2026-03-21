@@ -33,10 +33,12 @@ import com.ucw.beatu.business.user.presentation.ui.helper.UserProfileNavigationH
 import com.ucw.beatu.business.user.presentation.ui.helper.UserProfileTabManager
 import com.ucw.beatu.business.user.presentation.viewmodel.UserProfileViewModel
 import com.ucw.beatu.shared.common.threading.launchNamed
+import com.ucw.beatu.shared.common.user.CurrentUserProvider
 import com.ucw.beatu.shared.common.util.NumberFormatter
 import com.ucw.beatu.shared.designsystem.util.IOSButtonEffect
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * 用户主页Fragment
@@ -44,6 +46,9 @@ import kotlinx.coroutines.launch
  */
 @AndroidEntryPoint
 class UserProfileFragment : Fragment() {
+
+    @Inject
+    lateinit var currentUserProvider: CurrentUserProvider
 
     private val viewModel: UserProfileViewModel by viewModels()
 
@@ -81,9 +86,9 @@ class UserProfileFragment : Fragment() {
     private var latestUser: User? = null
     private var latestUserWorks: List<UserWork> = emptyList()
 
-    // 用户名（从参数获取，默认为当前用户）
+    /** 路由参数中的用户名/id；未传时使用当前登录用户 id */
     private val userName: String
-        get() = arguments?.getString(ARG_USER_NAME) ?: CURRENT_USER_NAME
+        get() = arguments?.getString(ARG_USER_NAME) ?: currentUserProvider.userId()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -192,14 +197,15 @@ class UserProfileFragment : Fragment() {
             btnFollow = btnFollow,
             viewModel = viewModel,
             getTargetUserId = { latestUser?.id },
-            getCurrentUserId = { CURRENT_USER_ID }
+            getCurrentUserId = { currentUserProvider.userId() }
         )
 
         navigationHelper = UserProfileNavigationHelper(
             fragment = this,
             isReadOnly = isReadOnly,
             getUser = { latestUser },
-            getUserWorks = { latestUserWorks }
+            getUserWorks = { latestUserWorks },
+            currentViewerUserId = { currentUserProvider.userId() }
         )
 
         tabManager = UserProfileTabManager(
@@ -208,13 +214,12 @@ class UserProfileFragment : Fragment() {
             isReadOnly = isReadOnly,
             onTabSwitched = { tabType, authorId, currentUserId ->
                 val actualAuthorId = if (authorId.isEmpty()) {
-                    // 如果没有提供authorId，使用当前用户的ID
-                    latestUser?.id ?: (if (userName == "BEATU") "BEATU" else userName)
+                    latestUser?.id ?: userName
                 } else {
                     authorId
                 }
                 val actualCurrentUserId = if (currentUserId.isEmpty()) {
-                    latestUser?.id ?: "BEATU"
+                    currentUserProvider.userId()
                 } else {
                     currentUserId
                 }
@@ -304,10 +309,9 @@ class UserProfileFragment : Fragment() {
                             // 使用用户的ID（user.id）来查询作品
                             Log.d(TAG, "Loading user works from database: authorId=${user.id}, userId=${user.id}, originalUserName=$userName")
                             viewModel.switchTab(UserProfileViewModel.TabType.WORKS, authorId = user.id, currentUserId = user.id)
-                            // 开始观察关注状态（只读模式），当前登录用户固定为 BEATU
+                            // 开始观察关注状态（只读模式），当前登录用户为会话用户
                             if (isReadOnly) {
-                                val currentUserId = CURRENT_USER_ID
-                                viewModel.startObservingFollowStatus(currentUserId, user.id)
+                                viewModel.startObservingFollowStatus(currentUserProvider.userId(), user.id)
                             }
                         } else {
                             Log.w(TAG, "User is null, userName: $userName")
@@ -416,9 +420,6 @@ class UserProfileFragment : Fragment() {
 
     companion object {
         private const val TAG = "UserProfileFragment"
-        // 当前登录用户的固定 ID 与用户名
-        private const val CURRENT_USER_ID = "BEATU"
-        private const val CURRENT_USER_NAME = "BEATU"
         private const val ARG_USER_NAME = "user_name"
         private const val ARG_USER_ID = "user_id" // 保留用于兼容
         private const val ARG_READ_ONLY = "read_only"
@@ -432,8 +433,8 @@ class UserProfileFragment : Fragment() {
         fun newInstance(userName: String? = null, readOnly: Boolean = false): UserProfileFragment {
             return UserProfileFragment().apply {
                 arguments = Bundle().apply {
-                    // 如果未显式传用户名称，则默认展示当前登录用户 BEATU 的主页
-                    putString(ARG_USER_NAME, userName ?: CURRENT_USER_NAME)
+                    // 未传时在 Fragment 内用 [CurrentUserProvider.userId] 作为「我的主页」
+                    if (userName != null) putString(ARG_USER_NAME, userName)
                     putBoolean(ARG_READ_ONLY, readOnly)
                 }
             }

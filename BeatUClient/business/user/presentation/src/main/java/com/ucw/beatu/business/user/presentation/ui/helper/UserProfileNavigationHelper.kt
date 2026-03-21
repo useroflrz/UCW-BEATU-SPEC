@@ -8,6 +8,7 @@ import androidx.navigation.fragment.findNavController
 import com.ucw.beatu.business.user.domain.model.UserWork
 import com.ucw.beatu.business.user.presentation.ui.UserWorksViewerFragment
 import com.ucw.beatu.shared.common.model.VideoItem
+import com.ucw.beatu.shared.common.user.CurrentUserDefaults
 import com.ucw.beatu.shared.common.model.VideoOrientation
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
@@ -20,7 +21,9 @@ class UserProfileNavigationHelper(
     private val fragment: Fragment,
     private val isReadOnly: Boolean,
     private val getUser: () -> com.ucw.beatu.business.user.domain.model.User?,
-    private val getUserWorks: () -> List<UserWork>
+    private val getUserWorks: () -> List<UserWork>,
+    /** 当前登录用户 id（用于只读模式回调 [UserProfileVideoClickHost.onUserWorkClicked]） */
+    private val currentViewerUserId: () -> String
 ) {
     companion object {
         private const val TAG = "UserProfileNavigationHelper"
@@ -46,8 +49,7 @@ class UserProfileNavigationHelper(
         if (isReadOnly) {
             val host = fragment.parentFragment as? UserProfileVideoClickHost
             if (host != null) {
-                val currentUserId = getUser()?.id ?: "BEATU"
-                host.onUserWorkClicked(currentUserId, authorName, videoItems, initialIndex)
+                host.onUserWorkClicked(currentViewerUserId(), authorName, videoItems, initialIndex)
                 Log.d(TAG, "Notified parent fragment via UserProfileVideoClickHost")
             } else {
                 Log.e(TAG, "Parent fragment does not implement UserProfileVideoClickHost")
@@ -70,7 +72,7 @@ class UserProfileNavigationHelper(
                 return
             }
 
-            val currentUserId = getUser()?.id ?: "current_user"
+            val currentUserId = getUser()?.id ?: CurrentUserDefaults.DEFAULT_USER_ID
             // ✅ 修复：记录来源页面 ID，用于返回时决定返回到哪里
             val currentDestinationId = navController.currentDestination?.id ?: 0
             val bundle = bundleOf(

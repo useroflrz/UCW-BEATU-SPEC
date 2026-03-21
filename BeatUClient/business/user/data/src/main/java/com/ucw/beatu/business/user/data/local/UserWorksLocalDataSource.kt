@@ -3,6 +3,7 @@ package com.ucw.beatu.business.user.data.local
 import com.ucw.beatu.business.user.data.mapper.toUserWork
 import com.ucw.beatu.business.user.domain.model.UserWork
 import com.ucw.beatu.shared.database.BeatUDatabase
+import com.ucw.beatu.shared.common.user.CurrentUserProvider
 import com.ucw.beatu.shared.database.entity.VideoEntity
 import com.ucw.beatu.shared.database.entity.VideoInteractionEntity
 import kotlinx.coroutines.flow.Flow
@@ -33,19 +34,19 @@ interface UserWorksLocalDataSource {
 }
 
 class UserWorksLocalDataSourceImpl @Inject constructor(
-    database: BeatUDatabase
+    database: BeatUDatabase,
+    private val currentUserProvider: CurrentUserProvider
 ) : UserWorksLocalDataSource {
 
     private val videoDao = database.videoDao()
     private val interactionDao = database.videoInteractionDao()
-    private val defaultCurrentUserId = "BEATU"
 
     override fun observeUserWorks(authorId: String, limit: Int): Flow<List<UserWork>> {
         // 从数据库查询该用户的作品（通过 authorId）
         android.util.Log.d("UserWorksLocalDataSource", "查询用户作品：authorId=$authorId, limit=$limit")
         return combine(
             videoDao.observeVideosByAuthorId(authorId, limit),
-            interactionDao.observeInteractionsByUser(defaultCurrentUserId)
+            interactionDao.observeInteractionsByUser(currentUserProvider.userId())
         ) { entities, interactions ->
             android.util.Log.d("UserWorksLocalDataSource", "从数据库查询到 ${entities.size} 条视频数据")
             mapToUserWorksWithInteraction(entities, interactions)

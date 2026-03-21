@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Generic, List, Optional, TypeVar
 
-from pydantic import AnyHttpUrl, BaseModel, Field
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
 
 
 def to_camel(string: str) -> str:
@@ -198,6 +198,29 @@ class MetricsInteraction(APIModel):
     video_id: Optional[int] = None  # �?修改：从 Optional[str] 改为 Optional[int]
     latency_ms: Optional[int] = None
     success: Optional[bool] = True
+
+
+class LoginOrRegisterRequest(BaseModel):
+    """
+    登录或自动注册（无账号则创建）。
+
+    不继承 [APIModel]，避免全局 ``alias_generator`` 作用在 ``password`` 上触发
+    Pydantic v2 的 ``UnsupportedFieldAttributeWarning``（serialization_alias 无效）。
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    user_name: str = Field(..., min_length=1, max_length=100, alias="userName")
+    password: str = Field(..., min_length=6, max_length=128)
+
+
+class LoginOrRegisterResponse(APIModel):
+    """无 JWT：仅返回用户标识；accessToken 固定为空串以兼容客户端"""
+
+    user_id: str = Field(alias="userId")
+    user_name: str = Field(alias="userName")
+    access_token: str = Field(default="", alias="accessToken")
+    token_type: str = Field(default="none", alias="tokenType")
 
 
 class UserItem(APIModel):

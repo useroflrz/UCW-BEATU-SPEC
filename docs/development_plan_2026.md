@@ -5,6 +5,32 @@
 
 ### 1. 当前迭代任务
 
+梳理exoplayer复用的具体优化细节；梳理播放器的生命周期；
+手写的抽象语法树解析，解析不出来的部分用默认文本渲染；
+
+
+补充sse与websocket的区别，完善sse；添加ai流式搜索回答中途网络波动或者断网的处理方法；梳理ai流式搜索回答如果未渲染完，就点击可点击文本，会发生什么？ai流式搜索回答部分渲染方案；
+
+客户端的登录（输入账号密码点击登录如果无对应账号自动注册）功能：不需要token，只需要一次登录，以后都用这个，除非自己注销
+
+- [x] Android：单一接口登录/注册 + LoginFragment 为导航起点 + 动态 `X-User-Id` + 设置页退出  
+  - 2026-03-21 - done by AI  
+  - 后端：`POST /api/auth/login-or-register`，`beatu_user.passwordHash`（bcrypt）；脚本：`测试数据及脚本/beatu/add_beatu_user_password_hash.sql`  
+  - 客户端：`LoginFragment` → `Feed`；`AuthSessionStore` 同步 DataStore `current_user_id`；`UserIdHeaderInterceptor`；设置「退出登录」  
+
+- [x] 客户端：移除硬编码默认用户，统一会话用户（`CurrentUserProvider` / `AuthSessionHolder`）  
+  - 2026-03-21 - done by AI  
+  - 范围：`UserProfileFragment`（`newInstance` 未传参时不再写死用户名；关注/Tab/只读观察用 `currentUserProvider.userId()`）、`UserProfileNavigationHelper`（`currentViewerUserId` + `onUserWorkClicked`）、`NetworkLoggingInterceptor`（`/api/users` 调试日志按当前会话 `id` 切片）；此前已接：`VideoRepositoryImpl`、`UserWorksLocalDataSource`、`SearchFragment`、`AppStartupDataLoader`、`DataSyncService`、`UserProfileViewModel`  
+  - 保留：`CurrentUserDefaults`（无会话兜底）、种子数据 `init_database.sql` 中的 `BEATU`、后端 `default_user_id` 配置  
+
+3.25，3.26实现：
+
+前端实现管理员/用户的登录注册页面与功能
+
+前端：用户的视频上传功能，用户在前端的个人页面功能；
+
+
+
 - [x] 搜索链接直达改为“内部路由到 Feed + videoId”  
   - 2026-03-08 - done by AI  
   - 需求：修复搜索框输入链接后点击搜索出现应用异常切换问题，移除 `ACTION_VIEW` 二次启动路径，改为应用内导航。  

@@ -12,6 +12,7 @@ import com.ucw.beatu.shared.database.dao.UserFollowDao
 import com.ucw.beatu.shared.database.dao.WatchHistoryDao
 import com.ucw.beatu.shared.database.entity.UserFollowEntity
 import com.ucw.beatu.shared.database.entity.WatchHistoryEntity
+import com.ucw.beatu.shared.common.user.CurrentUserProvider
 import com.ucw.beatu.shared.database.datastore.PreferencesDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,13 +35,13 @@ class DataSyncService @Inject constructor(
     private val userFollowDao: UserFollowDao,
     private val commentDao: CommentDao,
     private val watchHistoryDao: WatchHistoryDao,
-    private val preferencesDataStore: PreferencesDataStore
+    private val preferencesDataStore: PreferencesDataStore,
+    private val currentUserProvider: CurrentUserProvider
 ) {
     private val syncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val TAG = "DataSyncService"
-    
-    // 当前用户ID，根据设计文档，默认用户名为 BEATU
-    private val currentUserId: String = "BEATU"
+
+    private fun currentUserId(): String = currentUserProvider.userId()
 
     /**
      * 启动数据同步（在应用启动时调用）
@@ -294,8 +295,8 @@ class DataSyncService @Inject constructor(
         try {
             Log.d(TAG, "=== 开始定时同步所有观看历史 ===")
             // 获取当前用户的所有观看历史（不仅仅是 isPending=true 的）
-            val allHistories = watchHistoryDao.getAllHistoriesByUser(currentUserId)
-            Log.d(TAG, "查询到 ${allHistories.size} 条观看历史记录（userId=$currentUserId）")
+            val allHistories = watchHistoryDao.getAllHistoriesByUser(currentUserId())
+            Log.d(TAG, "查询到 ${allHistories.size} 条观看历史记录（userId=${currentUserId()}）")
             
             if (allHistories.isEmpty()) {
                 Log.d(TAG, "没有观看历史需要同步")

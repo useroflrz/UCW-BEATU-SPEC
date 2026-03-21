@@ -18,6 +18,7 @@ DROP TABLE IF EXISTS beatu_metrics_playback;
 CREATE TABLE beatu_user (
     userId VARCHAR(64) PRIMARY KEY COMMENT '用户 ID (PK)',
     userName VARCHAR(100) NOT NULL UNIQUE COMMENT '用户昵称（唯一）',
+    passwordHash VARCHAR(255) DEFAULT NULL COMMENT 'bcrypt 密码哈希（登录/注册接口写入；种子数据可为 NULL）',
     avatarUrl VARCHAR(500) DEFAULT NULL COMMENT '头像 URL',
     followerCount BIGINT NOT NULL DEFAULT 0 COMMENT '粉丝数',
     followingCount BIGINT NOT NULL DEFAULT 0 COMMENT '关注数',

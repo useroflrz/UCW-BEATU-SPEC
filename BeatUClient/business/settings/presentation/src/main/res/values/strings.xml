@@ -11,6 +11,7 @@
     <string name="settings_speed">倍速设置</string>
     <string name="settings_quality">清晰度设置</string>
     <string name="settings_about">关于 BeatU</string>
+    <string name="settings_logout">退出登录</string>
     
     <!-- 倍速选项 -->
     <string name="speed_3x">3x</string>

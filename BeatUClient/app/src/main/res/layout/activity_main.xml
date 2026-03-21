@@ -122,13 +122,13 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- 导航容器：覆盖整个屏幕，包括顶部导航栏区域，让视频可以延伸到状态栏下方 -->
+    <!-- navGraph 在 MainActivity 中按会话设置 startDestination，避免已登录时先闪登录页 -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/nav_host_fragment"
         android:name="androidx.navigation.fragment.NavHostFragment"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         app:defaultNavHost="true"
-        app:navGraph="@navigation/main_nav_graph"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"

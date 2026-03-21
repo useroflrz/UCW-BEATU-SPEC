@@ -1,6 +1,8 @@
 package com.ucw.beatu.shared.network.interceptor
 
 import com.ucw.beatu.shared.common.logger.AppLogger
+import com.ucw.beatu.shared.common.user.AuthSessionHolder
+import com.ucw.beatu.shared.common.user.CurrentUserDefaults
 import okhttp3.Interceptor
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -20,14 +22,16 @@ class NetworkLoggingInterceptor : Interceptor {
             val buffer = source?.buffer
             val responseBodyString = buffer?.clone()?.readUtf8()
             
-            // 只打印 BEATU 用户的部分（避免日志过长）
+            // 只打印当前会话用户对应条目的片段（避免日志过长）
             responseBodyString?.let { body ->
-                if (body.contains("BEATU")) {
-                    val beatuStart = body.indexOf("\"id\":\"BEATU\"")
-                    if (beatuStart >= 0) {
-                        val beatuEnd = body.indexOf("}", beatuStart) + 1
-                        val beatuJson = body.substring(beatuStart.coerceAtLeast(0), beatuEnd.coerceAtMost(body.length))
-                        AppLogger.d(TAG, "⬅️ BEATU 用户原始 JSON: $beatuJson")
+                val uid = AuthSessionHolder.userId ?: CurrentUserDefaults.DEFAULT_USER_ID
+                val idMarker = "\"id\":\"$uid\""
+                if (body.contains(idMarker)) {
+                    val start = body.indexOf(idMarker)
+                    if (start >= 0) {
+                        val end = body.indexOf("}", start) + 1
+                        val slice = body.substring(start.coerceAtLeast(0), end.coerceAtMost(body.length))
+                        AppLogger.d(TAG, "⬅️ 当前用户条目 JSON 片段: $slice")
                     }
                 }
             }

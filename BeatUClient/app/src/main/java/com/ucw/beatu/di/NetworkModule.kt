@@ -2,8 +2,11 @@ package com.ucw.beatu.di
 
 import android.content.Context
 import com.ucw.beatu.R
+import com.ucw.beatu.shared.common.user.AuthSessionHolder
+import com.ucw.beatu.shared.common.user.CurrentUserDefaults
 import com.ucw.beatu.shared.network.config.NetworkConfig
 import com.ucw.beatu.shared.network.config.OkHttpProvider
+import com.ucw.beatu.shared.network.interceptor.UserIdHeaderInterceptor
 import com.ucw.beatu.shared.network.monitor.ConnectivityObserver
 import com.ucw.beatu.shared.network.retrofit.RetrofitProvider
 import dagger.Module
@@ -48,10 +51,7 @@ object NetworkModule {
             enableLogging = enableLogging,
             defaultHeaders = mapOf(
                 "Content-Type" to "application/json",
-                "Accept" to "application/json",
-                // 临时默认用户ID，确保后端能识别用户并写入互动表
-                "X-User-Id" to "BEATU"
-                // TODO: 如果需要token认证，可以在这里添加 Authorization header 或改为动态用户ID
+                "Accept" to "application/json"
             )
         )
     }
@@ -62,7 +62,11 @@ object NetworkModule {
         config: NetworkConfig,
         @ApplicationContext context: Context
     ): OkHttpClient {
-        return OkHttpProvider.create(config, context.cacheDir)
+        val userIdInterceptor = UserIdHeaderInterceptor {
+            AuthSessionHolder.userId?.takeIf { it.isNotBlank() }
+                ?: CurrentUserDefaults.DEFAULT_USER_ID
+        }
+        return OkHttpProvider.create(config, context.cacheDir, listOf(userIdInterceptor))
     }
 
     @Provides

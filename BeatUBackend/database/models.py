@@ -29,6 +29,7 @@ class User(Base):
 
     userId = Column(String(64), primary_key=True)  # ✅ 修改：字段名从 id 改为 userId
     userName = Column(String(100), nullable=False, unique=True)  # ✅ 修改：字段名从 nickname 改为 userName，添加 unique
+    passwordHash = Column("passwordHash", String(255), nullable=True)  # bcrypt；旧数据可为 NULL
     avatarUrl = Column(String(500))  # ✅ 修改：字段名从 avatar 改为 avatarUrl
     bio = Column(Text)
     followerCount = Column(BigInteger, nullable=False, default=0)  # ✅ 修改：字段名从 followers 改为 followerCount

@@ -75,6 +75,17 @@
   - 点击发送按钮后，通过 `POST /api/videos/{id}/comments` 发布评论，成功返回后将新评论插入列表首行并清空输入框。
   - 评论标题区的总数文案基于进入弹层时的 `commentCount` 做本地自增，后续如需严格与后端对齐，可在发布成功后重新拉取第一页或由后端返回最新计数。
 
+#### 2.2.2 认证（单一登录/注册，无 JWT）
+
+| Method | Path | Body | 响应 `data` | 说明 |
+|---|---|---|---|---|
+| POST | `/api/auth/login-or-register` | `{ "userName": string, "password": string }`（密码 ≥6 位） | `{ "userId", "userName", "accessToken": "", "tokenType": "none" }` | 无账号则创建用户并返回 `userId`；有账号则校验密码。客户端持久化 `userId`，后续请求头 `X-User-Id` 传递。 |
+
+- **HTTP 422**：请求体字段校验失败（缺字段、`userName` 为空、密码不足 6 位等）。  
+- **HTTP 400**：业务拒绝，响应体 `detail` 为中文说明，常见如：`密码错误`、`该账号为旧数据，请更换用户名注册新账号或联系管理员`（`passwordHash` 为空）、`用户名不能为空`（仅空格等）。
+
+**数据库**：需在 `beatu_user` 表增加 `passwordHash`（VARCHAR），见 `测试数据及脚本/beatu/add_beatu_user_password_hash.sql`。
+
 #### 2.3 用户相关接口
 
 | Method | Path | Query/Body | 响应 | 说明 | 后端 |

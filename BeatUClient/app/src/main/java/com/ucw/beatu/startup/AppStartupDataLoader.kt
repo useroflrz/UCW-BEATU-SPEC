@@ -14,6 +14,7 @@ import com.ucw.beatu.shared.database.dao.VideoInteractionDao
 import com.ucw.beatu.shared.database.dao.WatchHistoryDao
 import com.ucw.beatu.shared.database.entity.UserFollowEntity
 import com.ucw.beatu.shared.database.entity.VideoInteractionEntity
+import com.ucw.beatu.shared.common.user.CurrentUserProvider
 import com.ucw.beatu.shared.database.entity.WatchHistoryEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,12 +46,13 @@ class AppStartupDataLoader @Inject constructor(
     private val videoInteractionLocalDataSource: VideoInteractionLocalDataSource,
     private val watchHistoryDao: WatchHistoryDao,
     private val userFollowDao: UserFollowDao,
-    private val videoInteractionDao: VideoInteractionDao
+    private val videoInteractionDao: VideoInteractionDao,
+    private val currentUserProvider: CurrentUserProvider
 ) {
     private val startupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val TAG = "AppStartupDataLoader"
-    
-    private val currentUserId: String = "BEATU" // 根据需求文档，用户名（唯一）：BEATU
+
+    private fun currentUserId(): String = currentUserProvider.userId()
     
     /**
      * 安全地解析布尔值
@@ -167,8 +169,8 @@ class AppStartupDataLoader @Inject constructor(
                     // 异步全量更新：用户关注关系
                     async {
                         try {
-                            Log.i(TAG, "异步全量更新：用户关注关系，开始请求 /api/users/$currentUserId/follows")
-                            val result = userRemoteDataSource.getUserFollows(currentUserId)
+                            Log.i(TAG, "异步全量更新：用户关注关系，开始请求 /api/users/${currentUserId()}/follows")
+                            val result = userRemoteDataSource.getUserFollows(currentUserId())
                             when (result) {
                                 is com.ucw.beatu.shared.common.result.AppResult.Success -> {
                                     Log.d(TAG, "异步全量更新用户关注关系：收到 ${result.data.size} 条原始数据")
@@ -180,7 +182,7 @@ class AppStartupDataLoader @Inject constructor(
                                             val userId = map["userId"] as? String 
                                                 ?: map["user_id"] as? String 
                                                 ?: map["userId"]?.toString()
-                                                ?: currentUserId
+                                                ?: currentUserId()
                                             val authorId = map["authorId"] as? String 
                                                 ?: map["author_id"] as? String 
                                                 ?: map["authorId"]?.toString()
@@ -215,7 +217,7 @@ class AppStartupDataLoader @Inject constructor(
                                         userLocalDataSource.saveUserFollows(follows)
                                         Log.i(TAG, "异步全量更新用户关注关系成功：${follows.size} 条")
                                         // 从数据库验证保存是否成功
-                                        val savedFollows = userFollowDao.observeFollowees(currentUserId).first()
+                                        val savedFollows = userFollowDao.observeFollowees(currentUserId()).first()
                                         Log.i(TAG, "数据库验证：查询到 ${savedFollows.size} 条关注关系（isFollowed=true）")
                                         if (savedFollows.size != follows.filter { it.isFollowed }.size) {
                                             Log.w(TAG, "警告：保存的关注关系数量不匹配！期望 ${follows.filter { it.isFollowed }.size} 条（isFollowed=true），实际 ${savedFollows.size} 条")
@@ -224,7 +226,7 @@ class AppStartupDataLoader @Inject constructor(
                                             Log.d(TAG, "数据库中的关注关系：userId=${follow.userId}, authorId=${follow.authorId}, isFollowed=${follow.isFollowed}, isPending=${follow.isPending}")
                                         }
                                         // 查询所有关注关系（包括 isFollowed=false 的）
-                                        val allFollowsInDb = userFollowDao.getAllByUserId(currentUserId)
+                                        val allFollowsInDb = userFollowDao.getAllByUserId(currentUserId())
                                         Log.i(TAG, "数据库完整验证：查询到 ${allFollowsInDb.size} 条关注关系（包括 isFollowed=false）")
                                         allFollowsInDb.forEach { follow ->
                                             Log.d(TAG, "数据库完整数据：userId=${follow.userId}, authorId=${follow.authorId}, isFollowed=${follow.isFollowed}, isPending=${follow.isPending}")
@@ -285,7 +287,7 @@ class AppStartupDataLoader @Inject constructor(
                                             val userId = map["userId"] as? String 
                                                 ?: map["user_id"] as? String 
                                                 ?: map["userId"]?.toString()
-                                                ?: currentUserId
+                                                ?: currentUserId()
                                             val isLiked = parseBoolean(
                                                 map["isLiked"] ?: map["is_liked"]
                                             )
@@ -320,7 +322,7 @@ class AppStartupDataLoader @Inject constructor(
                                         videoInteractionLocalDataSource.saveInteractions(interactions)
                                         Log.i(TAG, "异步全量更新视频交互数据成功：${interactions.size} 条")
                                         // 从数据库验证保存是否成功
-                                        val savedInteractions = videoInteractionDao.getInteractionsByUser(currentUserId)
+                                        val savedInteractions = videoInteractionDao.getInteractionsByUser(currentUserId())
                                         Log.i(TAG, "数据库验证：查询到 ${savedInteractions.size} 条视频交互")
                                         if (savedInteractions.size != interactions.size) {
                                             Log.w(TAG, "警告：保存的视频交互数量不匹配！期望 ${interactions.size} 条，实际 ${savedInteractions.size} 条")
@@ -383,7 +385,7 @@ class AppStartupDataLoader @Inject constructor(
                                             val userId = map["userId"] as? String 
                                                 ?: map["user_id"] as? String 
                                                 ?: map["userId"]?.toString()
-                                                ?: currentUserId
+                                                ?: currentUserId()
                                             val lastPlayPositionMs = (map["lastPlayPositionMs"] as? Number)?.toLong() 
                                                 ?: (map["last_play_position_ms"] as? Number)?.toLong()
                                                 ?: (map["lastPlayPositionMs"]?.toString()?.toLongOrNull())

@@ -12,6 +12,7 @@ import com.ucw.beatu.shared.database.datastore.PreferencesDataStore
 import com.ucw.beatu.shared.database.entity.WatchHistoryEntity
 import com.ucw.beatu.shared.common.exception.DataException
 import com.ucw.beatu.shared.common.result.AppResult
+import com.ucw.beatu.shared.common.user.CurrentUserProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,7 +40,8 @@ class VideoRepositoryImpl @Inject constructor(
     private val localDataSource: VideoLocalDataSource,
     private val interactionLocalDataSource: VideoInteractionLocalDataSource,
     private val preferencesDataStore: PreferencesDataStore,
-    private val database: BeatUDatabase
+    private val database: BeatUDatabase,
+    private val currentUserProvider: CurrentUserProvider
 ) : VideoRepository {
 
     private val syncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -49,13 +51,11 @@ class VideoRepositoryImpl @Inject constructor(
         extraBufferCapacity = 32
     )
     
-    // ✅ 修改：当前用户ID，根据SQL，userId "BEATU" 对应的 userName 也是 "BEATU"
-    // 使用 userId 而不是 userName，确保与数据库一致
-    private val currentUserId: String = "BEATU"  // userId，不是 userName
+    private fun uid(): String = currentUserProvider.userId()
 
     private suspend fun applyInteractionState(videos: List<Video>): List<Video> {
         if (videos.isEmpty()) return videos
-        val interactions = interactionLocalDataSource.getInteractionsByUser(currentUserId)
+        val interactions = interactionLocalDataSource.getInteractionsByUser(uid())
         if (interactions.isEmpty()) return videos
         val map = interactions.associateBy { it.videoId }
         return videos.map { video ->
@@ -290,8 +290,8 @@ class VideoRepositoryImpl @Inject constructor(
 
     override suspend fun likeVideo(videoId: Long): AppResult<Unit> {
         // 1. 先更新本地数据库（乐观更新）
-        interactionLocalDataSource.updateLikeStatus(videoId, currentUserId, isLiked = true, isPending = true)
-        Log.d(TAG, "Like video: videoId=$videoId, userId=$currentUserId (local updated)")
+        interactionLocalDataSource.updateLikeStatus(videoId, uid(), isLiked = true, isPending = true)
+        Log.d(TAG, "Like video: videoId=$videoId, userId=${uid()} (local updated)")
 
         // 2. 异步同步到远程服务器
         syncScope.launch {
@@ -301,20 +301,20 @@ class VideoRepositoryImpl @Inject constructor(
                     is AppResult.Success -> {
                         Log.d(TAG, "Like video sync success: videoId=$videoId")
                         // 清除待同步标记
-                        interactionLocalDataSource.clearPendingStatus(videoId, currentUserId)
+                        interactionLocalDataSource.clearPendingStatus(videoId, uid())
                     }
                     is AppResult.Error -> {
                         val errorMessage = result.message ?: result.throwable.message ?: "网络异常"
                         Log.e(TAG, "Like video sync failed: videoId=$videoId, error: $errorMessage")
                         // 同步失败，回滚本地状态
                         try {
-                            val existing = interactionLocalDataSource.getInteraction(videoId, currentUserId)
+                            val existing = interactionLocalDataSource.getInteraction(videoId, uid())
                             if (existing?.isFavorited == true) {
                                 // 如果还有收藏状态，只取消点赞
-                                interactionLocalDataSource.updateLikeStatus(videoId, currentUserId, isLiked = false, isPending = false)
+                                interactionLocalDataSource.updateLikeStatus(videoId, uid(), isLiked = false, isPending = false)
                             } else {
                                 // 如果没有其他状态，删除记录
-                                interactionLocalDataSource.deleteInteraction(videoId, currentUserId)
+                                interactionLocalDataSource.deleteInteraction(videoId, uid())
                             }
                             Log.d(TAG, "Like video local state rolled back: videoId=$videoId")
                         } catch (e: Exception) {
@@ -332,7 +332,7 @@ class VideoRepositoryImpl @Inject constructor(
                         Log.w(TAG, "Like video sync unknown result: videoId=$videoId")
                         // 未知结果，也回滚本地状态
                         try {
-                            interactionLocalDataSource.deleteInteraction(videoId, currentUserId)
+                            interactionLocalDataSource.deleteInteraction(videoId, uid())
                             Log.d(TAG, "Like video local state rolled back (unknown result): videoId=$videoId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback like video local state: videoId=$videoId", e)
@@ -350,7 +350,7 @@ class VideoRepositoryImpl @Inject constructor(
                 Log.e(TAG, "Like video sync exception: videoId=$videoId", e)
                 // 异常情况，回滚本地状态
                 try {
-                    interactionLocalDataSource.deleteInteraction(videoId, currentUserId)
+                    interactionLocalDataSource.deleteInteraction(videoId, uid())
                     Log.d(TAG, "Like video local state rolled back (exception): videoId=$videoId")
                 } catch (rollbackException: Exception) {
                     Log.e(TAG, "Failed to rollback like video local state: videoId=$videoId", rollbackException)
@@ -371,8 +371,8 @@ class VideoRepositoryImpl @Inject constructor(
 
     override suspend fun unlikeVideo(videoId: Long): AppResult<Unit> {
         // 1. 先更新本地数据库（乐观更新）
-        interactionLocalDataSource.updateLikeStatus(videoId, currentUserId, isLiked = false, isPending = true)
-        Log.d(TAG, "Unlike video: videoId=$videoId, userId=$currentUserId (local updated)")
+        interactionLocalDataSource.updateLikeStatus(videoId, uid(), isLiked = false, isPending = true)
+        Log.d(TAG, "Unlike video: videoId=$videoId, userId=${uid()} (local updated)")
 
         // 2. 异步同步到远程服务器
         syncScope.launch {
@@ -382,14 +382,14 @@ class VideoRepositoryImpl @Inject constructor(
                     is AppResult.Success -> {
                         Log.d(TAG, "Unlike video sync success: videoId=$videoId")
                         // 清除待同步标记
-                        interactionLocalDataSource.clearPendingStatus(videoId, currentUserId)
+                        interactionLocalDataSource.clearPendingStatus(videoId, uid())
                     }
                     is AppResult.Error -> {
                         val errorMessage = result.message ?: result.throwable.message ?: "网络异常"
                         Log.e(TAG, "Unlike video sync failed: videoId=$videoId, error: $errorMessage")
                         // 同步失败，回滚本地状态（恢复点赞）
                         try {
-                            interactionLocalDataSource.updateLikeStatus(videoId, currentUserId, isLiked = true, isPending = false)
+                            interactionLocalDataSource.updateLikeStatus(videoId, uid(), isLiked = true, isPending = false)
                             Log.d(TAG, "Unlike video local state rolled back: videoId=$videoId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback unlike video local state: videoId=$videoId", e)
@@ -406,7 +406,7 @@ class VideoRepositoryImpl @Inject constructor(
                         Log.w(TAG, "Unlike video sync unknown result: videoId=$videoId")
                         // 未知结果，也回滚本地状态
                         try {
-                            interactionLocalDataSource.updateLikeStatus(videoId, currentUserId, isLiked = true, isPending = false)
+                            interactionLocalDataSource.updateLikeStatus(videoId, uid(), isLiked = true, isPending = false)
                             Log.d(TAG, "Unlike video local state rolled back (unknown result): videoId=$videoId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback unlike video local state: videoId=$videoId", e)
@@ -424,7 +424,7 @@ class VideoRepositoryImpl @Inject constructor(
                 Log.e(TAG, "Unlike video sync exception: videoId=$videoId", e)
                 // 异常情况，回滚本地状态
                 try {
-                    interactionLocalDataSource.updateLikeStatus(videoId, currentUserId, isLiked = true, isPending = false)
+                    interactionLocalDataSource.updateLikeStatus(videoId, uid(), isLiked = true, isPending = false)
                     Log.d(TAG, "Unlike video local state rolled back (exception): videoId=$videoId")
                 } catch (rollbackException: Exception) {
                     Log.e(TAG, "Failed to rollback unlike video local state: videoId=$videoId", rollbackException)
@@ -445,8 +445,8 @@ class VideoRepositoryImpl @Inject constructor(
 
     override suspend fun favoriteVideo(videoId: Long): AppResult<Unit> {
         // 1. 先更新本地数据库（乐观更新）
-        interactionLocalDataSource.updateFavoriteStatus(videoId, currentUserId, isFavorited = true, isPending = true)
-        Log.d(TAG, "Favorite video: videoId=$videoId, userId=$currentUserId (local updated)")
+        interactionLocalDataSource.updateFavoriteStatus(videoId, uid(), isFavorited = true, isPending = true)
+        Log.d(TAG, "Favorite video: videoId=$videoId, userId=${uid()} (local updated)")
 
         // 2. 异步同步到远程服务器
         syncScope.launch {
@@ -456,20 +456,20 @@ class VideoRepositoryImpl @Inject constructor(
                     is AppResult.Success -> {
                         Log.d(TAG, "Favorite video sync success: videoId=$videoId")
                         // 清除待同步标记
-                        interactionLocalDataSource.clearPendingStatus(videoId, currentUserId)
+                        interactionLocalDataSource.clearPendingStatus(videoId, uid())
                     }
                     is AppResult.Error -> {
                         val errorMessage = result.message ?: result.throwable.message ?: "网络异常"
                         Log.e(TAG, "Favorite video sync failed: videoId=$videoId, error: $errorMessage")
                         // 同步失败，回滚本地状态
                         try {
-                            val existing = interactionLocalDataSource.getInteraction(videoId, currentUserId)
+                            val existing = interactionLocalDataSource.getInteraction(videoId, uid())
                             if (existing?.isLiked == true) {
                                 // 如果还有点赞状态，只取消收藏
-                                interactionLocalDataSource.updateFavoriteStatus(videoId, currentUserId, isFavorited = false, isPending = false)
+                                interactionLocalDataSource.updateFavoriteStatus(videoId, uid(), isFavorited = false, isPending = false)
                             } else {
                                 // 如果没有其他状态，删除记录
-                                interactionLocalDataSource.deleteInteraction(videoId, currentUserId)
+                                interactionLocalDataSource.deleteInteraction(videoId, uid())
                             }
                             Log.d(TAG, "Favorite video local state rolled back: videoId=$videoId")
                         } catch (e: Exception) {
@@ -487,7 +487,7 @@ class VideoRepositoryImpl @Inject constructor(
                         Log.w(TAG, "Favorite video sync unknown result: videoId=$videoId")
                         // 未知结果，也回滚本地状态
                         try {
-                            interactionLocalDataSource.deleteInteraction(videoId, currentUserId)
+                            interactionLocalDataSource.deleteInteraction(videoId, uid())
                             Log.d(TAG, "Favorite video local state rolled back (unknown result): videoId=$videoId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback favorite video local state: videoId=$videoId", e)
@@ -505,7 +505,7 @@ class VideoRepositoryImpl @Inject constructor(
                 Log.e(TAG, "Favorite video sync exception: videoId=$videoId", e)
                 // 异常情况，回滚本地状态
                 try {
-                    interactionLocalDataSource.deleteInteraction(videoId, currentUserId)
+                    interactionLocalDataSource.deleteInteraction(videoId, uid())
                     Log.d(TAG, "Favorite video local state rolled back (exception): videoId=$videoId")
                 } catch (rollbackException: Exception) {
                     Log.e(TAG, "Failed to rollback favorite video local state: videoId=$videoId", rollbackException)
@@ -526,8 +526,8 @@ class VideoRepositoryImpl @Inject constructor(
 
     override suspend fun unfavoriteVideo(videoId: Long): AppResult<Unit> {
         // 1. 先更新本地数据库（乐观更新）
-        interactionLocalDataSource.updateFavoriteStatus(videoId, currentUserId, isFavorited = false, isPending = true)
-        Log.d(TAG, "Unfavorite video: videoId=$videoId, userId=$currentUserId (local updated)")
+        interactionLocalDataSource.updateFavoriteStatus(videoId, uid(), isFavorited = false, isPending = true)
+        Log.d(TAG, "Unfavorite video: videoId=$videoId, userId=${uid()} (local updated)")
 
         // 2. 异步同步到远程服务器
         syncScope.launch {
@@ -537,14 +537,14 @@ class VideoRepositoryImpl @Inject constructor(
                     is AppResult.Success -> {
                         Log.d(TAG, "Unfavorite video sync success: videoId=$videoId")
                         // 清除待同步标记
-                        interactionLocalDataSource.clearPendingStatus(videoId, currentUserId)
+                        interactionLocalDataSource.clearPendingStatus(videoId, uid())
                     }
                     is AppResult.Error -> {
                         val errorMessage = result.message ?: result.throwable.message ?: "网络异常"
                         Log.e(TAG, "Unfavorite video sync failed: videoId=$videoId, error: $errorMessage")
                         // 同步失败，回滚本地状态（恢复收藏）
                         try {
-                            interactionLocalDataSource.updateFavoriteStatus(videoId, currentUserId, isFavorited = true, isPending = false)
+                            interactionLocalDataSource.updateFavoriteStatus(videoId, uid(), isFavorited = true, isPending = false)
                             Log.d(TAG, "Unfavorite video local state rolled back: videoId=$videoId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback unfavorite video local state: videoId=$videoId", e)
@@ -561,7 +561,7 @@ class VideoRepositoryImpl @Inject constructor(
                         Log.w(TAG, "Unfavorite video sync unknown result: videoId=$videoId")
                         // 未知结果，也回滚本地状态
                         try {
-                            interactionLocalDataSource.updateFavoriteStatus(videoId, currentUserId, isFavorited = true, isPending = false)
+                            interactionLocalDataSource.updateFavoriteStatus(videoId, uid(), isFavorited = true, isPending = false)
                             Log.d(TAG, "Unfavorite video local state rolled back (unknown result): videoId=$videoId")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to rollback unfavorite video local state: videoId=$videoId", e)
@@ -579,7 +579,7 @@ class VideoRepositoryImpl @Inject constructor(
                 Log.e(TAG, "Unfavorite video sync exception: videoId=$videoId", e)
                 // 异常情况，回滚本地状态
                 try {
-                    interactionLocalDataSource.updateFavoriteStatus(videoId, currentUserId, isFavorited = true, isPending = false)
+                    interactionLocalDataSource.updateFavoriteStatus(videoId, uid(), isFavorited = true, isPending = false)
                     Log.d(TAG, "Unfavorite video local state rolled back (exception): videoId=$videoId")
                 } catch (rollbackException: Exception) {
                     Log.e(TAG, "Failed to rollback unfavorite video local state: videoId=$videoId", rollbackException)
@@ -603,7 +603,7 @@ class VideoRepositoryImpl @Inject constructor(
     }
 
     override suspend fun postComment(videoId: Long, content: String): AppResult<Comment> {
-        val userId = preferencesDataStore.getStringSync("current_user_id") ?: "BEATU"
+        val userId = uid()
         val tempCommentId = "pending_${System.currentTimeMillis()}_${videoId}" // 临时评论ID
         
         // 1. 乐观更新：先保存评论到本地数据库（isPending = true）
@@ -611,7 +611,7 @@ class VideoRepositoryImpl @Inject constructor(
             id = tempCommentId,
             videoId = videoId,
             authorId = userId,
-            authorName = "BEATU", // 临时用户名，同步成功后会更新
+            authorName = currentUserProvider.userName(), // 临时展示名，同步成功后会更新
             authorAvatar = null,
             content = content,
             createdAt = System.currentTimeMillis(),
@@ -689,7 +689,7 @@ class VideoRepositoryImpl @Inject constructor(
             // ✅ 渲染逻辑：数据先取出，再渲染
             // 1. 先从本地数据库读取用户关注的所有作者
             val followeesDeferred = async {
-                database.userFollowDao().observeFollowees(currentUserId).firstOrNull() ?: emptyList()
+                database.userFollowDao().observeFollowees(uid()).firstOrNull() ?: emptyList()
             }
 
             val followees = followeesDeferred.await()
@@ -798,7 +798,7 @@ class VideoRepositoryImpl @Inject constructor(
             try {
                 val watchHistory = WatchHistoryEntity(
                     videoId = videoId,
-                    userId = currentUserId,
+                    userId = uid(),
                     lastPlayPositionMs = positionMs,
                     watchedAt = System.currentTimeMillis(),
                     isPending = true  // 标记为待同步
@@ -806,16 +806,16 @@ class VideoRepositoryImpl @Inject constructor(
 
                 // 打印传输的数据
                 Log.d(TAG, "saveWatchHistory: 准备保存观看历史")
-                Log.d(TAG, "saveWatchHistory: videoId=$videoId, userId=$currentUserId, lastPlayPositionMs=$positionMs, watchedAt=${watchHistory.watchedAt}, isPending=${watchHistory.isPending}")
+                Log.d(TAG, "saveWatchHistory: videoId=$videoId, userId=${uid()}, lastPlayPositionMs=$positionMs, watchedAt=${watchHistory.watchedAt}, isPending=${watchHistory.isPending}")
 
                 // 1. 先保存到本地数据库
                 database.watchHistoryDao().upsert(watchHistory)
-                Log.d(TAG, "保存观看历史到本地: videoId=$videoId, userId=$currentUserId, position=$positionMs")
+                Log.d(TAG, "保存观看历史到本地: videoId=$videoId, userId=${uid()}, position=$positionMs")
 
                 // 2. 异步上传到远程（在 DataSyncService 中处理）
                 // 这里只保存到本地，DataSyncService 会定期同步待同步的观看历史
             } catch (e: Exception) {
-                Log.e(TAG, "保存观看历史失败: videoId=$videoId, userId=$currentUserId", e)
+                Log.e(TAG, "保存观看历史失败: videoId=$videoId, userId=${uid()}", e)
                 // 策略B：不回滚，保留待同步状态，下次启动时继续重试
             }
         }

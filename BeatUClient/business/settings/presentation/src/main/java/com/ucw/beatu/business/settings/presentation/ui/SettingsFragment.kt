@@ -20,15 +20,20 @@ import com.ucw.beatu.business.settings.presentation.databinding.ItemSettingsSwit
 import com.ucw.beatu.business.settings.presentation.viewmodel.SettingField
 import com.ucw.beatu.business.settings.presentation.viewmodel.SettingsEvent
 import com.ucw.beatu.business.settings.presentation.viewmodel.SettingsViewModel
+import com.ucw.beatu.shared.common.auth.AuthLogout
 import com.ucw.beatu.shared.common.threading.launchNamed
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * 设置页面 Fragment（iOS 风格卡片 + DataStore 持久化）
  */
 @AndroidEntryPoint
 class SettingsFragment : Fragment() {
+
+    @Inject
+    lateinit var authLogout: AuthLogout
 
     private val viewModel: SettingsViewModel by activityViewModels()
 
@@ -41,6 +46,7 @@ class SettingsFragment : Fragment() {
     private lateinit var speedBinding: ItemSettingsArrowBinding
     private lateinit var qualityBinding: ItemSettingsArrowBinding
     private lateinit var aboutBinding: ItemSettingsArrowBinding
+    private lateinit var logoutBinding: ItemSettingsArrowBinding
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -91,6 +97,10 @@ class SettingsFragment : Fragment() {
             title.setText(R.string.settings_about)
             arrow.visibility = View.GONE
         }
+        logoutBinding = ItemSettingsArrowBinding.bind(binding.itemLogout.root).apply {
+            icon.setImageResource(R.drawable.ic_settings_about)
+            title.setText(R.string.settings_logout)
+        }
 
         binding.btnBack.setOnClickListener {
             performBackNavigation()
@@ -120,6 +130,10 @@ class SettingsFragment : Fragment() {
         }
         aboutBinding.root.setOnClickListener {
             Snackbar.make(binding.root, "关于信息即将上线", Snackbar.LENGTH_SHORT).show()
+        }
+        logoutBinding.root.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            authLogout.logout()
         }
     }
 

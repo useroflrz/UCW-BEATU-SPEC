@@ -15,6 +15,12 @@ import retrofit2.http.Path
  * 连接后端服务的用户相关API端点定义
  */
 interface UserApiService {
+    /**
+     * 单一接口：无账号则注册；有账号则校验密码。无 JWT，客户端持久化 userId。
+     */
+    @POST("api/auth/login-or-register")
+    suspend fun loginOrRegister(@Body payload: LoginRequestDto): ApiResponse<AuthTokenDto>
+
     @POST("api/auth/login")
     suspend fun login(@Body payload: LoginRequestDto): ApiResponse<AuthTokenDto>
 

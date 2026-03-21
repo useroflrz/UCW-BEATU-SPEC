@@ -7,6 +7,8 @@ import com.ucw.beatu.business.user.domain.model.UserWork
 import com.ucw.beatu.business.user.domain.repository.UserRepository
 import com.ucw.beatu.business.user.domain.repository.UserWorksRepository
 import com.ucw.beatu.shared.common.threading.launchNamed
+import com.ucw.beatu.shared.common.user.CurrentUserDefaults
+import com.ucw.beatu.shared.common.user.CurrentUserProvider
 import com.ucw.beatu.shared.database.dao.VideoDao
 import com.ucw.beatu.shared.database.dao.WatchHistoryDao
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,7 +28,8 @@ class UserProfileViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val userWorksRepository: UserWorksRepository,
     private val videoDao: VideoDao,
-    private val watchHistoryDao: WatchHistoryDao
+    private val watchHistoryDao: WatchHistoryDao,
+    private val currentUserProvider: CurrentUserProvider
 ) : ViewModel() {
 
     private val _user = MutableStateFlow<User?>(null)
@@ -85,20 +88,21 @@ class UserProfileViewModel @Inject constructor(
         
         // 使用用户的ID加载作品
         viewModelScope.launchNamed("user", "UserProfileViewModel_launch") {
-            switchTab(TabType.WORKS, authorId = id, currentUserId = "BEATU")
+            switchTab(TabType.WORKS, authorId = id, currentUserId = currentUserProvider.userId())
         }
     }
 
     /**
      * 加载用户信息（使用用户名或用户ID）
-     * 如果 userName 是 "BEATU"，则通过用户ID查询；否则通过用户名查询
+     * 若参数为种子用户 id（BEATU）或当前登录用户 id，则按用户 ID 查询；否则按用户名查询
      */
     fun loadUser(userName: String) {
         viewModelScope.launchNamed("user", "UserProfileViewModel_launch") {
             _isLoading.value = true
             try {
-                // 如果 userName 是 "BEATU"，则通过用户ID查询
-                val isUserId = userName == "BEATU"
+                val isUserId =
+                    userName == CurrentUserDefaults.DEFAULT_USER_ID ||
+                        userName == currentUserProvider.userId()
                 
                 if (isUserId) {
                     // 通过用户ID查询

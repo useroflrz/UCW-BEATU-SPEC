@@ -20,6 +20,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.ucw.beatu.business.search.presentation.R
 import com.ucw.beatu.business.search.presentation.ui.widget.FlowLayout
+import com.ucw.beatu.shared.common.user.CurrentUserProvider
 import com.ucw.beatu.shared.common.navigation.NavigationHelper
 import com.ucw.beatu.shared.common.navigation.NavigationIds
 import com.ucw.beatu.shared.common.navigation.VideoShareDeepLink
@@ -45,6 +46,9 @@ class SearchFragment : Fragment() {
 
     @Inject
     lateinit var database: BeatUDatabase
+
+    @Inject
+    lateinit var currentUserProvider: CurrentUserProvider
     
     private lateinit var searchHistoryDao: SearchHistoryDao
     
@@ -60,8 +64,7 @@ class SearchFragment : Fragment() {
     
     private lateinit var searchSuggestionAdapter: SearchSuggestionAdapter
 
-    // ✅ 当前用户ID，根据需求文档，userId "BEATU" 对应的 userName 也是 "BEATU"
-    private val currentUserId: String = "BEATU"
+    private fun currentUserId(): String = currentUserProvider.userId()
 
     // 搜索状态
     private enum class SearchState {
@@ -337,7 +340,7 @@ class SearchFragment : Fragment() {
     private fun initSearchHistory() {
         // 观察搜索历史变化
         lifecycleScope.launch {
-            searchHistoryDao.observeSearchHistory(currentUserId).collect { historyList ->
+            searchHistoryDao.observeSearchHistory(currentUserId()).collect { historyList ->
                 updateSearchHistoryUI(historyList)
             }
         }
@@ -380,14 +383,14 @@ class SearchFragment : Fragment() {
             try {
                 val history = SearchHistoryEntity(
                     query = query.trim(),
-                    userId = currentUserId,
+                    userId = currentUserId(),
                     createdAt = System.currentTimeMillis()
                 )
                 searchHistoryDao.insert(history)
                 // 删除超出限制的旧记录（保留最新的 5 条，LRU 策略）
                 // LRU 策略：删除超出限制的旧记录（保留最新的 5 条）
-                while (searchHistoryDao.getHistoryCount(currentUserId) > 5) {
-                    searchHistoryDao.deleteOldestRecord(currentUserId)
+                while (searchHistoryDao.getHistoryCount(currentUserId()) > 5) {
+                    searchHistoryDao.deleteOldestRecord(currentUserId())
                 }
             } catch (e: Exception) {
                 // 静默失败，不影响搜索功能
@@ -402,7 +405,7 @@ class SearchFragment : Fragment() {
     private fun clearSearchHistory() {
         lifecycleScope.launch {
             try {
-                searchHistoryDao.deleteByUserId(currentUserId)
+                searchHistoryDao.deleteByUserId(currentUserId())
             } catch (e: Exception) {
                 android.util.Log.e("SearchFragment", "清空搜索历史失败", e)
             }

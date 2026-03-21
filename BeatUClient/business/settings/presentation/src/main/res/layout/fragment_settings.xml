@@ -189,5 +189,33 @@
                 android:id="@+id/item_about"
                 layout="@layout/item_settings_arrow" />
         </androidx.cardview.widget.CardView>
+
+        <TextView
+            android:id="@+id/group_account_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="16dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="8dp"
+            android:text="账号"
+            android:textColor="@color/settings_text_secondary"
+            android:textSize="14sp" />
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="@color/settings_card_bg"
+            app:cardCornerRadius="12dp"
+            app:cardUseCompatPadding="false"
+            app:cardElevation="0dp">
+
+            <include
+                android:id="@+id/item_logout"
+                layout="@layout/item_settings_arrow" />
+        </androidx.cardview.widget.CardView>
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

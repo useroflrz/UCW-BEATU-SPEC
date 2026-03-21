@@ -14,6 +14,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
+import com.ucw.beatu.auth.AuthSessionStore
 import javax.inject.Inject
 
 /**
@@ -22,6 +23,9 @@ import javax.inject.Inject
  */
 @HiltAndroidApp
 class BeatUApp : Application() {
+
+    @Inject
+    lateinit var authSessionStore: AuthSessionStore
 
     companion object {
         private const val TAG = "BeatUApp"
@@ -53,7 +57,8 @@ class BeatUApp : Application() {
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "onCreate: Application started")
-        
+        authSessionStore.loadToMemory()
+
         try {
             // 初始化逻辑可以在这里添加
             // 例如：初始化日志、性能监控、崩溃收集等
