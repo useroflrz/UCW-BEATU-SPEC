@@ -33,6 +33,8 @@ hiltNavigation = "1.2.0"
 
 # 图片加载
 coil = "2.7.0"
+markwon = "4.6.2"
+prism4j = "2.0.0"
 
 # 协程
 coroutines = "1.9.0"
@@ -101,6 +103,11 @@ hilt-navigation-fragment = { group = "androidx.hilt", name = "hilt-navigation-fr
 
 # Coil
 coil = { group = "io.coil-kt", name = "coil", version.ref = "coil" }
+markwon-core = { group = "io.noties.markwon", name = "core", version.ref = "markwon" }
+markwon-linkify = { group = "io.noties.markwon", name = "linkify", version.ref = "markwon" }
+markwon-syntax-highlight = { group = "io.noties.markwon", name = "syntax-highlight", version.ref = "markwon" }
+prism4j-runtime = { group = "io.noties", name = "prism4j", version.ref = "prism4j" }
+prism4j-bundler = { group = "io.noties", name = "prism4j-bundler", version.ref = "prism4j" }
 
 # Coroutines
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }

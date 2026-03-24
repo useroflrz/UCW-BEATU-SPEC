@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -35,6 +36,8 @@ class AISearchApiService @Inject constructor(
     
     private val requestAdapter = moshi.adapter(AISearchRequest::class.java)
     private val chunkAdapter = moshi.adapter(AISearchStreamChunk::class.java)
+    @Volatile
+    private var activeCall: Call? = null
     
     /**
      * 执行 AI 搜索（流式）
@@ -59,7 +62,10 @@ class AISearchApiService @Inject constructor(
             .addHeader("Cache-Control", "no-cache")
             .build()
         
-        okHttpClient.newCall(request).execute().use { response ->
+        val call = okHttpClient.newCall(request)
+        activeCall?.cancel()
+        activeCall = call
+        call.execute().use { response ->
             if (!response.isSuccessful) {
                 // ✅ 统一错误消息：AI搜索不可用
                 val errorMessage = "AI 搜索不可用"
@@ -117,5 +123,9 @@ class AISearchApiService @Inject constructor(
             )
         )
     }.flowOn(Dispatchers.IO)
+
+    fun stopCurrentStream() {
+        activeCall?.cancel()
+    }
 }
 

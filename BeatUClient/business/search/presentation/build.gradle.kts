@@ -77,5 +77,13 @@ dependencies {
     
     // Coil for image loading
     implementation(libs.coil)
+
+    // Markdown rendering
+    implementation(libs.markwon.core)
+    implementation(libs.markwon.linkify)
+    implementation(libs.markwon.syntax.highlight)
+    implementation(libs.prism4j.runtime)
+    compileOnly(libs.prism4j.bundler)
+    kapt(libs.prism4j.bundler)
 }
 

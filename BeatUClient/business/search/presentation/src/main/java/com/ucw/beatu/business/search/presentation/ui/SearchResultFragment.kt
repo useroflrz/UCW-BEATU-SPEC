@@ -3,7 +3,6 @@ package com.ucw.beatu.business.search.presentation.ui
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.text.method.LinkMovementMethod
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -12,6 +11,7 @@ import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import android.widget.ProgressBar
 import androidx.core.os.bundleOf
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -22,7 +22,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import android.widget.ProgressBar
 import com.ucw.beatu.business.search.presentation.R
 import com.ucw.beatu.business.search.presentation.ui.richtext.AiAnswerAstRenderer
 import com.ucw.beatu.business.search.presentation.viewmodel.AISearchViewModel
@@ -34,7 +33,6 @@ import com.ucw.beatu.shared.common.model.VideoItem
 import com.ucw.beatu.shared.common.threading.launchNamed
 import coil.load
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.launch
 
 /**
  * 常规搜索结果页面
@@ -51,16 +49,16 @@ class SearchResultFragment : Fragment() {
     private val aiSearchViewModel: AISearchViewModel by viewModels()
 
     private lateinit var resultAdapter: SearchResultListAdapter
+    private var currentVideoItems: List<VideoItem> = emptyList()
     private var currentQuery: String = ""
     
     // AI搜索相关UI
     private lateinit var aiSearchContainer: View
-    private lateinit var aiAnswerText: TextView
+    private lateinit var aiAnswerBlockList: RecyclerView
     private lateinit var aiLoadingProgress: ProgressBar
     private lateinit var aiErrorText: TextView
-    private var lastAppliedAiKeyword: String? = null
-    private val keywordSectionHeadingRegex = Regex("^#{1,6}\\s*关键词\\s*$")
-    private val keywordLineRegex = Regex("^(?:[-*•]\\s*)?\\*\\*[^*]{1,30}\\*\\*\\s*$")
+    private lateinit var aiBlockAdapter: AiAnswerBlockAdapter
+    private var lastRenderSessionId: Long = 0L
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -81,7 +79,7 @@ class SearchResultFragment : Fragment() {
         viewModel.initSearch(currentQuery, titleKeyword = "")
         // 触发AI搜索
         if (currentQuery.isNotEmpty()) {
-            aiSearchViewModel.search(currentQuery)
+            aiSearchViewModel.restartSearch(currentQuery)
         }
     }
 
@@ -131,18 +129,28 @@ class SearchResultFragment : Fragment() {
 
     private fun setupAISearchResult(view: View) {
         aiSearchContainer = view.findViewById(R.id.ai_search_result_container)
-        aiAnswerText = view.findViewById(R.id.tv_ai_answer)
+        aiAnswerBlockList = view.findViewById(R.id.rv_ai_answer_blocks)
         aiLoadingProgress = view.findViewById(R.id.pb_ai_loading)
         aiErrorText = view.findViewById(R.id.tv_ai_error)
-        aiAnswerText.movementMethod = LinkMovementMethod.getInstance()
-        aiAnswerText.highlightColor = android.graphics.Color.TRANSPARENT
+        aiAnswerBlockList.layoutManager = LinearLayoutManager(requireContext())
+        aiBlockAdapter = AiAnswerBlockAdapter(
+            onKeywordClick = { keyword ->
+                val input = searchEditText.text?.toString()?.trim().orEmpty()
+                if (keyword.equals(input, ignoreCase = true)) return@AiAnswerBlockAdapter
+                searchEditText.setText(keyword)
+                searchEditText.setSelection(keyword.length)
+                triggerSearch(keyword)
+            }
+        )
+        aiAnswerBlockList.adapter = aiBlockAdapter
     }
 
     private fun setupResultList(view: View) {
         val rvResults = view.findViewById<RecyclerView>(R.id.rv_search_result_list)
         rvResults.layoutManager = LinearLayoutManager(requireContext())
-        resultAdapter = SearchResultListAdapter { item ->
-            navigateToVideoViewer(currentQuery, item.title)
+        rvResults.isNestedScrollingEnabled = false
+        resultAdapter = SearchResultListAdapter { index ->
+            navigateToVideoViewer(index)
         }
         rvResults.adapter = resultAdapter
     }
@@ -150,21 +158,20 @@ class SearchResultFragment : Fragment() {
     private fun triggerSearch(query: String) {
         if (query.isBlank()) return
         currentQuery = query
-        lastAppliedAiKeyword = null
+        // 先清空旧视频，避免“旧列表仍显示但状态已切换”导致点击错位。
+        resultAdapter.submitList(emptyList())
         viewModel.initSearch(query, titleKeyword = "")
         // 触发AI搜索
-        aiSearchViewModel.search(query)
+        aiSearchViewModel.restartSearch(query)
     }
 
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launchNamed("search", "SearchResultFragment_launch") {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.uiState.collect { state ->
-                    if (state.videoList.isNotEmpty()) {
-                        val uiModels = state.videoList.map { it.toUiModel() }
-                        resultAdapter.submitList(uiModels)
-                    }
-                    // 省略 loading/error 展示，后续可扩展
+                    currentVideoItems = state.videoList
+                    val uiModels = state.videoList.map { it.toUiModel() }
+                    resultAdapter.submitList(uiModels)
                 }
             }
         }
@@ -183,50 +190,46 @@ class SearchResultFragment : Fragment() {
     private var lastErrorShown: String? = null // 记录上次显示的错误，避免重复提示
     
     private fun updateAISearchUI(state: AISearchUiState) {
-        applyAiKeywordToSearchResults(state)
+        if (state.renderSessionId != lastRenderSessionId) {
+            lastRenderSessionId = state.renderSessionId
+            aiBlockAdapter.clear()
+            AiAnswerAstRenderer.reset()
+        }
         when {
             state.isLoading -> {
                 // 显示加载状态
                 aiSearchContainer.isVisible = true
                 aiLoadingProgress.isVisible = true
-                aiAnswerText.isVisible = false
+                aiAnswerBlockList.isVisible = false
                 aiErrorText.isVisible = false
                 lastErrorShown = null // 重置错误记录
             }
             state.error != null -> {
+                val errorText = state.error ?: "AI 搜索不可用"
                 // 显示错误
                 aiSearchContainer.isVisible = true
                 aiLoadingProgress.isVisible = false
-                aiAnswerText.isVisible = false
+                aiAnswerBlockList.isVisible = false
                 aiErrorText.isVisible = true
-                aiErrorText.text = state.error
+                aiErrorText.text = errorText
                 
                 // ✅ 当 AI 搜索功能不可用时，显示 Toast 提醒用户
-                if (state.error != lastErrorShown) {
-                    lastErrorShown = state.error
+                if (errorText != lastErrorShown) {
+                    lastErrorShown = errorText
                     Toast.makeText(
                         requireContext(),
-                        state.error,
+                        errorText,
                         Toast.LENGTH_LONG
                     ).show()
                 }
             }
-            state.aiAnswer.isNotEmpty() -> {
+            state.blocks.isNotEmpty() -> {
                 // 显示AI回答（流式文本）
                 aiSearchContainer.isVisible = true
                 aiLoadingProgress.isVisible = false
-                aiAnswerText.isVisible = true
+                aiAnswerBlockList.isVisible = true
                 aiErrorText.isVisible = false
-                val displayAnswer = sanitizeAiAnswerForDisplay(state.aiAnswer)
-                aiAnswerText.text = AiAnswerAstRenderer.render(
-                    answer = displayAnswer,
-                    keywords = state.keywords,
-                    onKeywordClick = { keyword ->
-                        searchEditText.setText(keyword)
-                        searchEditText.setSelection(keyword.length)
-                        triggerSearch(keyword)
-                    }
-                )
+                aiBlockAdapter.submitBlocks(state.blocks, state.keywords)
                 lastErrorShown = null // 重置错误记录
             }
             else -> {
@@ -235,44 +238,6 @@ class SearchResultFragment : Fragment() {
                 lastErrorShown = null // 重置错误记录
             }
         }
-    }
-
-    private fun applyAiKeywordToSearchResults(state: AISearchUiState) {
-        val keyword = state.keywords.firstOrNull()?.trim().orEmpty()
-        if (keyword.isBlank()) return
-        if (keyword.equals(lastAppliedAiKeyword, ignoreCase = true)) return
-        lastAppliedAiKeyword = keyword
-
-        // 当 AI 首次给出关键词时，用它驱动搜索结果列表收敛，形成可消费的视频列表。
-        viewModel.initSearch(currentQuery, titleKeyword = keyword)
-    }
-
-    /**
-     * 隐藏 AI 回答中的“关键词列举”段落，仅保留正文内容展示。
-     * 点击关键词搜索能力仍通过 state.keywords + 富文本点击回调保留。
-     */
-    private fun sanitizeAiAnswerForDisplay(answer: String): String {
-        if (answer.isBlank()) return answer
-        val lines = answer.replace("\r\n", "\n").split('\n')
-        val output = mutableListOf<String>()
-        var inKeywordSection = false
-
-        for (rawLine in lines) {
-            val line = rawLine.trim()
-            if (!inKeywordSection && keywordSectionHeadingRegex.matches(line)) {
-                inKeywordSection = true
-                continue
-            }
-            if (inKeywordSection) {
-                if (line.isEmpty() || keywordLineRegex.matches(line)) {
-                    continue
-                }
-                inKeywordSection = false
-            }
-            output += rawLine
-        }
-
-        return output.joinToString("\n").trimEnd()
     }
 
     data class SearchResultUiModel(
@@ -292,7 +257,7 @@ class SearchResultFragment : Fragment() {
     }
 
     private class SearchResultListAdapter(
-        private val onClick: (SearchResultUiModel) -> Unit
+        private val onClick: (Int) -> Unit
     ) : RecyclerView.Adapter<SearchResultListAdapter.ResultViewHolder>() {
 
         private var items: List<SearchResultUiModel> = emptyList()
@@ -316,7 +281,7 @@ class SearchResultFragment : Fragment() {
 
         inner class ResultViewHolder(
             itemView: View,
-            private val onClick: (SearchResultUiModel) -> Unit
+            private val onClick: (Int) -> Unit
         ) : RecyclerView.ViewHolder(itemView) {
             private val thumbnail: android.widget.ImageView = itemView.findViewById(R.id.iv_thumbnail)
             private val title: TextView = itemView.findViewById(R.id.tv_title)
@@ -326,7 +291,7 @@ class SearchResultFragment : Fragment() {
             init {
                 itemView.setOnClickListener {
                     if (bindingAdapterPosition != RecyclerView.NO_POSITION) {
-                        onClick(items[bindingAdapterPosition])
+                        onClick(bindingAdapterPosition)
                     }
                 }
             }
@@ -363,13 +328,11 @@ class SearchResultFragment : Fragment() {
      * 跳转到用户作品播放器（复用个人主页组件）
      * 使用搜索结果过滤后的视频列表作为播放源
      */
-    private fun navigateToVideoViewer(searchQuery: String, resultTitle: String) {
-        val videos = viewModel.uiState.value.videoList
+    private fun navigateToVideoViewer(clickedIndex: Int) {
+        val videos = currentVideoItems
         if (videos.isEmpty()) return
 
-        val targetIndex = videos.indexOfFirst { it.title == resultTitle }.let {
-            if (it >= 0) it else 0
-        }
+        val targetIndex = clickedIndex.coerceIn(0, videos.lastIndex)
 
         // 搜索来源：用目标视频作者作为 userId（若为空则回退作者名，再不行用空字符串）
         val targetVideo = videos.getOrNull(targetIndex)
@@ -387,7 +350,7 @@ class SearchResultFragment : Fragment() {
             "user_id" to userId,
             "initial_index" to targetIndex,
             "video_list" to ArrayList(videos),
-            "search_title" to "“$searchQuery” 的搜索结果",
+            "search_title" to "“$currentQuery” 的搜索结果",
             "source_tab" to "search",
             "source_destination" to currentDestinationId // ✅ 修复：传递来源页面 ID
         )

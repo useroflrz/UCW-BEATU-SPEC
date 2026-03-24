@@ -58,6 +58,10 @@ class AISearchRepositoryImpl @Inject constructor(
                 }
             }
     }
+
+    override fun stopCurrentStream() {
+        apiService.stopCurrentStream()
+    }
     
     /**
      * 根据视频ID列表从远程获取视频详情并保存到本地数据库

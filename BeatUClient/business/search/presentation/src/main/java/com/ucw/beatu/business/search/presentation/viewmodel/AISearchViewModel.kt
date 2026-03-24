@@ -3,27 +3,35 @@ package com.ucw.beatu.business.search.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ucw.beatu.business.search.domain.repository.AISearchRepository
-import com.ucw.beatu.shared.common.threading.launchInNamed
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+data class AiAnswerBlock(
+    val index: Int,
+    val markdown: String
+)
 
 /**
  * AI 搜索 UI 状态
  */
 data class AISearchUiState(
     val aiAnswer: String = "",
+    val blocks: List<AiAnswerBlock> = emptyList(),
     val keywords: List<String> = emptyList(),
     val videoIds: List<Long> = emptyList(),  // ✅ 修改：从 List<String> 改为 List<Long>
     val localVideoIds: List<Long> = emptyList(),  // ✅ 修改：从 List<String> 改为 List<Long>
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val renderSessionId: Long = 0L
 )
 
 /**
@@ -47,64 +55,140 @@ class AISearchViewModel @Inject constructor(
     val uiState: StateFlow<AISearchUiState> = _uiState.asStateFlow()
     
     private var searchJob: Job? = null
+    private var sessionId: Long = 0L
+    private var lastQuery: String = ""
     
     /**
      * 执行搜索
      */
     fun search(userQuery: String) {
-        // 取消之前的搜索
-        searchJob?.cancel()
-        
-        // 重置状态
-        _uiState.value = AISearchUiState(
-            isLoading = true,
-            error = null
-        )
-        
-        // 开始新的搜索
-        searchJob = repository.searchStream(userQuery)
-            .onEach { result ->
-                // 累积更新状态
-                _uiState.update { currentState ->
-                    val nextAnswer = if (result.aiAnswer.isNotEmpty()) {
-                        // 流式累积 AI 回答
-                        currentState.aiAnswer + result.aiAnswer
-                    } else {
-                        currentState.aiAnswer
-                    }
-                    val parsedKeywords = extractKeywordsFromMarkdown(nextAnswer)
-                    currentState.copy(
-                        aiAnswer = nextAnswer,
-                        keywords = parsedKeywords,
-                        videoIds = result.videoIds.ifEmpty { currentState.videoIds },
-                        localVideoIds = result.localVideoIds.ifEmpty { currentState.localVideoIds },
-                        isLoading = false,
-                        error = result.error ?: currentState.error
-                    )
-                }
-            }
-            .catch { e ->
-                // ✅ 统一错误消息：AI搜索不可用
-                val errorMessage = "AI 搜索不可用"
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = errorMessage
-                )
-            }
-            .launchInNamed(viewModelScope, "search", "AISearchViewModel_launchIn")
+        restartSearch(userQuery)
+    }
+
+    /**
+     * 按四步重启搜索：停旧流 -> 清空 -> 重置会话 -> 启动新流
+     */
+    fun restartSearch(userQuery: String) {
+        val query = userQuery.trim()
+        if (query.isBlank()) return
+        viewModelScope.launch {
+            stopSearchInternal()
+            sessionId += 1L
+            lastQuery = query
+            _uiState.value = AISearchUiState(
+                isLoading = true,
+                error = null,
+                renderSessionId = sessionId
+            )
+            startSearch(query, sessionId)
+        }
+    }
+
+    fun retryLastSearch() {
+        if (lastQuery.isNotBlank()) {
+            restartSearch(lastQuery)
+        }
     }
     
     /**
      * 清除搜索结果
      */
     fun clear() {
-        searchJob?.cancel()
-        _uiState.value = AISearchUiState()
+        viewModelScope.launch {
+            stopSearchInternal()
+            sessionId += 1L
+            _uiState.value = AISearchUiState(renderSessionId = sessionId)
+        }
     }
     
     override fun onCleared() {
         super.onCleared()
+        repository.stopCurrentStream()
         searchJob?.cancel()
+    }
+
+    private fun startSearch(query: String, currentSessionId: Long) {
+        var answerBuffer = ""
+        // 增量切块：只维护已完成的块 + 当前尾段，避免每次 SSE 对全文 split
+        val completedBlocks = mutableListOf<String>()
+        val tailBuffer = StringBuilder()
+        searchJob = repository.searchStream(query)
+            .onEach { result ->
+                if (currentSessionId != sessionId) return@onEach
+                answerBuffer += result.aiAnswer
+                appendAndFlushBlocks(
+                    delta = result.aiAnswer.replace("\r\n", "\n"),
+                    completedBlocks = completedBlocks,
+                    tailBuffer = tailBuffer
+                )
+                val parsedKeywords = extractKeywordsFromMarkdown(answerBuffer)
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        aiAnswer = answerBuffer,
+                        blocks = buildBlocksFromIncremental(completedBlocks, tailBuffer),
+                        keywords = if (result.keywords.isNotEmpty()) result.keywords else parsedKeywords,
+                        videoIds = result.videoIds.ifEmpty { currentState.videoIds },
+                        localVideoIds = result.localVideoIds.ifEmpty { currentState.localVideoIds },
+                        isLoading = false,
+                        error = result.error ?: currentState.error,
+                        renderSessionId = currentSessionId
+                    )
+                }
+            }
+            .catch {
+                if (currentSessionId != sessionId) return@catch
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "AI 搜索不可用",
+                        renderSessionId = currentSessionId
+                    )
+                }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    /**
+     * 将新片段追加到尾缓冲，并按 `\n\n` 切出已完成段落（增量，不全量重切全文）。
+     * 在 [StringBuilder] 上原地 [indexOf]/[delete]，避免循环内对整段尾串反复 toString。
+     */
+    private fun appendAndFlushBlocks(
+        delta: String,
+        completedBlocks: MutableList<String>,
+        tailBuffer: StringBuilder
+    ) {
+        if (delta.isEmpty()) return
+        tailBuffer.append(delta)
+        while (true) {
+            val idx = tailBuffer.indexOf("\n\n")
+            if (idx < 0) break
+            val segment = tailBuffer.substring(0, idx)
+            if (segment.isNotBlank()) {
+                completedBlocks.add(segment)
+            }
+            tailBuffer.delete(0, idx + 2)
+        }
+    }
+
+    private fun buildBlocksFromIncremental(
+        completedBlocks: List<String>,
+        tailBuffer: StringBuilder
+    ): List<AiAnswerBlock> {
+        val tail = tailBuffer.toString()
+        return buildList {
+            completedBlocks.forEachIndexed { index, markdown ->
+                add(AiAnswerBlock(index = index, markdown = markdown))
+            }
+            if (tail.isNotBlank()) {
+                add(AiAnswerBlock(index = completedBlocks.size, markdown = tail))
+            }
+        }
+    }
+
+    private suspend fun stopSearchInternal() {
+        repository.stopCurrentStream()
+        searchJob?.cancelAndJoin()
+        searchJob = null
     }
 
     private fun extractKeywordsFromMarkdown(text: String): List<String> {

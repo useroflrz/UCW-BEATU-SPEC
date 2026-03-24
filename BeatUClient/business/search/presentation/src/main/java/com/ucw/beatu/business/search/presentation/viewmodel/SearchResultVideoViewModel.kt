@@ -9,6 +9,7 @@ import com.ucw.beatu.shared.common.model.VideoItem
 import com.ucw.beatu.shared.common.result.AppResult
 import com.ucw.beatu.shared.common.threading.launchNamed
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,6 +40,7 @@ class SearchResultVideoViewModel @Inject constructor(
     private val pageSize = 20
     private var isLoadingMore = false
     private var loadMoreJob: Job? = null
+    private var activeSearchJob: Job? = null
     private var searchQuery: String = ""
     private var titleKeyword: String = ""
 
@@ -46,9 +48,19 @@ class SearchResultVideoViewModel @Inject constructor(
      * 初始化搜索，调用后端接口搜索视频
      */
     fun initSearch(query: String, titleKeyword: String) {
+        // 新关键词触发时，必须先取消旧请求，避免被 isLoadingMore 拦截导致结果不更新。
+        activeSearchJob?.cancel()
+        loadMoreJob?.cancel()
+        isLoadingMore = false
         searchQuery = query
         this.titleKeyword = titleKeyword
         currentPage = 1
+        _uiState.value = _uiState.value.copy(
+            videoList = emptyList(),
+            isLoading = true,
+            error = null,
+            hasLoadedAllFromBackend = false
+        )
         loadVideoList()
     }
 
@@ -59,7 +71,7 @@ class SearchResultVideoViewModel @Inject constructor(
         if (isLoadingMore) return
         isLoadingMore = true
 
-        viewModelScope.launchNamed("search", "SearchResultVideoViewModel_launch") {
+        activeSearchJob = viewModelScope.launchNamed("search", "SearchResultVideoViewModel_launch") {
             _uiState.value = _uiState.value.copy(error = null)
 
             // 确定搜索关键词：优先使用titleKeyword，如果没有则使用searchQuery
@@ -78,11 +90,11 @@ class SearchResultVideoViewModel @Inject constructor(
             // 调用后端搜索接口（会自动保存到数据库）
             searchRepository.searchVideos(query, currentPage, pageSize)
                 .catch { e ->
+                    if (e is CancellationException) throw e
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         error = e.message ?: "搜索失败"
                     )
-                    isLoadingMore = false
                 }
                 .collect { result ->
                     when (result) {
@@ -96,13 +108,8 @@ class SearchResultVideoViewModel @Inject constructor(
                             // 直接使用后端返回的结果更新UI
                             val videoItems = result.data.map { it.toVideoItem() }
                             
-                            // 如果同时提供了searchQuery和titleKeyword，需要进一步过滤
-                            val filteredVideos = if (searchQuery.isNotBlank() && titleKeyword.isNotBlank() && query == titleKeyword) {
-                                // 如果query是titleKeyword，还需要检查是否包含searchQuery
-                                videoItems.filter { it.title.contains(searchQuery, ignoreCase = true) }
-                            } else {
-                                videoItems
-                            }
+                            // 关键词搜索直接使用后端返回结果，避免二次过滤把有效结果清空。
+                            val filteredVideos = videoItems
                             
                             val currentList = if (currentPage == 1) {
                                 filteredVideos
@@ -116,7 +123,6 @@ class SearchResultVideoViewModel @Inject constructor(
                                 isLoading = false,
                                 hasLoadedAllFromBackend = hasLoadedAll
                             )
-                            isLoadingMore = false
                         }
                         is AppResult.Error -> {
                             // 后端失败，尝试从本地数据库读取
@@ -126,10 +132,13 @@ class SearchResultVideoViewModel @Inject constructor(
                                 isLoading = false,
                                 error = result.message ?: "搜索失败"
                             )
-                            isLoadingMore = false
                         }
                     }
                 }
+        }.also { job ->
+            job.invokeOnCompletion {
+                isLoadingMore = false
+            }
         }
     }
 
@@ -140,13 +149,7 @@ class SearchResultVideoViewModel @Inject constructor(
         val videos = searchRepository.observeSearchResults(query).firstOrNull() ?: emptyList()
         val videoItems = videos.map { it.toVideoItem() }
         
-        // 如果同时提供了searchQuery和titleKeyword，需要进一步过滤
-        val filteredVideos = if (searchQuery.isNotBlank() && titleKeyword.isNotBlank() && query == titleKeyword) {
-            // 如果query是titleKeyword，还需要检查是否包含searchQuery
-            videoItems.filter { it.title.contains(searchQuery, ignoreCase = true) }
-        } else {
-            videoItems
-        }
+        val filteredVideos = videoItems
         
         val currentList = if (currentPage == 1) {
             filteredVideos

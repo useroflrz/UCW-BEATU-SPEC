@@ -16,72 +16,81 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- AI搜索结果展示区域 -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/ai_search_result_container"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingTop="12dp"
-        android:paddingBottom="12dp"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/search_header"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <!-- AI回答文本 -->
-        <TextView
-            android:id="@+id/tv_ai_answer"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:textColor="#FFFFFFFF"
-            android:textSize="15sp"
-            android:lineSpacingExtra="4dp"
-            android:visibility="gone"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-        <!-- 加载指示器 -->
-        <ProgressBar
-            android:id="@+id/pb_ai_loading"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-        <!-- 错误信息 -->
-        <TextView
-            android:id="@+id/tv_ai_error"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:textColor="#FFFF0000"
-            android:textSize="14sp"
-            android:visibility="gone"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <!-- 搜索结果列表 -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_search_result_list"
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/content_scroll_container"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="16dp"
-        app:layout_constraintTop_toBottomOf="@id/ai_search_result_container"
+        android:fillViewport="true"
+        app:layout_constraintTop_toBottomOf="@id/search_header"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        tools:listitem="@layout/item_search_result" />
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- AI搜索结果展示区域 -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/ai_search_result_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:visibility="gone">
+
+                <!-- AI回答块列表：只更新变化块，避免整段 setText -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_ai_answer_blocks"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:maxHeight="220dp"
+                    android:overScrollMode="ifContentScrolls"
+                    android:visibility="gone"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
+                <!-- 加载指示器 -->
+                <ProgressBar
+                    android:id="@+id/pb_ai_loading"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
+                <!-- 错误信息 -->
+                <TextView
+                    android:id="@+id/tv_ai_error"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:textColor="#FFFF0000"
+                    android:textSize="14sp"
+                    android:visibility="gone"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- 搜索结果列表 -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_search_result_list"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="16dp"
+                tools:listitem="@layout/item_search_result" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
 
 

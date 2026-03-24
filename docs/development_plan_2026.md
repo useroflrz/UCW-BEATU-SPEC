@@ -23,6 +23,10 @@
   - 范围：`UserProfileFragment`（`newInstance` 未传参时不再写死用户名；关注/Tab/只读观察用 `currentUserProvider.userId()`）、`UserProfileNavigationHelper`（`currentViewerUserId` + `onUserWorkClicked`）、`NetworkLoggingInterceptor`（`/api/users` 调试日志按当前会话 `id` 切片）；此前已接：`VideoRepositoryImpl`、`UserWorksLocalDataSource`、`SearchFragment`、`AppStartupDataLoader`、`DataSyncService`、`UserProfileViewModel`  
   - 保留：`CurrentUserDefaults`（无会话兜底）、种子数据 `init_database.sql` 中的 `BEATU`、后端 `default_user_id` 配置  
 
+- [x] AI 搜索：`sessionId` 单流隔离 + 块流组装 + 块级局部渲染  
+  - 2026-03-23 - done by AI  
+  - 范围：`AISearchViewModel` 引入 `renderSessionId` 与 `restartSearch(停旧流/清空/重置/新流)`，将 SSE 文本组装为 `blocks`（增量切块：`completedBlocks` + `tailBuffer` 按 `\n\n` 扫描，避免每次对全文 `split`）；`SearchResultFragment` 改为 `RecyclerView` 块列表局部更新，并将 AI 块适配器独立为 `AiAnswerBlockAdapter(ListAdapter + DiffUtil)`；`AiAnswerAstRenderer` 改为单块 markdown 渲染；关键词点击仅作用当前块并触发重搜四步流程；`AISearchRepository`/`AISearchApiService` 增加 `stopCurrentStream`。  
+
 3.25，3.26实现：
 
 前端实现管理员/用户的登录注册页面与功能
